@@ -66,7 +66,7 @@ const RatingPopup = ({
 
           {/* Header */}
           <div className="mb-6 text-center">
-            <span className="inline-block rounded-full border  border-supply-teal/30 bg-supply-teal/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white mb-3">
+            <span className="inline-block rounded-full border  border-supply-teal/30 bg-slate-800/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white mb-3">
               Order Delivered ✓
             </span>
             <h2 className="text-xl font-semibold text-white">Rate your experience</h2>
