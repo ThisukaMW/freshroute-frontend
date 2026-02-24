@@ -75,9 +75,9 @@ const SignInPage = (): JSX.Element => {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <label className="font-medium text-slate-200">Password</label>
-                    <button type="button" className="text-emerald-400 hover:text-emerald-300">
+                    <Link to="/forgot-password" className="text-emerald-400 hover:text-emerald-300">
                       Forgot password?
-                    </button>
+                    </Link>
                   </div>
                   <input
                     type="password"
