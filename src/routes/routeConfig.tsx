@@ -77,6 +77,10 @@ import ProductsPage from "../pages/seller/ProductsPage.tsx";
 import AddProductPage from "../pages/seller/AddProductPage.tsx";
 import EditProductPage from "../pages/seller/EditProductPage.tsx";
 import InventoryPage from "../pages/seller/InventoryPage";
+import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
+import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
+import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
+import NotFoundPage from "../pages/common/NotFoundPage.tsx";
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -93,6 +97,8 @@ export const routeConfig: {
   public: RouteConfig[];
   protected: ProtectedRouteConfig[];
   fallback: ReactElement;
+  error?: ReactElement;
+  unauthorized?: ReactElement;
 } = {
   public: [
     {
@@ -110,6 +116,10 @@ export const routeConfig: {
     {
       path: "/signup/vendor",
       element: <SignUpVendorPage />,
+    },
+    {
+      path: "/products",
+      element: <DefaultBrowsePage />,
     },
     {
       path: "/signin",
@@ -513,5 +523,7 @@ export const routeConfig: {
   // error: <ServerErrorPage />,
   // unauthorized: <UnauthorizedPage />,
   ],
-  fallback: <Navigate to="/" replace />,
+  fallback: <NotFoundPage />,
+  error: <ServerErrorPage />,
+  unauthorized: <UnauthorizedPage />,
 };

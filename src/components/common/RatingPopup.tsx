@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { JSX } from 'react'
 
 interface RatingCategory {
@@ -22,6 +23,7 @@ const RatingPopup = ({
   onSubmit,
   onSkip,
 }: RatingPopupProps): JSX.Element => {
+  const navigate = useNavigate()
   const [categories, setCategories] = useState<RatingCategory[]>([
     { id: 'overall', label: 'Overall Experience', rating: 0 },
     { id: 'quality', label: 'Product Quality', rating: 0 },
@@ -30,6 +32,11 @@ const RatingPopup = ({
   ])
   const [comment, setComment] = useState<string>('')
   const [hoveredStar, setHoveredStar] = useState<{ id: string; star: number } | null>(null)
+
+  const handleSkip = (): void => {
+    onSkip()
+    navigate('/products')
+  }
 
   const handleStarClick = (categoryId: string, rating: number): void => {
     setCategories((prev) =>
@@ -131,7 +138,7 @@ const RatingPopup = ({
             </button>
             <button
               type="button"
-              onClick={onSkip}
+              onClick={handleSkip}
               className="w-full rounded-xl px-4 py-2 text-sm text-slate-400 hover:text-supply-ash"
             >
               Skip for now
