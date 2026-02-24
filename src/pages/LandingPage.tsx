@@ -491,7 +491,7 @@ const LandingPage = (): JSX.Element => {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-supply-peach">Project</p>
                 <div className="flex flex-col gap-1">
                   <a href="#how-it-works" className="hover:text-supply-teal">How it works</a>
-                  <span className="text-slate-500">Stack: React, TypeScript, Vite, Tailwind CSS, Redux (frontend only)</span>
+                  <span className="text-slate-500">Built with React, TypeScript, Vite, Tailwind CSS, and Redux – frontend architecture overview</span>
                 </div>
               </div>
               <div className="space-y-2">
