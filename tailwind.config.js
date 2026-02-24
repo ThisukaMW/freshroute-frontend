@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Outfit", "system-ui", "sans-serif"],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         // Core organic green (kept from existing design)
@@ -17,9 +17,11 @@ export default {
         // Dark dashboard-inspired palette (from reference UI)
         brand: {
           // Deep navy background
-          background: "#020617", // slate-950 style
+          background: '#020617', // Main app background color
+          // Footer color
+          //footer: "#11151d",
           // Slightly lighter surface behind main truck area
-          surface: "#a8bff7",
+          surface: '#a8bff7',
           // Card surface
           card: "#020c24",
           // Soft border / separators
@@ -55,7 +57,17 @@ export default {
           teal: "#236571",
           deep: "#2E2F34",
         },
+        // Gradient colors
+        /*gradient: {
+          stop1: "#061D24", // 0%
+          stop2: "#08262E", // 14%
+          stop3: "#0C363F", // 39%
+        },*/
       },
+      /*backgroundImage: {
+        'gradient-teal': 'linear-gradient(to bottom, #061D24 0%, #08262E 14%, #0C363F 39%)',
+        'gradient-teal-full': 'linear-gradient(to bottom, #061D24, #08262E 14%, #0C363F 39%, #08262E 60%, #061D24 100%)',
+      },*/
     },
   },
   plugins: [],
