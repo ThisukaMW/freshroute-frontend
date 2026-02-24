@@ -57,9 +57,13 @@
 import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
 
-// Public/marketing & auth pages
-import LandingPage from "../pages/LandingPage.tsx";
-//import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
+import LandingPage from "../pages/LandingPage";
+import SignUpCustomerPage from "../pages/SignUpCustomerPage";
+import SignUpVendorPage from "../pages/SignUpVendorPage";
+import SignInPage from "../pages/SignInPage";
+import SellerLoginPage from "../pages/seller/SellerLoginPage";
+import RoleSelectPage from "../pages/RoleSelectPage";
+import AdminLoginPage from "../pages/admin/AdminLoginPage";
 
 
 
@@ -91,6 +95,34 @@ export const routeConfig: {
   fallback: ReactElement;
 } = {
   public: [
+    {
+      path: "/",
+      element: <LandingPage />,
+    },
+    {
+      path: "/signup",
+      element: <RoleSelectPage />,
+    },
+    {
+      path: "/signup/customer",
+      element: <SignUpCustomerPage />,
+    },
+    {
+      path: "/signup/vendor",
+      element: <SignUpVendorPage />,
+    },
+    {
+      path: "/signin",
+      element: <SignInPage />,
+    },
+    {
+      path: "/seller/login",
+      element: <SellerLoginPage />,
+    },
+    {
+      path: "/admin/login",           
+      element: <AdminLoginPage />,    
+    },
     
     
     // {

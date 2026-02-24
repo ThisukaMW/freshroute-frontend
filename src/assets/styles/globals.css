@@ -1,4 +1,17 @@
-/* 
+/* html,
+body {
+  background-color: #2d4452;
+  color-scheme: dark;
+}
+
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+} */
+
+@tailwind base;
+@tailwind components;
 @tailwind utilities;
 
 html,
@@ -16,37 +29,14 @@ body,
   body {
     @apply text-slate-50 bg-brand-background;
   }
-} */
-
-
-/* @tailwind utilities;
-
-html,
-body,
-#root {
-  height: 100%;
 }
 
-@layer base {
-  html {
-    font-family: theme("fontFamily.sans");
-    background-color: #020617;
-  }
-
-  body {
-    @apply text-slate-50 bg-brand-background;
-  }
-} */
-
 /* Global background color */
-
-
 html,
 body {
   background-color: #2d4452;
   color-scheme: dark;
 }
-
 
 * {
   transition-property: background-color, border-color, color, fill, stroke;
