@@ -81,6 +81,10 @@ import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
 import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
 import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
 import NotFoundPage from "../pages/common/NotFoundPage.tsx";
+import OrderDetailPage from "../pages/seller/OrderDetailPage.tsx";
+import OrdersPage from "../pages/seller/OrdersPage.tsx";
+import HomePage from "../pages/buyer/HomePage.tsx";
+import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -189,15 +193,15 @@ export const routeConfig: {
   ],
 
   protected: [
-  // {
-  //     path: "/buyer",
-  //     roles: ["buyer"],
-  //     element: (
-  //       <MainLayout role="buyer">
-  //         <BuyerHomePage />
-  //       </MainLayout>
-  //     ),
-  //   },
+  {
+      path: "/buyer",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <HomePage />
+        </MainLayout>
+      ),
+    },
     {
       path: "/buyer/products",
       roles: ["buyer"],
@@ -243,15 +247,15 @@ export const routeConfig: {
     //     </MainLayout>
     //   ),
     // },
-    // {
-    //   path: "/buyer/orders",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <OrderHistoryPage />
-    //     </MainLayout>
-    //   ),
-    // },
+    {
+      path: "/buyer/orders",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <OrderHistoryPage />
+        </MainLayout>
+      ),
+    },
     // {
     //   path: "/buyer/orders/:id",
     //   roles: ["buyer"],
@@ -335,16 +339,27 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+
+    {
+      path: "/seller/orders",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <OrdersPage />
+        </MainLayout>
+      ),
+    },
     
-    // {
-    //   path: "/seller/orders/:id",
-    //   roles: ["seller"],
-    //   element: (
-    //     <MainLayout role="seller">
-    //       <SellerOrderDetailPage />
-    //     </MainLayout>
-    //   ),
-    // },
+    {
+      path: "/seller/orders/:id",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <OrderDetailPage />
+        </MainLayout>
+      ),
+    },
+
   //   {
   //     path: "/seller/deliveries",
   //     roles: ["seller"],

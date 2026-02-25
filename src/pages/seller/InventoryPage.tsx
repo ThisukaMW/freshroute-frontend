@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
 // Type definitions
@@ -32,6 +32,20 @@ interface RestockEntry {
 
 const InventoryPage: React.FC = () => {
   const products = useSelector((state: RootState) => state.sellerProducts.products);
+  // const [searchQuery, setSearchQuery] = useState("");
+
+  // // Filter products based on search query (search by name, category, or SKU)
+  // const filteredProducts = useMemo(() => {
+  //   if (!searchQuery.trim()) return products;
+
+  //   const query = searchQuery.toLowerCase();
+  //   return products.filter((product) => {
+  //     const nameMatch = product.name.toLowerCase().includes(query);
+  //     const categoryMatch = product.category.toLowerCase().includes(query);
+  //     const skuMatch = product.id.toLowerCase().includes(query);
+  //     return nameMatch || categoryMatch || skuMatch;
+  //   });
+  // }, [products, searchQuery]);
 
   const stats = useMemo<Stat[]>(() => {
     const totalSkus = products.length;
@@ -68,10 +82,10 @@ const InventoryPage: React.FC = () => {
       <header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-supply-peach">Vendor Ops</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-50">Inventory health</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        {/* <p className="mt-1 text-sm text-slate-400">
           Walk stakeholders through real-time stock, restock planning, and low-stock signals sourced
           directly from the demo product catalog.
-        </p>
+        </p> */}
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -93,7 +107,24 @@ const InventoryPage: React.FC = () => {
             </div>
             <span className="text-xs text-slate-500">Updated {new Date().toLocaleTimeString()}</span>
           </div>
-          <div className="mt-4 overflow-x-auto">
+
+          {/* Search Bar
+          <div className="mt-4 mb-4">
+            <input
+              type="text"
+              placeholder="Search by product name, category, or SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-50 outline-none placeholder:text-slate-500 focus:border-supply-teal focus:ring-2 focus:ring-supply-teal/60"
+            />
+            {searchQuery && (
+              <p className="mt-2 text-xs text-slate-400">
+                Showing {filteredProducts.length} of {products.length} products
+              </p>
+            )}
+          </div> */}
+
+          <div className="overflow-x-auto">
             <table className="min-w-full text-left text-xs text-slate-100">
               <thead className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
                 <tr>
@@ -176,7 +207,7 @@ const InventoryPage: React.FC = () => {
       <section className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-white">Restock plan (demo)</h2>
+            <h2 className="text-base font-semibold text-white">Restock plan</h2>
             <p className="text-xs text-slate-400">Shows how you would brief ops on incoming loads.</p>
           </div>
         </div>
