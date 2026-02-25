@@ -6,6 +6,11 @@ export const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
+  // Allow landing and login pages to be accessed even when authenticated
+  if (location.pathname === "/" || location.pathname.includes("/login")) {
+    return children;
+  }
+
   if (isAuthenticated && user?.role) {
     const redirectTo =
       user.role === "buyer"

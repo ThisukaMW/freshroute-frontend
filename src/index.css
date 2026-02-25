@@ -1,1 +1,20 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+@layer base {
+  html {
+    @apply font-sans;
+    @apply bg-[#020617];
+  }
+
+  body {
+    @apply text-slate-50;
+  }
+}

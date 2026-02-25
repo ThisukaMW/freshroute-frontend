@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LocalStorageService } from "../services/storage/LocalStorageService";
 
@@ -36,29 +36,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  const login = (nextToken: string, nextUser: User) => {
+  const login = useCallback((nextToken: string, nextUser: User) => {
     setToken(nextToken);
     setUser(nextUser);
     LocalStorageService.set("fr_token", nextToken);
     LocalStorageService.set("fr_user", nextUser);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     LocalStorageService.remove("fr_token");
     LocalStorageService.remove("fr_user");
     navigate("/", { replace: true });
-  };
+  }, [navigate]);
 
-  const value = {
-    user,
-    token,
-    isAuthenticated: !!token,
-    isLoading,
-    login,
-    logout,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      isAuthenticated: !!token,
+      isLoading,
+      login,
+      logout,
+    }),
+    [user, token, isLoading, login, logout]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

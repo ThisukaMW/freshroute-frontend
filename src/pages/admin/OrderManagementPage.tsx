@@ -1,0 +1,104 @@
+import React from "react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "../../store/index";
+import { updateOrderStatus } from "../../store/slices/ordersSlice";
+
+type OrderStatus = "Preparing" | "On the way" | "Delivered";
+
+const statuses: OrderStatus[] = ["Preparing", "On the way", "Delivered"];
+
+const dummyOrders = [
+  {
+    id: "ORD-001",
+    customerName: "Kamal Perera",
+    items: [{ name: "Basmati Rice 5kg" }, { name: "Coconut Oil 1L" }],
+    total: 3450,
+    status: "Preparing" as OrderStatus,
+    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+  },
+  {
+    id: "ORD-002",
+    customerName: "Nimali Silva",
+    items: [{ name: "Dhal 1kg" }, { name: "Canned Tuna 400g" }, { name: "Sugar 1kg" }],
+    total: 1875,
+    status: "On the way" as OrderStatus,
+    createdAt: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
+  },
+];
+
+const OrderManagementPage: React.FC = () => {
+  const reduxOrders = useSelector((state: RootState) => state.orders.orders);
+  const dispatch = useDispatch<AppDispatch>();
+
+  const orders = reduxOrders.length > 0 ? reduxOrders : dummyOrders;
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-xl font-semibold text-slate-50">Order management</h1>
+      <p className="text-sm text-slate-300">
+        Monitor all orders created from the buyer checkout flow. Update status to simulate
+        tracking and SLA handling.
+      </p>
+
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-100 backdrop-blur-xl">
+        <table className="min-w-full text-left">
+          <thead className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
+            <tr>
+              <th className="px-3 py-2 font-medium">Order ID</th>
+              <th className="px-3 py-2 font-medium">Customer</th>
+              <th className="px-3 py-2 font-medium">Items</th>
+              <th className="px-3 py-2 font-medium">Total</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {orders.map((o) => (
+              <tr key={o.id} className="hover:bg-white/5">
+                <td className="px-3 py-2">{o.id}</td>
+                <td className="px-3 py-2">{o.customerName}</td>
+                <td className="px-3 py-2">
+                  {o.items.map((i) => i.name).join(", ")}
+                </td>
+                <td className="px-3 py-2">
+                  Rs. {o.total.toLocaleString("en-LK")}
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    value={o.status}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      dispatch(
+                        updateOrderStatus({
+                          id: o.id,
+                          status: e.target.value as OrderStatus,
+                        })
+                      )
+                    }
+                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium outline-none cursor-pointer ${
+                      o.status === "Preparing"
+                        ? "border-amber-500/40 bg-amber-500/20 text-amber-300"
+                        : o.status === "On the way"
+                        ? "border-sky-500/40 bg-sky-500/20 text-sky-300"
+                        : "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                    }`}
+                  >
+                    {statuses.map((s) => (
+                      <option key={s} value={s} className="bg-slate-800 text-slate-100">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-3 py-2 text-[11px] text-slate-300">
+                  {new Date(o.createdAt).toLocaleTimeString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default OrderManagementPage;

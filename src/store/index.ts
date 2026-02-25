@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./slices/authSlice";
 import cartReducer from "./slices/cartSlice";
-import sellerProductsReducer from "./slices/sellerProductsSlice"
+import sellerProductsReducer from "./slices/sellerProductsSlice";
 import ordersReducer from "./slices/ordersSlice";
 
 export const store = configureStore({
@@ -12,3 +12,6 @@ export const store = configureStore({
         orders: ordersReducer,
     },
 });
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;

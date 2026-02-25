@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import App from "./App.tsx";
 import { store } from "./store";
-// import "./assets/styles/globals.css";
+import "./index.css";
 
 const rootElement =
   document.getElementById("app") || document.getElementById("root");

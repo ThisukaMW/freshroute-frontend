@@ -1,0 +1,13 @@
+/* Global background color */
+html,
+body {
+  background-color: #2d4452;
+  color-scheme: dark;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
