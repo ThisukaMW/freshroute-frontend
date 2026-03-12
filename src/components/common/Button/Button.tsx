@@ -1,21 +1,28 @@
-import type { ButtonHTMLAttributes, ReactNode, JSX } from "react";
-import styles from "../Button/Button.module.css";
+import React from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import styles from "./Button.module.css";
 
+/* ---- allowed button variants ---- */
 type ButtonVariant = "primary" | "secondary" | "ghost";
 
+/* ---- props type ---- */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   children: ReactNode;
   className?: string;
 }
 
-export const Button = ({
+export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   children,
   className = "",
   ...rest
-}: ButtonProps): JSX.Element => {
-  const classes = [styles.button, styles[variant], className]
+}) => {
+  const classes = [
+    styles.button,
+    styles[variant],
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 

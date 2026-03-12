@@ -1,3 +1,59 @@
+// import { Navigate } from "react-router-dom";
+// import type { ReactElement } from "react";
+// //import InventoryPage from "../pages/seller/InventoryPage";
+// //import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
+// //import ProductsPage from "../pages/seller/ProductsPage";
+// //import LandingPage from "../pages/LandingPage";
+// //import AddProductPage from "../pages/seller/AddProductPage.tsx";
+// import ProductBrowsePage from "../pages/buyer/ProductBrowsePage.tsx";
+// import InventoryPage from "../pages/seller/InventoryPage.tsx";
+// import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
+// //import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
+// //import DashboardPage from "../pages/seller/DashboardPage.tsx";
+
+// interface RouteConfig {
+//   path: string;
+//   element: ReactElement;
+// }
+
+// interface ProtectedRouteConfig extends RouteConfig {
+//   roles?: string[];
+// }
+
+// export const routeConfig: {
+//   public: RouteConfig[];
+//   protected: ProtectedRouteConfig[];
+//   fallback: ReactElement;
+// } = {
+//   public: [
+    
+//     {
+//       path: "/",
+//       element: <InventoryPage/>,
+//     },
+//   ],
+//   protected: [
+//     // Add your protected routes here
+//     // Example:
+//     // {
+//     //   path: "/buyer",
+//     //   element: <BuyerDashboard />,
+//     //   roles: ["buyer"],
+//     // },
+//     {
+//       path: "/buyer/products/:id/sellers",
+//       roles: ["buyer"],
+//       element: (
+//         <MainLayout role="buyer"><SelectSellerPage</MainLayout> 
+          
+        
+//       ),
+//     },
+//   ],
+//   fallback: <Navigate to="/" replace />,
+// };
+
+
 import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
 
@@ -21,10 +77,39 @@ import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
 import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
 
 import { MainLayout } from "../components/layout/MainLayout/MainLayout";
+import SignUpCustomerPage from "../pages/SignUpCustomerPage";
+import SignUpVendorPage from "../pages/SignUpVendorPage";
+import SignInPage from "../pages/SignInPage";
+import SellerLoginPage from "../pages/seller/SellerLoginPage";
+import RoleSelectPage from "../pages/RoleSelectPage";
+import AdminLoginPage from "../pages/admin/AdminLoginPage";
 
+
+
+import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
+import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.jsx";
+import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
+import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
+import CartPage from "../pages/buyer/CartPage.tsx";
+import DashboardPage from "../pages/seller/DashboardPage.tsx";
+import ProductsPage from "../pages/seller/ProductsPage.tsx";
+import AddProductPage from "../pages/seller/AddProductPage.tsx";
+import EditProductPage from "../pages/seller/EditProductPage.tsx";
+import InventoryPage from "../pages/seller/InventoryPage";
+import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
+import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
+import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
+import NotFoundPage from "../pages/common/NotFoundPage.tsx";
+import OrderDetailPage from "../pages/seller/OrderDetailPage.tsx";
+import OrdersPage from "../pages/seller/OrdersPage.tsx";
+import HomePage from "../pages/buyer/HomePage.tsx";
+import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
+
+/* ---------- types ---------- */
 interface RouteConfig {
   path: string;
   element: ReactElement;
+  
 }
 
 interface ProtectedRouteConfig extends RouteConfig {
@@ -35,6 +120,8 @@ export const routeConfig: {
   public: RouteConfig[];
   protected: ProtectedRouteConfig[];
   fallback: ReactElement;
+  error?: ReactElement;
+  unauthorized?: ReactElement;
 } = {
   public: [
     {
@@ -55,6 +142,87 @@ export const routeConfig: {
       path: "/payment-cancel",
       element: <PaymentCancelPage />,
     },
+    {
+      path: "/signup",
+      element: <RoleSelectPage />,
+    },
+    {
+      path: "/signup/customer",
+      element: <SignUpCustomerPage />,
+    },
+    {
+      path: "/signup/vendor",
+      element: <SignUpVendorPage />,
+    },
+    {
+      path: "/products",
+      element: <DefaultBrowsePage />,
+    },
+    {
+      path: "/signin",
+      element: <SignInPage />,
+    },
+    {
+      path: "/seller/login",
+      element: <SellerLoginPage />,
+    },
+    {
+      path: "/admin/login",           
+      element: <AdminLoginPage />,    
+    },
+    
+    
+    // {
+    //  path: "/signin",
+    //   element: <SignInPage />,
+    // },
+    // {
+    //   path: "/signup",
+    //   element: <RoleSelectPage />,
+    // },
+    // {
+    //   path: "/signup/customer",
+    //   element: <SignUpCustomerPage />,
+    // },
+    // {
+    //   path: "/signup/vendor",
+    //   element: <SignUpVendorPage />,
+    // },
+   
+
+    
+    // {
+    //   path: "/seller/login",
+    //   element: <SellerLoginPage />,
+    // },
+    // {
+    //   path: "/admin/login",
+    //   element: <AdminLoginPage />,
+    // },
+
+    // Auth pages using the new AuthLayout shell
+    // {
+    //   path: "/auth/login",
+    //   element: <Navigate to="/" replace />,
+    // },
+    // {
+    //   path: "/auth/register",
+    //   element: (
+    //     <AuthLayout>
+    //       <RegisterPage />
+    //     </AuthLayout>
+    //   ),
+    // },
+    // {
+    //   path: "/auth/forgot-password",
+    //   element: (
+    //     <AuthLayout>
+    //       <ForgotPasswordPage />
+    //     </AuthLayout>
+    //   ),
+    // },
+    
+
   ],
  protected: [
     {

@@ -1,131 +1,123 @@
-// import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
+import React from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { removeItem, clearCart } from "../../store/slices/cartSlice";
+import type { RootState, AppDispatch } from "../../store";
 
-// type CartItem = {
-//   id: string;
-//   name: string;
-//   price: number;
-//   quantity: number;
-// };
+/* ---------- Types ---------- */
+interface CartItem {
+  id: string;
+  name: string;
+  vendor: string;
+  price: string | number;
+  unit: string;
+  quantity: number;
+  requirements?: string;
+}
 
-// export default function CartPage() {
-//   const navigate = useNavigate();
-  
-//   const [cartItems, setCartItems] = useState<CartItem[]>([
-//     {
-//       id: "1",
-//       name: "Fresh Apples",
-//       price: 5.5,
-//       quantity: 2,
-//     },
-//     {
-//       id: "2",
-//       name: "Organic Bananas",
-//       price: 3.0,
-//       quantity: 1,
-//     },
-//   ]);
+const CartPage: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
 
-//   const getTotal = () => {
-//     return cartItems.reduce(
-//       (total, item) => total + item.price * item.quantity,
-//       0
-//     );
-//   };
+  const items = useSelector(
+    (state: RootState) => state.cart.items
+  ) as CartItem[];
 
-//   const removeItem = (id: string) => {
-//     setCartItems(cartItems.filter((item) => item.id !== id));
-//   };
+  /* ---------- Total Calculation ---------- */
+  const total = items.reduce((sum: number, item: CartItem) => {
+    const numeric =
+      parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
 
-//   const handleCheckout = () => {
-//     // Example orderId (normally returned from backend)
-//     const orderId = "demo-order-123";
+    return sum + numeric * item.quantity;
+  }, 0);
 
-//     navigate("/checkout", {
-//       state: { orderId: orderId },
-//     });
-//   };
+  /* ---------- Navigation ---------- */
+  const handleProceed = () => {
+    if (!items.length) return;
+    navigate("/buyer/checkout");
+  };
 
-//   return (
-//     <div className="container py-5">
-//       <h2>Your Cart</h2>
+  return (
+    <div className="max-w-4xl mx-auto space-y-4">
+      <h1 className="text-xl font-semibold text-slate-50">
+        Your cart
+      </h1>
 
-//       {cartItems.length === 0 ? (
-//         <p>Your cart is empty</p>
-//       ) : (
-//         <>
-//           <table
-//             style={{
-//               width: "100%",
-//               borderCollapse: "collapse",
-//               marginTop: "20px",
-//             }}
-//           >
-//             <thead>
-//               <tr style={{ borderBottom: "1px solid #ddd" }}>
-//                 <th style={{ textAlign: "left", padding: "10px" }}>Product</th>
-//                 <th style={{ padding: "10px" }}>Price</th>
-//                 <th style={{ padding: "10px" }}>Quantity</th>
-//                 <th style={{ padding: "10px" }}>Total</th>
-//                 <th></th>
-//               </tr>
-//             </thead>
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-300">
+          Your cart is empty. Browse products to add items.
+        </p>
+      ) : (
+        <>
+          {/* ---------- Cart Items ---------- */}
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+              >
+                <div>
+                  <p className="font-medium">{item.name}</p>
 
-//             <tbody>
-//               {cartItems.map((item) => (
-//                 <tr key={item.id} style={{ borderBottom: "1px solid #eee" }}>
-//                   <td style={{ padding: "10px" }}>{item.name}</td>
-//                   <td style={{ padding: "10px" }}>${item.price}</td>
-//                   <td style={{ padding: "10px" }}>{item.quantity}</td>
-//                   <td style={{ padding: "10px" }}>
-//                     ${(item.price * item.quantity).toFixed(2)}
-//                   </td>
-//                   <td>
-//                     <button
-//                       onClick={() => removeItem(item.id)}
-//                       style={{
-//                         background: "#ff4d4f",
-//                         color: "#fff",
-//                         border: "none",
-//                         padding: "6px 10px",
-//                         borderRadius: "4px",
-//                         cursor: "pointer",
-//                       }}
-//                     >
-//                       Remove
-//                     </button>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
+                  <p className="text-xs text-slate-400">
+                    {item.vendor} · {item.price} / {item.unit} · Qty{" "}
+                    {item.quantity}
+                  </p>
 
-//           <div
-//             style={{
-//               marginTop: "20px",
-//               textAlign: "right",
-//             }}
-//           >
-//             <h3>Total: ${getTotal().toFixed(2)}</h3>
+                  {item.requirements && (
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      Notes: {item.requirements}
+                    </p>
+                  )}
+                </div>
 
-//             <button
-//               onClick={handleCheckout}
-//               style={{
-//                 marginTop: "10px",
-//                 padding: "12px 20px",
-//                 background: "#635bff",
-//                 color: "#fff",
-//                 border: "none",
-//                 borderRadius: "6px",
-//                 fontSize: "16px",
-//                 cursor: "pointer",
-//               }}
-//             >
-//               Proceed to Checkout
-//             </button>
-//           </div>
-//         </>
-//       )}
-//     </div>
-//   );
-// }
+                <button
+                  type="button"
+                  onClick={() => dispatch(removeItem(item.id))}
+                  className="text-xs text-red-300 hover:text-red-200"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* ---------- Total Section ---------- */}
+          <div className="flex items-center justify-between rounded-2xl border border-supply-teal/40 bg-supply-deep/70 px-4 py-3 text-sm text-supply-paper">
+            <div>
+              <p className="font-semibold">Estimated total</p>
+              <p className="text-xs text-slate-300">
+                For demo purposes only, based on listed prices.
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p className="text-lg font-semibold">
+                Rs. {total.toLocaleString("en-LK")}
+              </p>
+
+              <button
+                type="button"
+                onClick={handleProceed}
+                className="mt-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary-dark"
+              >
+                Proceed to payment
+              </button>
+            </div>
+          </div>
+
+          {/* ---------- Clear Cart ---------- */}
+          <button
+            type="button"
+            onClick={() => dispatch(clearCart())}
+            className="text-xs text-slate-400 hover:text-slate-200"
+          >
+            Clear cart
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default CartPage;

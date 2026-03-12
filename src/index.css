@@ -1,3 +1,24 @@
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+@layer base {
+  html {
+    font-family: theme('fontFamily.sans');
+    @apply bg-brand-background;
+  }
+
+  body {
+    @apply text-slate-50 ;
+  }
+} */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,11 +31,11 @@ body,
 
 @layer base {
   html {
-    @apply font-sans;
-    @apply bg-[#020617];
+    font-family: theme('fontFamily.sans');
+    @apply bg-brand-background;
   }
 
   body {
-    @apply text-slate-50;
+    @apply text-slate-50 ;
   }
 }

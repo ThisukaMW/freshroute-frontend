@@ -1,9 +1,9 @@
-import React, { type JSX } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 
-const NotFoundPage = (): JSX.Element => {
+const NotFoundPage: React.FC = () => {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#020617] text-slate-100">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-brand-background text-slate-100">
       <p className="text-sm font-semibold text-primary-light">404</p>
       <h1 className="mt-2 text-2xl font-semibold">Page not found</h1>
       <p className="mt-2 max-w-md text-center text-sm text-slate-400">
