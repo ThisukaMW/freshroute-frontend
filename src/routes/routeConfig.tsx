@@ -1,7 +1,8 @@
 import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
 
-//import LandingPage from "../pages/LandingPage";
+import LandingPage from "../pages/LandingPage";
+
 import AdminLoginPage from "../pages/admin/AdminLoginPage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import UserManagementPage from "../pages/admin/UserManagementPage";
@@ -16,7 +17,8 @@ import TransactionHistoryPage from "../pages/admin/TransactionHistoryPage";
 import SystemSettingsPage from "../pages/admin/SystemSettingsPage";
 import TruckCapacityPage from "../pages/admin/TruckCapacityPage";
 import AddTruckPage from "../pages/admin/AddTruckPage";
-
+import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
+import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
 
 import { MainLayout } from "../components/layout/MainLayout/MainLayout";
 
@@ -37,14 +39,24 @@ export const routeConfig: {
   public: [
     {
       path: "/",
-      element: <Navigate to="/admin/login" replace />,
+      element: <LandingPage />,
+    },
+    
+    {
+      path: "/admin/login",
+      element: <AdminLoginPage />,
+    },
+
+    {
+      path: "/payment-success",
+      element: <PaymentSuccessPage />,
     },
     {
-      path: "/admin/login",           
-      element: <AdminLoginPage />,    
+      path: "/payment-cancel",
+      element: <PaymentCancelPage />,
     },
   ],
-  protected: [
+ protected: [
     {
       path: "/admin",
       roles: ["admin"],
@@ -162,7 +174,8 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
-   
+
+
   ],
   fallback: <Navigate to="/" replace />,
 };

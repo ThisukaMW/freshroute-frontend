@@ -1,19 +1,29 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import type { RootState, AppDispatch } from "../../store/index";
-import { updateOrderStatus } from "../../store/slices/ordersSlice";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../store/index";
 
 type OrderStatus = "Preparing" | "On the way" | "Delivered";
 
-const statuses: OrderStatus[] = ["Preparing", "On the way", "Delivered"];
+interface OrderItem {
+  name: string;
+}
 
-const dummyOrders = [
+interface Order {
+  id: string;
+  customerName: string;
+  items: OrderItem[];
+  total: number;
+  status: OrderStatus;
+  createdAt: string;
+}
+
+const dummyOrders: Order[] = [
   {
     id: "ORD-001",
     customerName: "Kamal Perera",
     items: [{ name: "Basmati Rice 5kg" }, { name: "Coconut Oil 1L" }],
     total: 3450,
-    status: "Preparing" as OrderStatus,
+    status: "Preparing",
     createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
   },
   {
@@ -21,16 +31,20 @@ const dummyOrders = [
     customerName: "Nimali Silva",
     items: [{ name: "Dhal 1kg" }, { name: "Canned Tuna 400g" }, { name: "Sugar 1kg" }],
     total: 1875,
-    status: "On the way" as OrderStatus,
+    status: "On the way",
     createdAt: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
   },
 ];
 
+const statusStyles: Record<OrderStatus, string> = {
+  Preparing: "border-amber-500/40 bg-amber-500/20 text-amber-300",
+  "On the way": "border-sky-500/40 bg-sky-500/20 text-sky-300",
+  Delivered: "border-emerald-500/40 bg-emerald-500/20 text-emerald-300",
+};
+
 const OrderManagementPage: React.FC = () => {
   const reduxOrders = useSelector((state: RootState) => state.orders.orders);
-  const dispatch = useDispatch<AppDispatch>();
-
-  const orders = reduxOrders.length > 0 ? reduxOrders : dummyOrders;
+  const orders: Order[] = (reduxOrders.length > 0 ? reduxOrders : dummyOrders) as Order[];
 
   return (
     <div className="space-y-4">
@@ -64,30 +78,11 @@ const OrderManagementPage: React.FC = () => {
                   Rs. {o.total.toLocaleString("en-LK")}
                 </td>
                 <td className="px-3 py-2">
-                  <select
-                    value={o.status}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                      dispatch(
-                        updateOrderStatus({
-                          id: o.id,
-                          status: e.target.value as OrderStatus,
-                        })
-                      )
-                    }
-                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium outline-none cursor-pointer ${
-                      o.status === "Preparing"
-                        ? "border-amber-500/40 bg-amber-500/20 text-amber-300"
-                        : o.status === "On the way"
-                        ? "border-sky-500/40 bg-sky-500/20 text-sky-300"
-                        : "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
-                    }`}
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusStyles[o.status]}`}
                   >
-                    {statuses.map((s) => (
-                      <option key={s} value={s} className="bg-slate-800 text-slate-100">
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                    {o.status}
+                  </span>
                 </td>
                 <td className="px-3 py-2 text-[11px] text-slate-300">
                   {new Date(o.createdAt).toLocaleTimeString()}
