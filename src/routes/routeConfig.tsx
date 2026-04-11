@@ -76,21 +76,22 @@ import AddTruckPage from "../pages/admin/AddTruckPage";
 import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
 import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
 
-import { MainLayout } from "../components/layout/MainLayout/MainLayout";
+// import { MainLayout } from "../components/layout/MainLayout/MainLayout";
 import SignUpCustomerPage from "../pages/SignUpCustomerPage";
 import SignUpVendorPage from "../pages/SignUpVendorPage";
 import SignInPage from "../pages/SignInPage";
 import SellerLoginPage from "../pages/seller/SellerLoginPage";
 import RoleSelectPage from "../pages/RoleSelectPage";
-import AdminLoginPage from "../pages/admin/AdminLoginPage";
+//import AdminLoginPage from "../pages/admin/AdminLoginPage";
 
 
 
-import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
-import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.jsx";
+import { MainLayout } from "../components/layout/MainLayout/MainLayout.tsx";
+import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.tsx";
 import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
 import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
 import CartPage from "../pages/buyer/CartPage.tsx";
+import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
 import DashboardPage from "../pages/seller/DashboardPage.tsx";
 import ProductsPage from "../pages/seller/ProductsPage.tsx";
 import AddProductPage from "../pages/seller/AddProductPage.tsx";
@@ -343,7 +344,135 @@ export const routeConfig: {
       ),
     },
 
+     {
+      path: "/buyer",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <HomePage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/buyer/products",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <ProductBrowsePage />
+        </MainLayout>
+      ),
+    },
+
+     {
+      path: "/buyer/cart",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CartPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/buyer/products/:id/sellers",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <SelectSellerPage />
+        </MainLayout>
+      ),
+    },
+
+     {
+      path: "/buyer/orders",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <OrderHistoryPage />
+        </MainLayout>
+      ),
+    },
+
+     // Seller
+    {
+      path: "/seller",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          < DashboardPage/>
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/seller/products",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <ProductsPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/seller/products/add",
+      //roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <AddProductPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/seller/products/:id/edit",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <EditProductPage/>
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/seller/inventory",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <InventoryPage/>
+        </MainLayout>
+      ),
+    },
+
+    {
+      path: "/seller/orders",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <OrdersPage />
+        </MainLayout>
+      ),
+    },
+    
+    {
+      path: "/seller/orders/:id",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <OrderDetailPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/buyer/checkout",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CheckoutPage />
+        </MainLayout>
+      )
+    }
+
 
   ],
-  fallback: <Navigate to="/" replace />,
+  //fallback: <Navigate to="/" replace />,
+
+  fallback: <NotFoundPage />,
+  error: <ServerErrorPage />,
+  unauthorized: <UnauthorizedPage />,
 };

@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-type UserRole = "buyer" | "seller" | "driver";
-type UserStatus = "Active" | "Suspended";
+type UserRole = "BUYER" | "SELLER" | "DRIVER";
+type UserStatus = "ACTIVE" | "SUSPENDED";
+
+const API_BASE = "http://localhost:5000";
 
 interface User {
   id: string;
@@ -15,19 +17,12 @@ interface ConfirmDialog {
   isOpen: boolean;
   userId: string;
   userName: string;
-  action: "suspend" | "activate" | null;
+  action: "SUSPEND" | "ACTIVATE" | null;
 }
 
-const initialUsers: User[] = [
-  { id: "U-1001", name: "John Perera", role: "buyer", city: "Colombo", status: "Active" },
-  { id: "U-1002", name: "Green Market", role: "seller", city: "Kandy", status: "Active" },
-  { id: "U-1003", name: "Daily Dairy", role: "seller", city: "Galle", status: "Active" },
-  { id: "U-1004", name: "Rider Tharindu", role: "driver", city: "Colombo", status: "Suspended" },
-];
-
 const statusColors: Record<UserStatus, string> = {
-  Active: "bg-emerald-500/20 text-emerald-400",
-  Suspended: "bg-red-500/20 text-red-400",
+  ACTIVE: "bg-emerald-500/20 text-emerald-400",
+  SUSPENDED: "bg-red-500/20 text-red-400",
 };
 
 const ConfirmationModal: React.FC<{
@@ -37,32 +32,51 @@ const ConfirmationModal: React.FC<{
 }> = ({ dialog, onConfirm, onCancel }) => {
   if (!dialog.isOpen) return null;
 
-  const isSuspend = dialog.action === "suspend";
+  const isSuspend = dialog.action === "SUSPEND";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onCancel}
       />
-
-      {/* Modal */}
       <div className="relative z-10 w-full max-w-sm mx-4 rounded-2xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50 p-6 space-y-4">
-        {/* Icon */}
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${isSuspend ? "bg-red-500/20" : "bg-emerald-500/20"}`}>
+        <div
+          className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+            isSuspend ? "bg-red-500/20" : "bg-emerald-500/20"
+          }`}
+        >
           {isSuspend ? (
-            <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            <svg
+              className="w-6 h-6 text-red-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+              />
             </svg>
           ) : (
-            <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-6 h-6 text-emerald-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           )}
         </div>
 
-        {/* Title */}
         <div className="text-center space-y-1">
           <h2 className="text-white font-semibold text-base">
             {isSuspend ? "Suspend User?" : "Activate User?"}
@@ -72,12 +86,15 @@ const ConfirmationModal: React.FC<{
               ? `Do you want to suspend user ${dialog.userId}? They will lose access to the platform.`
               : `Do you want to activate user ${dialog.userId}? They will regain access to the platform.`}
           </p>
-          <p className={`text-xs font-medium mt-1 ${isSuspend ? "text-red-400" : "text-emerald-400"}`}>
+          <p
+            className={`text-xs font-medium mt-1 ${
+              isSuspend ? "text-red-400" : "text-emerald-400"
+            }`}
+          >
             {dialog.userName}
           </p>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3 pt-1">
           <button
             onClick={onCancel}
@@ -102,8 +119,11 @@ const ConfirmationModal: React.FC<{
 };
 
 const UserManagementPage: React.FC = () => {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<"all" | UserRole>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>({
     isOpen: false,
@@ -112,36 +132,92 @@ const UserManagementPage: React.FC = () => {
     action: null,
   });
 
-  const filteredUsers =
-    selectedRoleFilter === "all"
-      ? users
-      : users.filter((u) => u.role === selectedRoleFilter);
+  useEffect(() => {
+    fetch("/api/v1/users")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch users");
+        return res.json();
+      })
+      .then((data: User[]) => setUsers(data))
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const handleRoleChange = (id: string, newRole: UserRole) => {
-    setUsers((prev) =>
-      prev.map((user) => (user.id === id ? { ...user, role: newRole } : user))
-    );
-    setEditingUserId(null);
+  const filteredUsers = users.filter((u) => {
+    const matchesRole =
+      selectedRoleFilter === "all" || u.role === selectedRoleFilter;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      u.name.toLowerCase().includes(q) ||
+      u.id.toLowerCase().includes(q);
+    return matchesRole && matchesSearch;
+  });
+
+  const handleRoleChange = async (id: string, newRole: UserRole) => {
+    try {
+      const res = await fetch(`/api/v1/users/${id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) throw new Error("Failed to update role");
+      
+      setUsers((prev) =>
+        prev.map((user) => (user.id === id ? { ...user, role: newRole } : user))
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error";
+      setError(message);
+    } finally {
+      setEditingUserId(null);
+    }
   };
 
   const openSuspendDialog = (user: User) => {
-    setConfirmDialog({ isOpen: true, userId: user.id, userName: user.name, action: "suspend" });
+    setConfirmDialog({
+      isOpen: true,
+      userId: user.id,
+      userName: user.name,
+      action: "SUSPEND",
+    });
   };
 
   const openActivateDialog = (user: User) => {
-    setConfirmDialog({ isOpen: true, userId: user.id, userName: user.name, action: "activate" });
+    setConfirmDialog({
+      isOpen: true,
+      userId: user.id,
+      userName: user.name,
+      action: "ACTIVATE",
+    });
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const { userId, action } = confirmDialog;
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? { ...user, status: action === "suspend" ? "Suspended" : "Active" }
-          : user
-      )
-    );
-    setConfirmDialog({ isOpen: false, userId: "", userName: "", action: null });
+    const newStatus: UserStatus = action === "SUSPEND" ? "SUSPENDED" : "ACTIVE";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/users/${userId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+
+      const data = await res.json();
+      console.log("Updated user:", data);
+      console.log("Response status:", res.status);
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, status: newStatus } : user
+        )
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error";
+      setError(message);
+    } finally {
+      setConfirmDialog({ isOpen: false, userId: "", userName: "", action: null });
+    }
   };
 
   const handleCancel = () => {
@@ -155,9 +231,9 @@ const UserManagementPage: React.FC = () => {
 
   const filterButtons: { label: string; value: "all" | UserRole }[] = [
     { label: "All roles", value: "all" },
-    { label: "Buyers", value: "buyer" },
-    { label: "Sellers", value: "seller" },
-    { label: "Drivers", value: "driver" },
+    { label: "Buyers", value: "BUYER" },
+    { label: "Sellers", value: "SELLER" },
+    { label: "Drivers", value: "DRIVER" },
   ];
 
   return (
@@ -170,7 +246,32 @@ const UserManagementPage: React.FC = () => {
 
       <div className="min-h-screen bg-slate-950 p-6">
         <div className="space-y-4 max-w-5xl mx-auto">
-          <h1 className="text-xl font-semibold text-slate-50">User Management</h1>
+
+          {/* HEADER ROW */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h1 className="text-xl font-semibold text-slate-50">
+              User Management
+            </h1>
+            <div className="relative">
+              <svg
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by name or ID…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-slate-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-white/25 w-56"
+              />
+            </div>
+          </div>
 
           {/* FILTER BUTTONS */}
           <div className="flex gap-3 text-xs flex-wrap">
@@ -189,9 +290,18 @@ const UserManagementPage: React.FC = () => {
             ))}
           </div>
 
+          {/* ERROR BANNER */}
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
           {/* TABLE */}
           <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm text-white">
-            {filteredUsers.length === 0 ? (
+            {loading ? (
+              <p className="text-center text-slate-500 py-6">Loading users…</p>
+            ) : filteredUsers.length === 0 ? (
               <p className="text-center text-slate-500 py-6">No users found.</p>
             ) : (
               <table className="min-w-full text-left">
@@ -205,7 +315,6 @@ const UserManagementPage: React.FC = () => {
                     <th className="px-3 py-2">Actions</th>
                   </tr>
                 </thead>
-
                 <tbody className="divide-y divide-white/5">
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-white/5 transition">
@@ -224,9 +333,9 @@ const UserManagementPage: React.FC = () => {
                             onBlur={() => setEditingUserId(null)}
                             className="bg-slate-800 border border-white/20 rounded px-2 py-1 text-white outline-none"
                           >
-                            <option value="buyer">Buyer</option>
-                            <option value="seller">Seller</option>
-                            <option value="driver">Driver</option>
+                            <option value="BUYER">Buyer</option>
+                            <option value="SELLER">Seller</option>
+                            <option value="DRIVER">Driver</option>
                           </select>
                         ) : (
                           user.role
@@ -235,7 +344,7 @@ const UserManagementPage: React.FC = () => {
 
                       <td className="px-3 py-3">{user.city}</td>
 
-                      {/* STATUS BADGE */}
+                      {/* STATUS */}
                       <td className="px-3 py-3">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[user.status]}`}
@@ -248,7 +357,9 @@ const UserManagementPage: React.FC = () => {
                       <td className="px-3 py-3">
                         <div className="flex gap-3 text-xs flex-wrap">
                           <button
-                            onClick={() => alert(`Viewing user: ${user.name}`)}
+                            onClick={() =>
+                              (window.location.href = `/admin/users/${user.id}`)
+                            }
                             className="text-teal-400 hover:text-teal-300 transition"
                           >
                             View
@@ -261,7 +372,7 @@ const UserManagementPage: React.FC = () => {
                             Change role
                           </button>
 
-                          {user.status !== "Active" && (
+                          {user.status !== "ACTIVE" && (
                             <button
                               onClick={() => openActivateDialog(user)}
                               className="text-emerald-400 hover:text-emerald-300 transition"
@@ -270,7 +381,7 @@ const UserManagementPage: React.FC = () => {
                             </button>
                           )}
 
-                          {user.status !== "Suspended" && (
+                          {user.status !== "SUSPENDED" && (
                             <button
                               onClick={() => openSuspendDialog(user)}
                               className="text-red-400 hover:text-red-300 transition"

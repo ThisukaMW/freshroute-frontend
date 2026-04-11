@@ -1,123 +1,160 @@
-// import { useState } from "react";
-// import { useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { clearCart } from "../../store/slices/cartSlice";
+import type { RootState, AppDispatch } from "../../store";
 
-// type CheckoutResponse = {
-//   checkoutUrl: string;
-//   paymentId: string;
-// };
+interface CheckoutState {
+  loading: boolean;
+  error: string | null;
+}
 
-// export default function CheckoutPage() {
-//   const navigate = useNavigate();
-//   const location = useLocation();
+const CheckoutPage: React.FC = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+  const items = useSelector((state: RootState) => state.cart.items);
+  const [state, setState] = useState<CheckoutState>({
+    loading: false,
+    error: null,
+  });
 
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState("");
+  // Guard: redirect if cart is empty
+  useEffect(() => {
+    if (items.length === 0) navigate("/buyer/cart");
+  }, [items, navigate]);
 
-//   // Example: orderId passed from CartPage navigation
-//   const orderId = location.state?.orderId;
+  const total = items.reduce((sum, item) => {
+    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
+    return sum + numeric * item.quantity;
+  }, 0);
 
-//   const handleCheckout = async () => {
-//     if (!orderId) {
-//       setError("Order ID not found");
-//       return;
-//     }
+  const handlePay = async () => {
+    setState({ loading: true, error: null });
 
-//     try {
-//       setLoading(true);
-//       setError("");
+    try {
+      const token = localStorage.getItem("fr_token");
 
-//       const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
 
-//       const res = await fetch("http://localhost:5000/api/v1/payments", {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify({
-//           orderId: orderId,
-//           currency: "usd",
-//         }),
-//       });
+      // Step 1: Create the order
+      const orderRes = await fetch("/api/v1/orders", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            productId: item.productId,       // item.id maps to productId in your schema
+            quantity: item.quantity,
+          })),
+        }),
+      });
 
-//       const data: CheckoutResponse = await res.json();
+      if (!orderRes.ok) {
+        const err = await orderRes.json();
+        throw new Error(err.message || "Failed to create order");
+      }
 
-//       if (!res.ok) {
-//         throw new Error((data as any).message || "Payment creation failed");
-//       }
+      const order = await orderRes.json();
 
-//       // Redirect to Stripe Checkout
-//       window.location.href = data.checkoutUrl;
+      // Step 2: Create Stripe checkout session
+      const paymentRes = await fetch("/api/v1/payments", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          orderId: order.id,
+          currency: "lkr",
+        }),
+      });
 
-//     } catch (err: any) {
-//       setError(err.message);
-//       setLoading(false);
-//     }
-//   };
+      if (!paymentRes.ok) {
+        const err = await paymentRes.json();
+        throw new Error(err.message || "Failed to initiate payment");
+      }
 
-//   return (
-//     <div className="container py-5">
-//       <div
-//         style={{
-//           maxWidth: "500px",
-//           margin: "0 auto",
-//           padding: "30px",
-//           border: "1px solid #ddd",
-//           borderRadius: "10px",
-//         }}
-//       >
-//         <h2 style={{ marginBottom: "20px" }}>Checkout</h2>
+      const { checkoutUrl } = await paymentRes.json();
 
-//         <p>
-//           Review your order and proceed to secure payment.
-//         </p>
+      // Step 3: Clear cart then redirect to Stripe
+      dispatch(clearCart());
+      window.location.href = checkoutUrl;
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
+      setState({ loading: false, error: message });
+    }
 
-//         {error && (
-//           <div
-//             style={{
-//               background: "#ffe5e5",
-//               color: "#b30000",
-//               padding: "10px",
-//               borderRadius: "5px",
-//               marginBottom: "15px",
-//             }}
-//           >
-//             {error}
-//           </div>
-//         )}
+    console.log("Cart items being sent:", JSON.stringify(items.map(i => ({ productId: i.productId, quantity: i.quantity }))));
 
-//         <button
-//           onClick={handleCheckout}
-//           disabled={loading}
-//           style={{
-//             width: "100%",
-//             padding: "12px",
-//             backgroundColor: "#635bff",
-//             color: "#fff",
-//             border: "none",
-//             borderRadius: "6px",
-//             fontSize: "16px",
-//             cursor: "pointer",
-//           }}
-//         >
-//           {loading ? "Processing..." : "Pay with Card"}
-//         </button>
+  };
 
-//         <button
-//           onClick={() => navigate(-1)}
-//           style={{
-//             marginTop: "10px",
-//             width: "100%",
-//             padding: "10px",
-//             border: "1px solid #ccc",
-//             borderRadius: "6px",
-//             background: "#fff",
-//             cursor: "pointer",
-//           }}
-//         >
-//           Back
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <h1 className="text-xl font-semibold text-slate-50">Checkout</h1>
+
+      {/* Order Summary */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl space-y-3">
+        <h2 className="text-sm font-medium text-slate-300">Order summary</h2>
+
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+          >
+            <div>
+              <p className="font-medium">{item.name}</p>
+              <p className="text-xs text-slate-400">
+                {item.vendor} · {item.price} / {item.unit} · Qty{" "}
+                {item.quantity}
+              </p>
+            </div>
+            <p className="text-sm font-medium">
+              Rs.{" "}
+              {(
+                (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
+                item.quantity
+              ).toLocaleString("en-LK")}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Total + Pay */}
+      <div className="flex items-center justify-between rounded-2xl border border-supply-teal/40 bg-supply-deep/70 px-4 py-3 text-sm text-supply-paper">
+        <div>
+          <p className="font-semibold">Total</p>
+          <p className="text-xs text-slate-300">Inclusive of all charges</p>
+        </div>
+
+        <div className="text-right space-y-2">
+          <p className="text-lg font-semibold">
+            Rs. {total.toLocaleString("en-LK")}
+          </p>
+
+          <button
+            type="button"
+            onClick={handlePay}
+            disabled={state.loading}
+            className="rounded-xl bg-primary px-5 py-2 text-xs font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {state.loading ? "Redirecting to Stripe…" : "Pay now"}
+          </button>
+        </div>
+      </div>
+
+      {state.error && (
+        <p className="text-xs text-red-400 text-center">{state.error}</p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => navigate("/buyer/cart")}
+        className="text-xs text-slate-400 hover:text-slate-200"
+      >
+        ← Back to cart
+      </button>
+    </div>
+  );
+};
+
+export default CheckoutPage;
