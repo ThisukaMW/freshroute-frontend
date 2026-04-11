@@ -13,7 +13,9 @@ export const RoleBasedRoute = ({
 }: RoleBasedRouteProps) => {
   const { user } = useAuth();
 
-  if (!user || (allowedRoles && !allowedRoles.includes(user.role || ""))) {
+  const userRole = user?.role?.toLowerCase() ?? "";
+
+  if (!user || (allowedRoles && !allowedRoles.includes(userRole))) {
     return <Navigate to="/unauthorized" replace />;
   }
 

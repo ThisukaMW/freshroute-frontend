@@ -5,10 +5,11 @@ import LandingPage from "../pages/LandingPage";
 import SignUpCustomerPage from "../pages/SignUpCustomerPage";
 import SignUpVendorPage from "../pages/SignUpVendorPage";
 import SignInPage from "../pages/SignInPage";
-import SellerLoginPage from "../pages/seller/SellerLoginPage";
 import RoleSelectPage from "../pages/RoleSelectPage";
 import AdminLoginPage from "../pages/admin/AdminLoginPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+import CustomerProfilePage from "../pages/customer/CustomerProfilePage";
+import SellerProfilePage from "../pages/seller/SellerProfilePage";
 
 import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
 import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.jsx";
@@ -24,6 +25,7 @@ import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
 import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
 import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
 import NotFoundPage from "../pages/common/NotFoundPage.tsx";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage.tsx";
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -43,49 +45,20 @@ export const routeConfig: {
   unauthorized?: ReactElement;
 } = {
   public: [
-    {
-      path: "/",
-      element: <LandingPage />,
-    },
-    {
-      path: "/signup",
-      element: <RoleSelectPage />,
-    },
-    {
-      path: "/signup/customer",
-      element: <SignUpCustomerPage />,
-    },
-    {
-      path: "/signup/vendor",
-      element: <SignUpVendorPage />,
-    },
-    {
-      path: "/products",
-      element: <DefaultBrowsePage />,
-    },
-    {
-      path: "/signin",
-      element: <SignInPage />,
-    },
-    {
-      path: "/seller/login",
-      element: <SellerLoginPage />,
-    },
-    {
-      path: "/admin/login",
-      element: <AdminLoginPage />,
-    },
-    {
-      path: "/forgot-password",
-      element: (
-        <AuthLayout>
-          <ForgotPasswordPage />
-        </AuthLayout>
-      ),
-    },
+    { path: "/", element: <LandingPage /> },
+    { path: "/signup", element: <RoleSelectPage /> },
+    { path: "/signup/customer", element: <SignUpCustomerPage /> },
+    { path: "/signup/vendor", element: <SignUpVendorPage /> },
+    { path: "/products", element: <DefaultBrowsePage /> },
+    { path: "/signin", element: <SignInPage /> },
+    { path: "/seller/login", element: <SignInPage /> },
+    { path: "/admin/login", element: <AdminLoginPage /> },
+    { path: "/forgot-password", element: <ForgotPasswordPage /> },
+    { path: "/reset-password", element: <ResetPasswordPage /> }
   ],
 
   protected: [
+    // Buyer
     {
       path: "/buyer/products",
       roles: ["buyer"],
@@ -110,6 +83,15 @@ export const routeConfig: {
       element: (
         <MainLayout role="buyer">
           <CartPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/profile",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer" hideSidebar>
+          <CustomerProfilePage />
         </MainLayout>
       ),
     },
@@ -159,7 +141,17 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    {
+      path: "/seller/profile",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller" hideSidebar>
+          <SellerProfilePage />
+        </MainLayout>
+      ),
+    },
   ],
+
   fallback: <NotFoundPage />,
   error: <ServerErrorPage />,
   unauthorized: <UnauthorizedPage />,

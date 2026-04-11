@@ -3,13 +3,16 @@ import { AppRoutes } from "./routes";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { ToastProvider } from './context/ToastContext'
 
 const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <AppRoutes />
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>

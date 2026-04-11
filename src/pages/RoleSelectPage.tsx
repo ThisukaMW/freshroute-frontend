@@ -80,6 +80,7 @@ const RoleSelectPage = (): JSX.Element => {
 
 export default RoleSelectPage
 */
+
 import { Link, useNavigate } from 'react-router-dom'
 import type { JSX } from 'react'
 import Navbar from '../components/Navbar'
@@ -106,13 +107,6 @@ const VendorIcon = () => (
   </svg>
 )
 
-const DeliveryIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-    <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-  </svg>
-)
-
 const roles: RoleItem[] = [
   {
     key: 'customer',
@@ -128,13 +122,6 @@ const roles: RoleItem[] = [
     to: '/signup/vendor',
     icon: <VendorIcon />,
   },
-  {
-    key: 'rider',
-    title: 'Delivery Person',
-    description: 'Deliver order and earn on your schedule',
-    to: '/signup/rider',
-    icon: <DeliveryIcon />,
-  },
 ]
 
 const RoleSelectPage = (): JSX.Element => {
@@ -146,10 +133,10 @@ const RoleSelectPage = (): JSX.Element => {
 
       <main className="relative flex flex-1 items-center justify-center px-4 py-10">
 
-        <div className="flex w-full max-w-6xl flex-col items-center">
+        <div className="flex w-full max-w-4xl flex-col items-center">
 
           {/* Main container */}
-          <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-2xl">
+          <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-2xl">
 
             {/* Header */}
             <div className="mb-2 text-center">
@@ -162,7 +149,7 @@ const RoleSelectPage = (): JSX.Element => {
             </div>
 
             {/* Role Cards */}
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
               {roles.map((role) => (
                 <button
                   key={role.key}
@@ -205,3 +192,4 @@ const RoleSelectPage = (): JSX.Element => {
 }
 
 export default RoleSelectPage
+  

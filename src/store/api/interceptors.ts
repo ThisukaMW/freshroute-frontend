@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { LocalStorageService } from '../services/storage/LocalStorageService'
+import { LocalStorageService } from '../../services/storage/LocalStorageService'
 
 export const setupInterceptors = (client: AxiosInstance): void => {
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
