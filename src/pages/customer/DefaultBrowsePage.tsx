@@ -1,19 +1,56 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth.ts'
 import { useSelector } from 'react-redux'
+import { getProducts } from '../../api/endpoints/products'
 
 const ProductBrowsePage = () => {
 
   const [activeCategory, setActiveCategory] = useState('All')
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 })
   const [sortBy, setSortBy] = useState('recommended')
-  const [searchQuery, setSearchQuery] = useState('')  // ← NEW: Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const cartCount = useSelector((state: any) => state.cart?.items?.length ?? 0)
-  const products = useSelector((state: any) => state.sellerProducts?.products ?? [])
+
+  // Fetch products from backend on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await getProducts()
+        
+        // Map backend format to frontend format
+        const formattedProducts = data.map((product: any) => ({
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          pricePerUnit: product.price,
+          unit: product.unit,
+          stock: product.stock,
+          status: product.status === 'APPROVED' ? 'active' : 'inactive',
+          imageUrl: product.imageUrl,
+          description: product.description,
+        }))
+        
+        setProducts(formattedProducts)
+        console.log('✅ Products loaded successfully')
+      } catch (err: any) {
+        console.error('❌ Error fetching products:', err.message)
+        setError('Failed to load products')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   const categories: string[] = [
     'All',
@@ -126,7 +163,7 @@ const ProductBrowsePage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* ✅ UPDATED: Search input with value and onChange */}
+          {/*Search input with value and onChange */}
           <input
             type="text"
             placeholder="Search for apples, milk, tomatoes..."
