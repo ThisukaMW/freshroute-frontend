@@ -85,6 +85,7 @@ import OrderDetailPage from "../pages/seller/OrderDetailPage.tsx";
 import OrdersPage from "../pages/seller/OrdersPage.tsx";
 import HomePage from "../pages/buyer/HomePage.tsx";
 import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
+import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -238,15 +239,15 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
-    // {
-    //   path: "/buyer/checkout",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <CheckoutPage />
-    //     </MainLayout>
-    //   ),
-    // },
+    {
+      path: "/buyer/checkout",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CheckoutPage />
+        </MainLayout>
+      ),
+    },
     {
       path: "/buyer/orders",
       roles: ["buyer"],

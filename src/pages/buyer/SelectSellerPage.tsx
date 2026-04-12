@@ -1,47 +1,126 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { addItem } from '../../store/slices/cartSlice.ts'
+import { getProductById, getProductSellers } from '../../api/endpoints/products'
 
 type RootState = any
 
-interface SellerOption {
-  id: string
-  name: string
-  rating: number
-  deliveriesPerWeek: number
-  priceMultiplier: number
-  etaLabel: string
-}
+const SelectSellerPage = () => {
+  const { id: productId } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
 
-const SELLER_OPTIONS: SellerOption[] = [
-  {
-    id: 'seller-fresh-farms',
-    name: 'Fresh Farms Co.',
-    rating: 4.8,
-    deliveriesPerWeek: 6,
-    priceMultiplier: 1,
-    etaLabel: 'Same day delivery',
-  },
-  {
-    id: 'seller-green-valley',
-    name: 'Green Valley Traders',
-    rating: 4.5,
-    deliveriesPerWeek: 5,
-    priceMultiplier: 0.96,
-    etaLabel: 'Within 24 hours',
-  },
-  {
-    id: 'seller-city-market',
-    name: 'City Market Hub',
-    rating: 4.2,
-    deliveriesPerWeek: 7,
-    priceMultiplier: 1.04,
-    etaLabel: 'Express delivery',
-  },
-]
+  const [product, setProduct] = useState<any>(null)
+  const [sellers, setSellers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
+  const [quantity, setQuantity] = useState<number>(1)
+  const [requirements, setRequirements] = useState<string>('')
 
-const getImageForProduct = (product: any) => {
+  // Fetch product and sellers on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Fetch product details
+        const productData = await getProductById(productId!)
+        setProduct({
+          id: productData.id,
+          name: productData.name,
+          category: productData.category,
+          pricePerUnit: productData.price,
+          unit: productData.unit,
+          stock: productData.stock,
+          imageUrl: productData.imageUrl,
+          description: productData.description,
+        })
+
+        // Fetch all sellers offering this product
+        const sellersData = await getProductSellers(productId!)
+        const formattedSellers = sellersData.map((item: any) => ({
+          id: item.id,
+          sellerId: item.seller?.id,
+          sellerName: item.seller?.user?.name || 'Unknown Seller',
+          price: item.price,
+          rating: 4.5, // Default rating (can be enhanced with actual ratings)
+          deliveriesPerWeek: 5, // Default value
+          etaLabel: 'Within 24 hours', // Default value
+        }))
+
+        setSellers(formattedSellers)
+        if (formattedSellers.length > 0) {
+          setSelectedSellerId(formattedSellers[0].id)
+        }
+
+        console.log('✅ Product and sellers loaded successfully')
+      } catch (err: any) {
+        console.error('❌ Error fetching data:', err.message)
+        setError('Failed to load product or sellers')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (productId) {
+      fetchData()
+    }
+  }, [productId])
+
+  const selectedSeller = useMemo(
+    () => sellers.find((s) => s.id === selectedSellerId) ?? sellers[0],
+    [selectedSellerId, sellers]
+  )
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4 py-8">
+        <h1 className="text-xl font-semibold text-slate-50">Loading...</h1>
+        <p className="text-sm text-slate-300">Fetching product and sellers...</p>
+      </div>
+    )
+  }
+
+  if (error || !product) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        <h1 className="text-xl font-semibold text-slate-50">Product not found</h1>
+        <p className="text-sm text-slate-300">
+          {error || "We couldn't find this product. Please go back to the product list and try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+        >
+          Go back
+        </button>
+      </div>
+    )
+  }
+
+  if (sellers.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        <h1 className="text-xl font-semibold text-slate-50">No sellers available</h1>
+        <p className="text-sm text-slate-300">
+          Sorry, there are no sellers currently offering this product.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+        >
+          Go back
+        </button>
+      </div>
+    )
+  }
+
+  const getImageForProduct = (product: any) => {
     if (product.imageUrl) {
       return product.imageUrl
     }
@@ -60,42 +139,6 @@ const getImageForProduct = (product: any) => {
     }
   }
 
-const SelectSellerPage = () => {
-  const { id: productId } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const dispatch = useDispatch()
-
-  const product = useSelector((state: RootState) =>
-    state.sellerProducts?.products?.find((p: any) => p.id === productId)
-  )
-
-  const [selectedSellerId, setSelectedSellerId] = useState(SELLER_OPTIONS[0]?.id)
-  const [quantity, setQuantity] = useState<number>(1)
-  const [requirements, setRequirements] = useState<string>('')
-
-  const selectedSeller = useMemo(
-    () => SELLER_OPTIONS.find((s) => s.id === selectedSellerId) ?? SELLER_OPTIONS[0],
-    [selectedSellerId]
-  )
-
-  if (!product) {
-    return (
-      <div className="max-w-3xl mx-auto space-y-4">
-        <h1 className="text-xl font-semibold text-slate-50">Product not found</h1>
-        <p className="text-sm text-slate-300">
-          We couldn&apos;t find this product. Please go back to the product list and try again.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
-        >
-          Go back
-        </button>
-      </div>
-    )
-  }
-
   const basePrice = Number(product.pricePerUnit) || 0
   const productImage = getImageForProduct(product)
 
@@ -103,15 +146,16 @@ const SelectSellerPage = () => {
     if (!selectedSeller) return
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
 
-    const priceForSeller = Math.round(basePrice * selectedSeller.priceMultiplier)
-    const compositeId = `${product.id}-${selectedSeller.id}`
+    // Use the seller's actual price, not a multiplier
+    const sellerPrice = Math.round(selectedSeller.price)
+    const compositeId = `${product.id}-${selectedSeller.sellerId}`
 
     dispatch(
       addItem({
         id: compositeId,
         name: product.name,
-        vendor: selectedSeller.name,
-        price: `Rs. ${priceForSeller}`,
+        vendor: selectedSeller.sellerName,
+        price: `Rs. ${sellerPrice}`,
         unit: product.unit,
         quantity: safeQuantity,
         requirements: requirements.trim() || undefined,
@@ -180,39 +224,36 @@ const SelectSellerPage = () => {
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,2fr),minmax(0,1.4fr)]">
         <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-          <p className="text-xs font-semibold text-supply-paper">Available sellers</p>
+          <p className="text-xs font-semibold text-supply-paper">Available sellers ({sellers.length})</p>
           <div className="mt-2 space-y-2">
-            {SELLER_OPTIONS.map((seller) => {
-              const sellerPrice = Math.round(basePrice * seller.priceMultiplier)
-              return (
-                <button
-                  key={seller.id}
-                  type="button"
-                  onClick={() => setSelectedSellerId(seller.id)}
-                  className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
-                    selectedSellerId === seller.id
-                      ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
-                      : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{seller.name}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-300">
-                        {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-semibold text-supply-paper">
-                        Rs. {sellerPrice}{' '}
-                        <span className="font-normal text-slate-300">/ {product.unit}</span>
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
-                    </div>
+            {sellers.map((seller) => (
+              <button
+                key={seller.id}
+                type="button"
+                onClick={() => setSelectedSellerId(seller.id)}
+                className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
+                  selectedSellerId === seller.id
+                    ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
+                    : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{seller.sellerName}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-300">
+                      {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
+                    </p>
                   </div>
-                </button>
-              )
-            })}
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-supply-paper">
+                      Rs. {seller.price}{' '}
+                      <span className="font-normal text-slate-300">/ {product.unit}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -244,10 +285,10 @@ const SelectSellerPage = () => {
             {selectedSeller && (
               <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
                 <p className="font-semibold">
-                  Selected seller: <span className="font-normal">{selectedSeller.name}</span>
+                  Selected seller: <span className="font-normal">{selectedSeller.sellerName}</span>
                 </p>
                 <p className="mt-0.5">
-                  {selectedSeller.rating.toFixed(1)}★ · {selectedSeller.etaLabel}
+                  {selectedSeller.rating.toFixed(1)}★ · Rs. {selectedSeller.price} / {product.unit}
                 </p>
               </div>
             )}
@@ -257,7 +298,7 @@ const SelectSellerPage = () => {
               onClick={handleAddToCart}
               className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white hover:bg-primary-dark"
             >
-              Add to cart from {selectedSeller?.name ?? 'selected seller'}
+              Add to cart from {selectedSeller?.sellerName ?? 'selected seller'}
             </button>
           </div>
         </section>

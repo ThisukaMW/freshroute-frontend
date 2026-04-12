@@ -41,3 +41,18 @@ export const getProductById = async (productId: string): Promise<Product> => {
     throw error
   }
 }
+
+/**
+ * Fetch all sellers offering a specific product
+ */
+export const getProductSellers = async (productId: string): Promise<Product[]> => {
+  try {
+    console.log(`🔄 Fetching sellers for product ${productId}...`)
+    const response = await apiClient.get(`/api/v1/products/${productId}/sellers`)
+    console.log('✅ Sellers fetched:', response.data)
+    return response.data || []
+  } catch (error) {
+    console.error(`❌ Failed to fetch sellers for product ${productId}:`, error)
+    throw error
+  }
+}

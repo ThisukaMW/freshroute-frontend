@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth.ts'
 import { useSelector } from 'react-redux'
-
+import { getProducts } from '../../api/endpoints/products'
 const ProductBrowsePage = () => {
 
   const [activeCategory, setActiveCategory] = useState('All')
@@ -13,7 +13,44 @@ const ProductBrowsePage = () => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const cartCount = useSelector((state: any) => state.cart?.items?.length ?? 0)
-  const products = useSelector((state: any) => state.sellerProducts?.products ?? [])
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch products from backend on component mount
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getProducts()
+      
+      // Map backend format to frontend format
+      const formattedProducts = data.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        pricePerUnit: product.price,
+        unit: product.unit,
+        stock: product.stock,
+        status: product.status,
+        imageUrl: product.imageUrl,
+        description: product.description,
+        sellerName: product.seller?.user?.name || 'Unknown Vendor',
+      }))
+      
+      setProducts(formattedProducts)
+      console.log('✅ Products loaded successfully')
+    } catch (err: any) {
+      console.error('❌ Error fetching products:', err.message)
+      setError('Failed to load products')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  fetchData()
+}, [])
 
   const categories: string[] = [
     'All',
@@ -46,7 +83,7 @@ const ProductBrowsePage = () => {
   // ✅ UPDATED: Filter with category, price, AND search
   const filteredProducts = products.filter((p: any) => {
     // Filter by status
-    if (p.status !== 'active') return false
+    if (p.status !== 'APPROVED') return false
     
     // Filter by category
     if (activeCategory !== 'All' && p.category !== activeCategory) return false
@@ -285,7 +322,7 @@ const ProductBrowsePage = () => {
                     />
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
-                  <p className="text-[11px] text-slate-300">Demo vendor</p>
+                  <p className="text-[11px] text-slate-300">{p.sellerName}</p>
                   <p className="mt-1 text-xs font-semibold text-supply-paper">
                     Rs. {p.pricePerUnit}{' '}
                     <span className="font-normal text-slate-300">
