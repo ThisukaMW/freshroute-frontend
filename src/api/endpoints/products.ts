@@ -45,7 +45,7 @@ export const getProductById = async (productId: string): Promise<Product> => {
 /**
  * Fetch all sellers offering a specific product
  */
-export const getProductSellers = async (productId: string): Promise<Product[]> => {
+export const getProductBySellers = async (productId: string): Promise<Product[]> => {
   try {
     console.log(`🔄 Fetching sellers for product ${productId}...`)
     const response = await apiClient.get(`/api/v1/products/${productId}/sellers`)

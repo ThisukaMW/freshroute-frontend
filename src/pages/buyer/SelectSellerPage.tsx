@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { addItem } from '../../store/slices/cartSlice.ts'
-import { getProductById, getProductSellers } from '../../api/endpoints/products'
+import { addItemLocal, addItemAsync } from '../../store/slices/cartSlice.ts'
+import { getProductById, getProductBySellers } from '../../api/endpoints/products'
 
 type RootState = any
 
@@ -40,20 +40,20 @@ const SelectSellerPage = () => {
         })
 
         // Fetch all sellers offering this product
-        const sellersData = await getProductSellers(productId!)
+        const sellersData = await getProductBySellers(productId!)
         const formattedSellers = sellersData.map((item: any) => ({
           id: item.id,
           sellerId: item.seller?.id,
           sellerName: item.seller?.user?.name || 'Unknown Seller',
           price: item.price,
-          rating: 4.5, // Default rating (can be enhanced with actual ratings)
-          deliveriesPerWeek: 5, // Default value
-          etaLabel: 'Within 24 hours', // Default value
+          rating: 4.5,
+          deliveriesPerWeek: 5,
+          etaLabel: 'Within 24 hours',
         }))
 
         setSellers(formattedSellers)
         if (formattedSellers.length > 0) {
-          setSelectedSellerId(formattedSellers[0].id)
+          setSelectedSellerId(formattedSellers[0].sellerId)
         }
 
         console.log('✅ Product and sellers loaded successfully')
@@ -71,7 +71,7 @@ const SelectSellerPage = () => {
   }, [productId])
 
   const selectedSeller = useMemo(
-    () => sellers.find((s) => s.id === selectedSellerId) ?? sellers[0],
+    () => sellers.find((s) => s.sellerId === selectedSellerId) ?? sellers[0],
     [selectedSellerId, sellers]
   )
 
@@ -142,27 +142,62 @@ const SelectSellerPage = () => {
   const basePrice = Number(product.pricePerUnit) || 0
   const productImage = getImageForProduct(product)
 
-  const handleAddToCart = () => {
-    if (!selectedSeller) return
+//   const handleAddToCart = async () => {
+//   if (!selectedSeller) return
+
+//   const safeQuantity =
+//     Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+
+//   try {
+//     await addItemToCart(
+//       product.id,
+//       safeQuantity,
+//       selectedSeller.sellerId
+      
+//     )
+
+//     console.log("✅ Added to backend cart")
+
+//     navigate('/buyer/cart')
+//   } catch (error) {
+//     console.error("❌ Add to cart failed:", error)
+//   }
+// }
+
+  const handleAddToCart = async () => {
+    if (!selectedSeller || !product) return
+
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
 
-    // Use the seller's actual price, not a multiplier
-    const sellerPrice = Math.round(selectedSeller.price)
-    const compositeId = `${product.id}-${selectedSeller.sellerId}`
-
+    // 1️⃣ Dispatch to Redux immediately (optimistic update)
     dispatch(
-      addItem({
-        id: compositeId,
+      addItemLocal({
+        id: product.id,
+        productId: product.id,
         name: product.name,
-        vendor: selectedSeller.sellerName,
-        price: `Rs. ${sellerPrice}`,
+        category: product.category,
+        price: selectedSeller.price,
         unit: product.unit,
         quantity: safeQuantity,
-        requirements: requirements.trim() || undefined,
+        imageUrl: product.imageUrl,
       })
     )
 
-    navigate('/buyer/cart')
+    // 2️⃣ Also save to database (in background)
+    try {
+      await dispatch(
+        addItemAsync({
+          productId: product.id,
+          quantity: safeQuantity,
+          sellerId: selectedSeller.sellerId,
+        }) as any
+      )
+      console.log('✅ Item added to cart and saved to DB')
+      navigate('/buyer/cart')
+    } catch (error) {
+      console.error('❌ Failed to sync with DB:', error)
+      // Item stays in Redux even if DB save fails - user can retry
+    }
   }
 
   return (
