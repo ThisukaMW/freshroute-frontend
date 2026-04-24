@@ -7,11 +7,36 @@ import { setSellerProfile } from '../store/slices/userSlice'
 import { setCredentials } from '../store/slices/authSlice'
 import { registerVendor } from '../services/authService'
 import Navbar from '../components/Navbar'
+import { useToast } from '../context/ToastContext'
+
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+  let score = 0
+  if (pwd.length >= 8) score++
+  if (/[A-Z]/.test(pwd)) score++
+  if (/[0-9]/.test(pwd)) score++
+  if (/[^A-Za-z0-9]/.test(pwd)) score++
+  if (score <= 1) return { score, label: 'Weak', color: 'bg-red-500' }
+  if (score === 2) return { score, label: 'Fair', color: 'bg-yellow-500' }
+  if (score === 3) return { score, label: 'Good', color: 'bg-blue-500' }
+  return { score, label: 'Strong', color: 'bg-emerald-500' }
+}
+
+const validatePassword = (pwd: string): string[] => {
+  const errors: string[] = []
+  if (pwd.length < 8) errors.push('At least 8 characters')
+  if (!/[A-Z]/.test(pwd)) errors.push('At least 1 uppercase letter')
+  if (!/[0-9]/.test(pwd)) errors.push('At least 1 number')
+  if (!/[^A-Za-z0-9]/.test(pwd)) errors.push('At least 1 special character (!@#$...)')
+  return errors
+}
 
 const SignUpVendorPage = (): JSX.Element => {
   const navigate = useNavigate()
   const { login } = useAuth()
   const dispatch = useDispatch()
+  const { showToast } = useToast()
 
   const [businessName, setBusinessName] = useState('')
   const [ownerName, setOwnerName] = useState('')
@@ -25,33 +50,33 @@ const SignUpVendorPage = (): JSX.Element => {
   const [verificationDoc, setVerificationDoc] = useState<File | undefined>()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPasswordHints, setShowPasswordHints] = useState(false)
+
+  const strength = getPasswordStrength(password)
+  const passwordErrors = validatePassword(password)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
+    if (!businessName.trim()) { setError('Business name is required'); return }
+    if (!ownerName.trim()) { setError('Owner name is required'); return }
+    if (!email.trim()) { setError('Email is required'); return }
+    if (!isValidEmail(email)) { setError('Please enter a valid email address'); return }
+    if (!businessAddress.trim()) { setError('Business address is required'); return }
+    if (passwordErrors.length > 0) {
+      setError('Please fix password requirements')
+      setShowPasswordHints(true)
       return
     }
-    if (!agreedToPolicy) {
-      setError('You must agree to the vendor policy')
-      return
-    }
+    if (password !== confirmPassword) { setError('Passwords do not match'); return }
+    if (!agreedToPolicy) { setError('You must agree to the vendor policy'); return }
 
     setLoading(true)
     try {
       const data = await registerVendor({
-        businessName,
-        ownerName,
-        email,
-        phone,
-        password,
-        confirmPassword,
-        businessAddress,
-        city,
-        agreedToPolicy,
-        verificationDoc,
+        businessName, ownerName, email, phone, password, confirmPassword,
+        businessAddress, city, agreedToPolicy, verificationDoc,
       })
 
       dispatch(setCredentials({
@@ -60,30 +85,26 @@ const SignUpVendorPage = (): JSX.Element => {
       }))
 
       dispatch(setSellerProfile({
-        ownerName,
-        email: data.user.email,
-        businessName,
-        businessAddress,
-        phone,
-        city,
+        ownerName, email: data.user.email, businessName, businessAddress, phone, city,
       }))
 
       login(data.token, {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
+        id: data.user.id, name: data.user.name, email: data.user.email,
         role: data.user.role?.toLowerCase(),
       })
 
+      showToast('Welcome to FreshRoute! 🎉')
       navigate('/seller')
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
+      const msg = err?.response?.data?.message ?? 'Registration failed. Please try again.'
+      setError(msg)
+      showToast(msg, 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  const inputClass = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-500/60 placeholder:text-offwhite/60 focus:border-emerald-500 focus:ring-2"
+  const inputClass = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-500/60 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2"
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-brand-background/90 via-supply-teal/60 to-supply-teal/45">
@@ -108,23 +129,24 @@ const SignUpVendorPage = (): JSX.Element => {
 
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-200">Business name</label>
+              <label className="block text-xs font-medium text-slate-200">Business name <span className="text-red-400">*</span></label>
               <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required className={inputClass} placeholder="Green Market" />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-200">Owner full name</label>
+              <label className="block text-xs font-medium text-slate-200">Owner full name <span className="text-red-400">*</span></label>
               <input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required className={inputClass} placeholder="Kamal Perera" />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-200">Email</label>
+              <label className="block text-xs font-medium text-slate-200">Email <span className="text-red-400">*</span></label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} placeholder="store@example.com" />
+              {email && !isValidEmail(email) && <p className="text-[10px] text-red-400">✕ Please enter a valid email address</p>}
             </div>
             <div className="space-y-1">
               <label className="block text-xs font-medium text-slate-200">Phone number</label>
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="+94 77 123 4567" />
             </div>
             <div className="space-y-1 md:col-span-2">
-              <label className="block text-xs font-medium text-slate-200">Business address</label>
+              <label className="block text-xs font-medium text-slate-200">Business address <span className="text-red-400">*</span></label>
               <input type="text" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} required className={inputClass} placeholder="No. 45, Market Street, Colombo" />
             </div>
             <div className="space-y-1">
@@ -136,14 +158,62 @@ const SignUpVendorPage = (): JSX.Element => {
                 <option>Jaffna</option>
               </select>
             </div>
+
+            {/* Password with strength meter */}
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-200">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className={inputClass} placeholder="Create a strong password" />
+              <label className="block text-xs font-medium text-slate-200">Password <span className="text-red-400">*</span></label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setShowPasswordHints(true) }}
+                required
+                className={inputClass}
+                placeholder="Create a strong password"
+              />
+              {password && (
+                <div className="space-y-1.5 mt-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= strength.score ? strength.color : 'bg-white/10'}`} />
+                      ))}
+                    </div>
+                    <span className={`text-[10px] font-medium ${strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-yellow-400' : strength.score === 3 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                      {strength.label}
+                    </span>
+                  </div>
+                  {showPasswordHints && passwordErrors.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {passwordErrors.map((err) => (
+                        <li key={err} className="flex items-center gap-1 text-[10px] text-red-400"><span>✕</span> {err}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {passwordErrors.length === 0 && (
+                    <p className="text-[10px] text-emerald-400 flex items-center gap-1"><span>✓</span> Password looks great!</p>
+                  )}
+                </div>
+              )}
             </div>
+
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-200">Confirm password</label>
-              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className={inputClass} placeholder="Repeat your password" />
+              <label className="block text-xs font-medium text-slate-200">Confirm password <span className="text-red-400">*</span></label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className={inputClass}
+                placeholder="Repeat your password"
+              />
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-red-400 mt-1">✕ Passwords do not match</p>
+              )}
+              {confirmPassword && confirmPassword === password && (
+                <p className="text-[10px] text-emerald-400 mt-1">✓ Passwords match</p>
+              )}
             </div>
+
             <div className="space-y-1 md:col-span-2">
               <label className="block text-xs font-medium text-slate-200">Business verification (optional)</label>
               <input
@@ -151,8 +221,9 @@ const SignUpVendorPage = (): JSX.Element => {
                 onChange={(e) => setVerificationDoc(e.target.files?.[0])}
                 className="block w-full cursor-pointer rounded-xl border border-dashed border-slate-500 bg-brand-background/60 px-3 py-2 text-xs text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:border-emerald-400"
               />
-              <p className="mt-1 text-[11px] text-offwhite/60">Upload your business registration document or valid ID.</p>
+              <p className="mt-1 text-[11px] text-slate-400">Upload your business registration document or valid ID.</p>
             </div>
+
             <div className="mt-2 flex items-start gap-2 md:col-span-2">
               <input
                 type="checkbox"
@@ -162,10 +233,11 @@ const SignUpVendorPage = (): JSX.Element => {
               />
               <p className="text-xs text-slate-300">I agree to the FreshRoute Vendor Policy and understand that orders and payouts are managed by the platform.</p>
             </div>
+
             <div className="md:col-span-2">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || passwordErrors.length > 0 || password !== confirmPassword}
                 className="mt-3 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? 'Registering...' : 'Register Vendor Account'}
@@ -175,7 +247,7 @@ const SignUpVendorPage = (): JSX.Element => {
 
           <p className="mt-4 text-center text-xs text-slate-400">
             Already have an account?{' '}
-            <Link to="/seller/login" className="font-medium text-emerald-400 hover:text-emerald-300">Seller login</Link>
+            <Link to="/signin" className="font-medium text-emerald-400 hover:text-emerald-300">Sign in</Link>
           </p>
         </div>
       </main>

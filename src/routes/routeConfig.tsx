@@ -26,6 +26,7 @@ import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
 import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
 import NotFoundPage from "../pages/common/NotFoundPage.tsx";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage.tsx";
+import BuyerRatingsPage from '../pages/buyer/BuyerRatingsPage';
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -54,7 +55,7 @@ export const routeConfig: {
     { path: "/seller/login", element: <SignInPage /> },
     { path: "/admin/login", element: <AdminLoginPage /> },
     { path: "/forgot-password", element: <ForgotPasswordPage /> },
-    { path: "/reset-password", element: <ResetPasswordPage /> }
+    { path: "/reset-password", element: <ResetPasswordPage /> },
   ],
 
   protected: [
@@ -150,6 +151,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    { path: "/buyer/ratings", element: <MainLayout role="buyer"><BuyerRatingsPage /></MainLayout> },
   ],
 
   fallback: <NotFoundPage />,

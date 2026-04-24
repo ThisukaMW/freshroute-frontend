@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,6 +52,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     navigate("/", { replace: true });
   };
 
+  // call this when profile is updated to keep sidebar in sync
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      LocalStorageService.set("fr_user", updated);
+      return updated;
+    });
+  };
+
   const value = {
     user,
     token,
@@ -58,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     isLoading,
     login,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

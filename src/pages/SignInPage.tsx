@@ -7,25 +7,41 @@ import { useDispatch } from 'react-redux'
 import { setBuyerProfile, setSellerProfile } from '../store/slices/userSlice'
 import { setCredentials } from '../store/slices/authSlice'
 import { loginCustomer } from '../services/authService'
+import { useToast } from '../context/ToastContext'
+
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
 const SignInPage = (): JSX.Element => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { login } = useAuth()
+  const { showToast } = useToast()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState({ email: false, password: false })
+
+  const emailError = touched.email && !email ? 'Email is required'
+    : touched.email && !isValidEmail(email) ? 'Please enter a valid email address' : ''
+
+  const passwordError = touched.password && !password ? 'Password is required'
+    : touched.password && password.length < 8 ? 'Password must be at least 8 characters' : ''
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setTouched({ email: true, password: true })
     setError('')
-    setLoading(true)
 
+    if (!email || !isValidEmail(email)) return
+    if (!password || password.length < 8) return
+
+    setLoading(true)
     try {
-      // try buyer login first, if role comes back as seller handle accordingly
+      // single login endpoint — backend returns role in user object
       const data = await loginCustomer({ email, password })
+      localStorage.setItem('fr_token', data.token)
       const role = data.user.role?.toLowerCase()
 
       dispatch(setCredentials({
@@ -40,6 +56,7 @@ const SignInPage = (): JSX.Element => {
         role,
       })
 
+      // auto detect role and redirect to correct dashboard
       if (role === 'seller') {
         dispatch(setSellerProfile({
           ownerName: data.user.name,
@@ -49,7 +66,11 @@ const SignInPage = (): JSX.Element => {
           phone: data.user.phone ?? '',
           city: data.user.city ?? 'Colombo',
         }))
+        showToast(`Welcome back, ${data.user.name}! 👋`)
         navigate('/seller')
+      } else if (role === 'admin') {
+        showToast(`Welcome back, ${data.user.name}! 👋`)
+        navigate('/admin')
       } else {
         dispatch(setBuyerProfile({
           name: data.user.name,
@@ -58,6 +79,7 @@ const SignInPage = (): JSX.Element => {
           city: data.user.city ?? 'Colombo',
           address: data.user.address ?? '',
         }))
+        showToast(`Welcome back, ${data.user.name}! 👋`)
         navigate('/buyer/products')
       }
     } catch (err: any) {
@@ -66,6 +88,8 @@ const SignInPage = (): JSX.Element => {
       setLoading(false)
     }
   }
+
+  const inputBase = "w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none placeholder:text-slate-500 focus:ring-2 transition-all"
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-brand-background/90 via-supply-teal/60 to-supply-teal/45">
@@ -89,8 +113,8 @@ const SignInPage = (): JSX.Element => {
                     <p className="mt-1 text-slate-200">Customer, vendor and admin views.</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-xl">
-                    <p className="text-emerald-300">Modern UI</p>
-                    <p className="mt-1 text-slate-200">Built with React and Tailwind CSS.</p>
+                    <p className="text-emerald-300">Auto role detection</p>
+                    <p className="mt-1 text-slate-200">System directs you to the right dashboard.</p>
                   </div>
                 </div>
               </div>
@@ -101,7 +125,7 @@ const SignInPage = (): JSX.Element => {
             <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
               <div className="mb-6 space-y-1 text-center">
                 <h2 className="text-xl font-semibold text-slate-50">Welcome back</h2>
-                <p className="text-xs text-slate-400">Sign in to continue to your FreshRoute workspace.</p>
+                <p className="text-xs text-slate-400">Sign in — we'll take you to the right place.</p>
               </div>
 
               {error && (
@@ -112,30 +136,36 @@ const SignInPage = (): JSX.Element => {
 
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-1">
-                  <label className="block text-xs font-medium text-slate-200">Email</label>
+                  <label className="block text-xs font-medium text-slate-200">
+                    Email <span className="text-red-400">*</span>
+                  </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-500/60 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2"
+                    onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                    className={`${inputBase} ${emailError ? 'border-red-500/60 focus:border-red-500' : 'border-white/10 focus:border-emerald-500'}`}
                     placeholder="you@example.com"
                   />
+                  {emailError && <p className="text-[10px] text-red-400">✕ {emailError}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <label className="font-medium text-slate-200">Password</label>
+                    <label className="font-medium text-slate-200">
+                      Password <span className="text-red-400">*</span>
+                    </label>
                     <Link to="/forgot-password" className="text-emerald-400 hover:text-emerald-300">Forgot password?</Link>
                   </div>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none ring-emerald-500/60 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2"
+                    onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+                    className={`${inputBase} ${passwordError ? 'border-red-500/60 focus:border-red-500' : 'border-white/10 focus:border-emerald-500'}`}
                     placeholder="Enter your password"
                   />
+                  {passwordError && <p className="text-[10px] text-red-400">✕ {passwordError}</p>}
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
@@ -155,12 +185,11 @@ const SignInPage = (): JSX.Element => {
               </form>
 
               <p className="mt-4 text-center text-xs text-slate-500">
-                Don&apos;t have an account?{' '}
+                Don't have an account?{' '}
                 <Link to="/signup" className="font-medium text-emerald-600 hover:text-emerald-700">Sign up</Link>
               </p>
             </div>
           </div>
-
         </div>
       </main>
     </div>

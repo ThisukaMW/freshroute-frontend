@@ -5,11 +5,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { RootState } from '../../store'
 import { updateBuyerProfile } from '../../store/slices/userSlice'
 import { useToast } from '../../context/ToastContext'
+import { useAuthContext } from '../../context/AuthContext'
+import RatingModal from '../../components/RatingModal'
 
 const mockOrders = [
-  { id: 'ORD-2024-042', date: 'Dec 1, 2024', status: 'Delivered', total: 'Rs. 1,240', items: 4 },
-  { id: 'ORD-2024-038', date: 'Nov 28, 2024', status: 'Delivered', total: 'Rs. 870', items: 2 },
-  { id: 'ORD-2024-031', date: 'Nov 20, 2024', status: 'Cancelled', total: 'Rs. 530', items: 1 },
+  { id: 'ORD-2024-042', date: 'Dec 1, 2024', status: 'Delivered', total: 'Rs. 1,240', items: 4, driverId: 'driver-1', buyerId: 'buyer-1', sellerName: 'Green Market' },
+  { id: 'ORD-2024-038', date: 'Nov 28, 2024', status: 'Delivered', total: 'Rs. 870', items: 2, driverId: 'driver-2', buyerId: 'buyer-1', sellerName: 'Fresh Farms' },
+  { id: 'ORD-2024-031', date: 'Nov 20, 2024', status: 'Cancelled', total: 'Rs. 530', items: 1, driverId: 'driver-3', buyerId: 'buyer-1', sellerName: 'City Veggies' },
 ]
 
 type Tab = 'profile' | 'orders' | 'address' | 'password' | 'settings'
@@ -30,6 +32,7 @@ const CustomerProfilePage = (): JSX.Element => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { updateUser } = useAuthContext()
   const buyerProfile = useSelector((state: RootState) => state.user.buyerProfile)
   const [searchParams] = useSearchParams()
 
@@ -45,6 +48,8 @@ const CustomerProfilePage = (): JSX.Element => {
   const [address, setAddress] = useState(buyerProfile?.address ?? '')
   const [saved, setSaved] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const [ratingOrder, setRatingOrder] = useState<typeof mockOrders[0] | null>(null)
 
   const [notifOrders, setNotifOrders] = useState(true)
   const [notifPromos, setNotifPromos] = useState(false)
@@ -65,12 +70,57 @@ const CustomerProfilePage = (): JSX.Element => {
     }
   }
 
-  const handleSave = () => {
-    dispatch(updateBuyerProfile({ name, phone, city, address }))
+  const handleSave = async () => {
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    console.log('TOKEN BEING SENT:', token)
+    const prev = buyerProfile
     setSaved(true)
-    if (activeTab === 'profile') showToast('Personal info updated successfully')
-    else if (activeTab === 'address') showToast('Delivery address updated successfully')
-    else if (activeTab === 'password') showToast('Password changed successfully')
+
+    try {
+      if (activeTab === 'profile') {
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/personal', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name, phone, city }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update', 'error'); setSaved(false); return }
+        dispatch(updateBuyerProfile({ name, phone, city }))
+        updateUser({ name: data.user.name })
+        if (prev?.name !== name) showToast(`Name updated to ${name}`)
+        else if (prev?.phone !== phone) showToast(`Phone number updated to ${phone}`)
+        else if (prev?.city !== city) showToast(`City updated to ${city}`)
+        else showToast('Personal info updated successfully')
+
+      } else if (activeTab === 'address') {
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/address', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ address, city }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update address', 'error'); setSaved(false); return }
+        dispatch(updateBuyerProfile({ address, city }))
+        if (prev?.address !== address) showToast(`Address updated to ${address}`)
+        else if (prev?.city !== city) showToast(`City updated to ${city}`)
+        else showToast('Delivery address updated successfully')
+
+      } else if (activeTab === 'password') {
+        const currentPwd = (document.getElementById('current-password') as HTMLInputElement)?.value
+        const newPwd = (document.getElementById('new-password') as HTMLInputElement)?.value
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/password', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update password', 'error'); setSaved(false); return }
+        showToast('Password changed successfully')
+      }
+    } catch (err) {
+      showToast('Something went wrong', 'error')
+    }
+
     setTimeout(() => setSaved(false), 2500)
   }
 
@@ -152,6 +202,18 @@ const CustomerProfilePage = (): JSX.Element => {
 
   return (
     <main className="flex min-h-screen gap-0" aria-label="Customer profile page">
+
+      {/* Rating Modal */}
+      {ratingOrder && (
+        <RatingModal
+          isOpen={!!ratingOrder}
+          onClose={() => setRatingOrder(null)}
+          orderId={ratingOrder.id}
+          driverId={ratingOrder.driverId}
+          buyerId={ratingOrder.buyerId}
+          sellerName={ratingOrder.sellerName}
+        />
+      )}
 
       {/* SIDEBAR */}
       <aside className="flex w-64 flex-shrink-0 flex-col gap-4 border-r border-white/10 px-3 py-6" aria-label="Profile navigation">
@@ -292,16 +354,24 @@ const CustomerProfilePage = (): JSX.Element => {
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
                 <ul className="space-y-2">
                   {mockOrders.map((order) => (
-                    <li key={order.id} className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                    <li key={order.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-base font-semibold text-slate-50">{order.id}</p>
-                        <p className="mt-0.5 text-sm text-slate-400">{order.date} · {order.items} items</p>
+                        <p className="mt-0.5 text-sm text-slate-400">{order.date} · {order.items} items · {order.sellerName}</p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <p className="text-base font-semibold text-slate-200">{order.total}</p>
                         <span className={`rounded-full border px-3 py-0.5 text-sm font-medium ${statusStyles[order.status] ?? statusStyles['Pending']}`}>
                           {order.status}
                         </span>
+                        {order.status === 'Delivered' && (
+                          <button
+                            onClick={() => setRatingOrder(order)}
+                            className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            ★ Rate order
+                          </button>
+                        )}
                       </div>
                     </li>
                   ))}

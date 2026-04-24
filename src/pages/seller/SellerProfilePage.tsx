@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { JSX } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { RootState } from '../../store'
 import { updateSellerProfile } from '../../store/slices/userSlice'
 import { useToast } from '../../context/ToastContext'
+import { useAuthContext } from '../../context/AuthContext'
 
 type Tab = 'profile' | 'business' | 'password' | 'settings'
 
@@ -30,6 +31,7 @@ const SellerProfilePage = (): JSX.Element => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { updateUser } = useAuthContext()
   const sellerProfile = useSelector((state: RootState) => state.user.sellerProfile)
   const [searchParams] = useSearchParams()
 
@@ -52,6 +54,27 @@ const SellerProfilePage = (): JSX.Element => {
   const [notifStock, setNotifStock] = useState(false)
   const [storeVisible, setStoreVisible] = useState(true)
   const [dataSharing, setDataSharing] = useState(false)
+  const [isApproved, setIsApproved] = useState<boolean | null>(null)
+  const [userStatus, setUserStatus] = useState<string>('ACTIVE')
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const token = localStorage.getItem('fr_token')
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/status', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setIsApproved(data.isApproved)
+          setUserStatus(data.status)
+        }
+      } catch (err) {
+        console.error('Failed to fetch seller status', err)
+      }
+    }
+    fetchStatus()
+  }, [])
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -66,12 +89,57 @@ const SellerProfilePage = (): JSX.Element => {
     }
   }
 
-  const handleSave = () => {
-    dispatch(updateSellerProfile({ ownerName, phone, city, businessName, businessAddress }))
+  const handleSave = async () => {
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    console.log('TOKEN BEING SENT:', token)
+    const prev = sellerProfile
     setSaved(true)
-    if (activeTab === 'profile') showToast('Personal info updated successfully')
-    else if (activeTab === 'business') showToast('Business info updated successfully')
-    else if (activeTab === 'password') showToast('Password changed successfully')
+
+    try {
+      if (activeTab === 'profile') {
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/personal', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: ownerName, phone, city }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update', 'error'); setSaved(false); return }
+        dispatch(updateSellerProfile({ ownerName, phone, city }))
+        updateUser({ name: data.user.name }) // ← persists after logout/login
+        if (prev?.ownerName !== ownerName) showToast(`Name updated to ${ownerName}`)
+        else if (prev?.phone !== phone) showToast(`Phone number updated to ${phone}`)
+        else if (prev?.city !== city) showToast(`City updated to ${city}`)
+        else showToast('Personal info updated successfully')
+
+      } else if (activeTab === 'business') {
+        const res = await fetch('http://localhost:5000/api/v1/vendor/profile/business', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ businessName, businessAddress, city }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update business info', 'error'); setSaved(false); return }
+        dispatch(updateSellerProfile({ businessName, businessAddress }))
+        if (prev?.businessName !== businessName) showToast(`Business name updated to ${businessName}`)
+        else if (prev?.businessAddress !== businessAddress) showToast(`Business address updated`)
+        else showToast('Business info updated successfully')
+
+      } else if (activeTab === 'password') {
+        const currentPwd = (document.getElementById('current-password') as HTMLInputElement)?.value
+        const newPwd = (document.getElementById('new-password') as HTMLInputElement)?.value
+        const res = await fetch('http://localhost:5000/api/v1/customer/profile/password', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
+        })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update password', 'error'); setSaved(false); return }
+        showToast('Password changed successfully')
+      }
+    } catch (err) {
+      showToast('Something went wrong', 'error')
+    }
+
     setTimeout(() => setSaved(false), 2500)
   }
 
@@ -177,13 +245,25 @@ const SellerProfilePage = (): JSX.Element => {
             </div>
             <p className="text-[11px] text-slate-400">{sellerProfile?.email ?? ''}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-center">
             <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
               Seller
             </span>
-            <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-              Verified
-            </span>
+            {isApproved === true && (
+              <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+                ✓ Approved
+              </span>
+            )}
+            {isApproved === false && userStatus !== 'SUSPENDED' && (
+              <span className="rounded-full bg-yellow-500/10 px-3 py-0.5 text-[10px] font-semibold text-yellow-400 border border-yellow-500/20">
+                ⏳ Pending
+              </span>
+            )}
+            {userStatus === 'SUSPENDED' && (
+              <span className="rounded-full bg-red-500/10 px-3 py-0.5 text-[10px] font-semibold text-red-400 border border-red-500/20">
+                🚫 Suspended
+              </span>
+            )}
           </div>
         </div>
 
