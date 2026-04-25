@@ -113,7 +113,6 @@ const AddTruckPage = () => {
   const validate = (): FormErrors => {
     const e: FormErrors = {};
     if (!form.id.trim())              e.id          = "Truck ID is required";
-    if (!form.id.trim())              e.id          = "Truck ID is required";
     if (!form.operator.trim())        e.operator    = "Operator name is required";
     if (!form.route.trim())           e.route       = "Route is required";
     if (!form.fuelNeeded.trim())      e.fuelNeeded  = "Fuel needed is required";
@@ -145,7 +144,6 @@ const AddTruckPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Ambient background glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-supply-peach/5 blur-[100px]" />
@@ -153,7 +151,6 @@ const AddTruckPage = () => {
 
       <div className="relative mx-auto max-w-4xl space-y-6 p-6 lg:p-10">
 
-        {/* Error banner */}
         {showErrorBanner && errorCount > 0 && (
           <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
             <span className="mt-0.5 shrink-0 text-base">⚠</span>
@@ -174,7 +171,6 @@ const AddTruckPage = () => {
           </div>
         )}
 
-        {/* Header */}
         <header className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-5 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <button
