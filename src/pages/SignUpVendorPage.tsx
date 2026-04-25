@@ -32,6 +32,15 @@ const validatePassword = (pwd: string): string[] => {
   return errors
 }
 
+// Role-based redirect map — frontend owns navigation, not the backend
+const roleRedirectMap: Record<string, string> = {
+  buyer:       '/buyer/products',
+  seller:      '/seller',
+  driver:      '/driver/dashboard',
+  admin:       '/admin/dashboard',
+  field_admin: '/field-admin/dashboard',
+}
+
 const SignUpVendorPage = (): JSX.Element => {
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -87,13 +96,19 @@ const SignUpVendorPage = (): JSX.Element => {
         ownerName, email: data.user.email, businessName, businessAddress, phone, city,
       }))
 
+      const role = data.user.role?.toLowerCase() ?? 'seller'
+
       login(data.token, {
-        id: data.user.id, name: data.user.name, email: data.user.email,
-        role: data.user.role?.toLowerCase(),
+        id:    data.user.id,
+        name:  data.user.name,
+        email: data.user.email,
+        role,
       })
 
       showToast('Welcome to FreshRoute! 🎉')
-      navigate('/seller')
+
+      // Frontend decides where to navigate based on role
+      navigate(roleRedirectMap[role] ?? '/')
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Registration failed. Please try again.'
       setError(msg)

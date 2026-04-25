@@ -34,11 +34,24 @@ const ResetPasswordPage = (): JSX.Element => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showHints, setShowHints] = useState(false)
+  const [countdown, setCountdown] = useState(5)
 
   const strength = getPasswordStrength(newPassword)
   const passwordErrors = validatePassword(newPassword)
 
   const inputClass = 'w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-base text-slate-50 outline-none placeholder:text-slate-400 focus:border-emerald-500/60 focus:bg-white/15 focus:ring-2 focus:ring-emerald-500/40 transition-all'
+
+  const startCountdown = () => {
+    let count = 5
+    const interval = setInterval(() => {
+      count -= 1
+      setCountdown(count)
+      if (count <= 0) {
+        clearInterval(interval)
+        navigate('/signin')
+      }
+    }, 1000)
+  }
 
   const handleSubmit = async () => {
     setError('')
@@ -62,7 +75,7 @@ const ResetPasswordPage = (): JSX.Element => {
     setLoading(true)
 
     try {
-      const res = await fetch('http://localhost:5000/api/v1/auth/reset-password', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),
@@ -72,7 +85,7 @@ const ResetPasswordPage = (): JSX.Element => {
       if (!res.ok) throw new Error(data.message ?? 'Reset failed')
 
       setSuccess(true)
-      setTimeout(() => navigate('/signin'), 3000)
+      startCountdown()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -172,16 +185,41 @@ const ResetPasswordPage = (): JSX.Element => {
               </div>
             </>
           ) : (
+            // ---- success state ----
             <div className="text-center space-y-4">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30">
                 <svg className="h-8 w-8 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+
               <div>
                 <h2 className="text-lg font-semibold text-slate-50">Password reset!</h2>
-                <p className="mt-1 text-sm text-slate-300">Your password has been updated. Redirecting you to sign in...</p>
+                <p className="mt-1 text-sm text-slate-300">
+                  Your password has been updated successfully.
+                </p>
               </div>
+
+              {/* email notice */}
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-left">
+                <p className="text-xs text-emerald-300 font-medium mb-1">📧 Check your email</p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  We sent a confirmation to your inbox. If this wasn't you, click <strong className="text-red-400">"Secure My Account"</strong> in that email to immediately lock your account and sign out all devices.
+                </p>
+              </div>
+
+              {/* countdown */}
+              <p className="text-sm text-slate-400">
+                Redirecting to sign in in{' '}
+                <span className="font-semibold text-emerald-400">{countdown}s</span>...
+              </p>
+
+              <button
+                onClick={() => navigate('/signin')}
+                className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-supply-teal py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+              >
+                Go to sign in now
+              </button>
             </div>
           )}
 
