@@ -47,7 +47,6 @@ const SignUpVendorPage = (): JSX.Element => {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [agreedToPolicy, setAgreedToPolicy] = useState(false)
-  const [verificationDoc, setVerificationDoc] = useState<File | undefined>()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPasswordHints, setShowPasswordHints] = useState(false)
@@ -76,7 +75,7 @@ const SignUpVendorPage = (): JSX.Element => {
     try {
       const data = await registerVendor({
         businessName, ownerName, email, phone, password, confirmPassword,
-        businessAddress, city, agreedToPolicy, verificationDoc,
+        businessAddress, city, agreedToPolicy,
       })
 
       dispatch(setCredentials({
@@ -212,16 +211,6 @@ const SignUpVendorPage = (): JSX.Element => {
               {confirmPassword && confirmPassword === password && (
                 <p className="text-[10px] text-emerald-400 mt-1">✓ Passwords match</p>
               )}
-            </div>
-
-            <div className="space-y-1 md:col-span-2">
-              <label className="block text-xs font-medium text-slate-200">Business verification (optional)</label>
-              <input
-                type="file"
-                onChange={(e) => setVerificationDoc(e.target.files?.[0])}
-                className="block w-full cursor-pointer rounded-xl border border-dashed border-slate-500 bg-brand-background/60 px-3 py-2 text-xs text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:border-emerald-400"
-              />
-              <p className="mt-1 text-[11px] text-slate-400">Upload your business registration document or valid ID.</p>
             </div>
 
             <div className="mt-2 flex items-start gap-2 md:col-span-2">
