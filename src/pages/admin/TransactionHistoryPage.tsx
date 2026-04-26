@@ -97,18 +97,24 @@ const TransactionHistoryPage = () => {
           return;
         }
 
+        // ✅ Use VITE_API_URL — not a hardcoded port
         const res = await fetch(
-  `${import.meta.env.VITE_API_URL}/api/v1/admin/orders`,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  }
-);
+          `${import.meta.env.VITE_API_URL}/api/v1/admin/orders`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (res.status === 401) {
           setError("Session expired. Please log in again.");
+          return;
+        }
+
+        if (res.status === 403) {
+          setError("Access denied. Admin privileges required.");
           return;
         }
 
@@ -138,27 +144,23 @@ const TransactionHistoryPage = () => {
       );
     });
 
-  // Stats
   const totalRevenue = orders
     .filter((o) => o.payment?.status === "COMPLETED")
     .reduce((s, o) => s + o.totalAmount, 0);
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-slate-50">Transaction History</h1>
         <p className="text-sm text-slate-400 mt-1">All orders across the platform.</p>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
           {error}
@@ -167,13 +169,12 @@ const TransactionHistoryPage = () => {
 
       {!loading && !error && (
         <>
-          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Total Orders",    value: String(orders.length) },
-              { label: "Total Revenue",   value: formatAmount(totalRevenue) },
-              { label: "Delivered",       value: String(orders.filter((o) => o.status === "DELIVERED").length) },
-              { label: "Failed/Cancelled",value: String(orders.filter((o) => ["FAILED", "CANCELLED", "PAYMENT_FAILED"].includes(o.status)).length) },
+              { label: "Total Orders",     value: String(orders.length) },
+              { label: "Total Revenue",    value: formatAmount(totalRevenue) },
+              { label: "Delivered",        value: String(orders.filter((o) => o.status === "DELIVERED").length) },
+              { label: "Failed/Cancelled", value: String(orders.filter((o) => ["FAILED", "CANCELLED", "PAYMENT_FAILED"].includes(o.status)).length) },
             ].map((s) => (
               <div key={s.label} className="rounded-xl bg-slate-800/50 border border-slate-700/50 px-4 py-3">
                 <p className="text-xs text-slate-400 mb-1">{s.label}</p>
@@ -192,7 +193,6 @@ const TransactionHistoryPage = () => {
             />
           </div>
 
-          {/* Filter tabs */}
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setFilter("ALL")}
@@ -223,7 +223,6 @@ const TransactionHistoryPage = () => {
             })}
           </div>
 
-          {/* Empty */}
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-3 text-xl">🧾</div>
@@ -232,7 +231,6 @@ const TransactionHistoryPage = () => {
             </div>
           )}
 
-          {/* Order List */}
           <div className="space-y-2">
             {filtered.map((order) => {
               const cfg = ORDER_STATUS_CONFIG[order.status];
@@ -240,7 +238,6 @@ const TransactionHistoryPage = () => {
 
               return (
                 <div key={order.id} className="rounded-xl border border-slate-700/50 bg-slate-800/30 overflow-hidden">
-                  {/* Row */}
                   <button
                     onClick={() => setExpanded(isOpen ? null : order.id)}
                     className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-slate-700/20 transition-colors"
@@ -281,11 +278,8 @@ const TransactionHistoryPage = () => {
                     </svg>
                   </button>
 
-                  {/* Expanded */}
                   {isOpen && (
                     <div className="px-5 pb-5 border-t border-slate-700/40 pt-4 space-y-4">
-
-                      {/* Delivery info */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <p className="text-xs text-slate-500 mb-1">Delivery Address</p>
@@ -310,7 +304,6 @@ const TransactionHistoryPage = () => {
                         </div>
                       </div>
 
-                      {/* Items */}
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Items</p>
                         <div className="space-y-1.5">
@@ -336,7 +329,6 @@ const TransactionHistoryPage = () => {
                         </div>
                       </div>
 
-                      {/* Payment info */}
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Payment</p>
                         {order.payment ? (
@@ -368,7 +360,6 @@ const TransactionHistoryPage = () => {
                           <p className="text-sm text-slate-500">No payment record yet.</p>
                         )}
                       </div>
-
                     </div>
                   )}
                 </div>
