@@ -13,6 +13,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.6",
     "firebase": "^12.9.0",
+    "nodemailer": "^8.0.7",
     "react": "^19.2.4",
     "react-do": "^1.1.6",
     "react-dom": "^19.2.4",

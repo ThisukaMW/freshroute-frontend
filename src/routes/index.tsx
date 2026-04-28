@@ -7,7 +7,7 @@ import SellerRatingsPage from '../pages/seller/SellerRatingsPage'
 
 export const AppRoutes = () => {
   const element = useRoutes([
-    { path: "/ratings-demo", element: <SellerRatingsPage driverId="demo-driver-id" /> },
+    { path: "/ratings-demo", element: <SellerRatingsPage /*driverId="demo-driver-id"*/ /> },
     ...routeConfig.public.map((route) => ({
       path: route.path,
       element: <PublicRoute>{route.element}</PublicRoute>,

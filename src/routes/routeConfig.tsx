@@ -1,4 +1,3 @@
-import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
 
 import LandingPage from "../pages/LandingPage";
@@ -12,7 +11,6 @@ import CustomerProfilePage from "../pages/customer/CustomerProfilePage";
 import SellerProfilePage from "../pages/seller/SellerProfilePage";
 
 import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
-import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.jsx";
 import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
 import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
 import CartPage from "../pages/buyer/CartPage.tsx";
@@ -21,12 +19,14 @@ import ProductsPage from "../pages/seller/ProductsPage.tsx";
 import AddProductPage from "../pages/seller/AddProductPage.tsx";
 import EditProductPage from "../pages/seller/EditProductPage.tsx";
 import InventoryPage from "../pages/seller/InventoryPage";
+import SellerRatingsPage from '../pages/seller/SellerRatingsPage';
 import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
 import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
 import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
 import NotFoundPage from "../pages/common/NotFoundPage.tsx";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage.tsx";
 import BuyerRatingsPage from '../pages/buyer/BuyerRatingsPage';
+import SecureAccountPage from "../pages/auth/SecureAccountPage";
 
 /* ---------- types ---------- */
 interface RouteConfig {
@@ -56,6 +56,7 @@ export const routeConfig: {
     { path: "/admin/login", element: <AdminLoginPage /> },
     { path: "/forgot-password", element: <ForgotPasswordPage /> },
     { path: "/reset-password", element: <ResetPasswordPage /> },
+    { path: "/auth/secure-account", element: <SecureAccountPage /> },
   ],
 
   protected: [
@@ -152,6 +153,15 @@ export const routeConfig: {
       ),
     },
     { path: "/buyer/ratings", element: <MainLayout role="buyer"><BuyerRatingsPage /></MainLayout> },
+    {
+      path: "/seller/reviews",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <SellerRatingsPage/>
+        </MainLayout>
+      ),
+    },
   ],
 
   fallback: <NotFoundPage />,

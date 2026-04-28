@@ -48,6 +48,7 @@ const CustomerProfilePage = (): JSX.Element => {
   const [address, setAddress] = useState(buyerProfile?.address ?? '')
   const [saved, setSaved] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const [ratingOrder, setRatingOrder] = useState<typeof mockOrders[0] | null>(null)
 
@@ -72,7 +73,6 @@ const CustomerProfilePage = (): JSX.Element => {
 
   const handleSave = async () => {
     const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
-    console.log('TOKEN BEING SENT:', token)
     const prev = buyerProfile
     setSaved(true)
 
@@ -122,6 +122,30 @@ const CustomerProfilePage = (): JSX.Element => {
     }
 
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  // ✅ DELETE ACCOUNT — calls API, clears storage, redirects to signin
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true)
+    try {
+      const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+      const res = await fetch('http://localhost:5000/api/v1/customer/profile', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        showToast(data.message ?? 'Failed to delete account', 'error')
+        setDeleteLoading(false)
+        return
+      }
+      localStorage.clear()
+      showToast('Account deleted successfully')
+      navigate('/signin')
+    } catch (err) {
+      showToast('Something went wrong', 'error')
+      setDeleteLoading(false)
+    }
   }
 
   const goToTab = (tab: Tab) => {
@@ -212,6 +236,7 @@ const CustomerProfilePage = (): JSX.Element => {
           driverId={ratingOrder.driverId}
           buyerId={ratingOrder.buyerId}
           sellerName={ratingOrder.sellerName}
+          products={[]}
         />
       )}
 
@@ -477,19 +502,34 @@ const CustomerProfilePage = (): JSX.Element => {
                 ))}
               </fieldset>
 
+              {/* ✅ DANGER ZONE — delete account now works */}
               <div className="space-y-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
                 <p className="text-sm font-semibold text-red-400">Danger Zone</p>
                 <p className="text-sm text-slate-400">Once deleted, your account and all data will be permanently removed.</p>
                 {!showDeleteConfirm ? (
-                  <button onClick={() => setShowDeleteConfirm(true)} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                  >
                     Delete My Account
                   </button>
                 ) : (
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-red-300">Are you sure? This cannot be undone.</p>
                     <div className="flex gap-2">
-                      <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors">Yes, delete it</button>
-                      <button onClick={() => setShowDeleteConfirm(false)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors">Cancel</button>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleteLoading}
+                        className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {deleteLoading ? 'Deleting...' : 'Yes, delete it'}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 )}
