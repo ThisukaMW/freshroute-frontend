@@ -3,6 +3,7 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 import { addItemToCart, removeItemFromCart, updateCartItemQuantity } from "../../api/endpoints/cart";
 
 export interface CartItem {
+  sellerId: any;
   id: string;
   productId: string;
   name: string;
@@ -142,6 +143,5 @@ const cartSlice = createSlice({
 
 export const { addItemLocal, removeItemLocal, updateQuantityLocal, setCartItems, clearCart } =
   cartSlice.actions;
+  
 export default cartSlice.reducer;
-
-

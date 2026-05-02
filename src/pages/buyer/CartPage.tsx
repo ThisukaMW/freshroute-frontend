@@ -2,16 +2,23 @@ import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector, useDispatch } from "react-redux"
 import { getCart, removeItemFromCart, clearCart as clearCartApi, updateCartItemQuantity } from "../../api/endpoints/cart"
+import { validateCartStock } from "../../api/endpoints/inventory"
 import { setCartItems, removeItemLocal, updateQuantityLocal, clearCart } from "../../store/slices/cartSlice"
 import { LocalStorageService } from "../../services/storage/LocalStorageService"
 
 type RootState = any
 
+interface StockIssue {
+  productId: string
+  available: number
+  requested: number
+  productName?: string
+}
+
 const CartPage: React.FC = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  
-  // Get items from Redux
+
   const reduxCart = useSelector((state: RootState) => state.cart)
   const items = reduxCart?.items || []
 
@@ -21,10 +28,11 @@ const CartPage: React.FC = () => {
   const [tax, setTax] = useState(0)
   const [discount, setDiscount] = useState(0)
   const [total, setTotal] = useState(0)
+  const [stockModal, setStockModal] = useState<{ issues: StockIssue[] } | null>(null)
 
   // TEMPORARY: Inject test token from Postman
   useEffect(() => {
-    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYWU3ZjIzYy02NDEwLTRiZjMtYWVkYy0yNWM1MmMwMjAzYWYiLCJidXllcklkIjoiNmM4OWQ5YjEtNTk1Yy00ZjkzLTk3NjUtMzE0OTk3ZDgzZTY5Iiwicm9sZSI6IkJVWUVSIiwiaWF0IjoxNzc1OTgzODY0LCJleHAiOjE3NzY1ODg2NjR9.hF7nIf_iBwe1kMtkg5pzG2EJGv1jNwxgtMyr-61efhU')
+    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5NDFlYWFiMS01YTk1LTQ5MWEtOGNjNS00ZTZhZTgwYjliOTMiLCJidXllcklkIjoiMTZmMGQ0ZDktMTNjYy00ZTQ1LTk0YzMtMDIzNzAwNGJmMDUyIiwicm9sZSI6IkJVWUVSIiwiaWF0IjoxNzc3NTczMTcxLCJleHAiOjE3NzgxNzc5NzF9.MMfECGmt0AqYc86WAfdrPROmmV95hqWkjpUA5xi52Kw')
   }, [])
 
   // Sync Redux with DB on component mount
@@ -40,7 +48,6 @@ const CartPage: React.FC = () => {
         syncCartFromDB()
       }
     }
-
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
@@ -50,8 +57,11 @@ const CartPage: React.FC = () => {
       setLoading(true)
       setError(null)
       const cartData = await getCart()
-      // Update Redux with DB data
-      dispatch(setCartItems(cartData.items || []))
+      const itemsWithSellerId = (cartData.items || []).map((item: any) => ({
+        ...item,
+        sellerId: item.sellerId || ''
+      }))
+      dispatch(setCartItems(itemsWithSellerId))
       setSubtotal(cartData.subtotal || 0)
       setTax(cartData.tax || 0)
       setDiscount(cartData.discount || 0)
@@ -76,10 +86,7 @@ const CartPage: React.FC = () => {
   }, [items, discount])
 
   const handleRemoveItem = async (productId: string) => {
-    // 1️⃣ Remove from Redux immediately
     dispatch(removeItemLocal(productId))
-    
-    // 2️⃣ Also remove from DB
     try {
       await removeItemFromCart(productId)
       console.log('✅ Item removed from cart and DB')
@@ -94,11 +101,7 @@ const CartPage: React.FC = () => {
       await handleRemoveItem(productId)
       return
     }
-
-    // 1️⃣ Update Redux immediately
     dispatch(updateQuantityLocal({ productId, quantity: newQuantity }))
-    
-    // 2️⃣ Also update in DB
     try {
       await updateCartItemQuantity(productId, newQuantity)
       console.log('✅ Quantity updated')
@@ -119,16 +122,53 @@ const CartPage: React.FC = () => {
     }
   }
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (!items.length) return
-    navigate('/buyer/checkout')
+
+    try {
+      const cartItems = items.map((item: any) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      }))
+
+      const validation = await validateCartStock(cartItems)
+
+      if (!validation.isValid) {
+        const issues: StockIssue[] = (validation.issues || []).map((issue: any) => ({
+          ...issue,
+          productName: items.find((i: any) => i.productId === issue.productId)?.name,
+        }))
+
+        if (issues.length > 0) {
+          // Auto-remove items with 0 stock
+          for (const issue of issues) {
+            if (issue.available === 0) {
+              dispatch(removeItemLocal(issue.productId))
+              try {
+                await removeItemFromCart(issue.productId)
+              } catch (err) {
+                console.error('Error removing out-of-stock item:', err)
+              }
+            }
+          }
+
+          setStockModal({ issues })
+        }
+        return
+      }
+
+      navigate('/buyer/checkout')
+    } catch (err: any) {
+      console.error('❌ Stock validation error:', err.message)
+      setError('Unable to validate stock. Please try again.')
+    }
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-slate-300">Loading cart...</p>
         </div>
       </div>
@@ -139,6 +179,62 @@ const CartPage: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-4">
       <h1 className="text-xl font-semibold text-slate-50">Your cart</h1>
 
+      {/* Stock Issue Modal */}
+      {stockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 rounded-2xl border border-supply-teal/40 bg-supply-deep p-6">
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 rounded-full bg-supply-orange/10 border border-supply-orange/40 flex items-center justify-center shrink-0">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2L14 13H2L8 2Z" stroke="#EB4304" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M8 7v3M8 11.5v.5" stroke="#EB4304" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-supply-paper">Stock issue detected</p>
+                <p className="text-xs text-supply-peach">Adjust your cart before proceeding</p>
+              </div>
+            </div>
+
+            {/* Issues list */}
+            <div className="rounded-xl bg-brand-background p-3 mb-4 space-y-2">
+              {stockModal.issues.map((issue, i) => (
+                <div key={issue.productId}>
+                  {i > 0 && <div className="border-t border-supply-teal/20 my-2" />}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs text-supply-ash">
+                      {issue.productName || `Product ${i + 1}`}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded border ${
+                      issue.available === 0
+                        ? 'bg-supply-orange/10 text-supply-orange border-supply-orange/30'
+                        : 'bg-supply-clay/10 text-supply-clay border-supply-clay/30'
+                    }`}>
+                      {issue.available === 0
+                        ? 'Out of stock · will be removed'
+                        : `Only ${issue.available} available · requested ${issue.requested}`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-supply-peach mb-4">
+              Items with 0 stock are removed from your cart automatically.
+            </p>
+
+            <button
+              onClick={() => setStockModal(null)}
+              className="w-full rounded-xl bg-primary py-2 text-sm font-medium text-white hover:bg-primary-dark transition"
+            >
+              Got it, adjust cart
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 text-red-400 text-sm">
           {error}
@@ -148,9 +244,7 @@ const CartPage: React.FC = () => {
       {items.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-sm text-slate-300">Your cart is empty.</p>
-          <p className="text-xs text-slate-400 mt-2">
-            Browse products to add items.
-          </p>
+          <p className="text-xs text-slate-400 mt-2">Browse products to add items.</p>
           <button
             onClick={() => navigate('/products')}
             className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
@@ -170,12 +264,12 @@ const CartPage: React.FC = () => {
                 <div className="flex-1">
                   <p className="font-medium">{item.name}</p>
                   <p className="text-xs text-slate-400">
-                    {item.category} · ${item.price} / {item.unit}
+                    {item.vendor && `🏪 ${item.vendor} · `}{item.category} · ${item.price} / {item.unit}
                   </p>
                 </div>
 
                 {/* Quantity Controls */}
-                <div className="flex items-center gap-2  bg-slate-700 rounded px-2 py-1 mr-3">
+                <div className="flex items-center gap-2 bg-slate-700 rounded px-2 py-1 mr-3">
                   <button
                     onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
                     className="text-primary hover:text-primary-light text-sm"
@@ -227,10 +321,10 @@ const CartPage: React.FC = () => {
               <span>Tax (10%):</span>
               <span>${tax.toFixed(2)}</span>
             </div>
-            {discount && discount > 0 && (
+            {discount > 0 && (
               <div className="flex justify-between text-emerald-400">
                 <span>Discount:</span>
-                <span>-${(discount || 0).toFixed(2)}</span>
+                <span>-${discount.toFixed(2)}</span>
               </div>
             )}
             <div className="border-t border-white/10 pt-2 flex justify-between font-semibold text-lg">
@@ -248,7 +342,6 @@ const CartPage: React.FC = () => {
             >
               Proceed to Payment
             </button>
-
             <button
               type="button"
               onClick={handleClearCart}

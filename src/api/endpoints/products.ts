@@ -1,4 +1,5 @@
 import apiClient from '../client'
+import type { ProductInventory } from './inventory'
 
 export interface Product {
   id: string
@@ -8,7 +9,7 @@ export interface Product {
   unit: string
   stock: number
   status: string
-  imageUrl?: string
+  imageUrl?: string 
   description?: string
 }
 
@@ -56,3 +57,64 @@ export const getProductBySellers = async (productId: string): Promise<Product[]>
     throw error
   }
 }
+
+/**
+ * Create a new product for seller
+ */
+export const createSellerProduct = async (productData: any): Promise<Product> => {
+  try {
+    const response = await apiClient.post('/api/v1/products/add', productData);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Failed to create product:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update seller product - only price, stock, imageUrl are editable
+ */
+export const updateSellerProduct = async (productId: string, productData: any): Promise<any> => {
+  try {
+    console.log(`🔄 Updating product ${productId}...`, productData)
+    const response = await apiClient.patch(`/api/v1/products/${productId}`, productData)
+    console.log('✅ Product updated:', response.data)
+    // Response structure: { message, data: { id, name, sellerPrice, sellerStock, ... } }
+    return response.data?.data || response.data
+  } catch (error) {
+    console.error(`❌ Failed to update product ${productId}:`, error)
+    throw error
+  }
+}
+
+/**
+ * Get all products for logged-in seller
+ */
+export const getSellerProducts = async (): Promise<Product[]> => {
+  try {
+    console.log('🔄 Fetching seller products...')
+    const response = await apiClient.get('/api/v1/products/seller/my-products')
+    console.log('✅ Seller products fetched:', response.data)
+    return response.data?.data || []
+  } catch (error) {
+    console.error('❌ Failed to fetch seller products:', error)
+    throw error
+  }
+}
+
+/**
+ * Get product by ID for seller
+ */
+export const getSellerProductById = async (productId: string): Promise<Product> => {
+  try {
+    console.log(`🔄 Fetching seller product ${productId}...`)
+    const response = await apiClient.get(`/api/v1/products/${productId}`)
+    console.log('✅ Seller product fetched:', response.data)
+    return response.data
+  } catch (error) {
+    console.error(`❌ Failed to fetch seller product:`, error)
+    throw error
+  }
+}
+
+

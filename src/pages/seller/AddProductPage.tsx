@@ -232,12 +232,10 @@
 
 // export default AddProductPage;
 
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useEffect,useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addProduct } from "../../store/slices/sellerProductsSlice";
-import type { AppDispatch } from "../../store";
-
+import { createSellerProduct } from "../../api/endpoints/products";
+import { LocalStorageService } from "../../services/storage/LocalStorageService";
 interface Variant {
   id: number;
   label: string;
@@ -246,7 +244,6 @@ interface Variant {
 }
 
 const AddProductPage: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   /* ---------- BASIC PRODUCT ---------- */
@@ -307,26 +304,53 @@ const AddProductPage: React.FC = () => {
   };
 
   /* ---------- SUBMIT ---------- */
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-    dispatch(
-      addProduct({
-        name,
-        category,
-        description,
-        images,
-        pricingMode,
-        taxPercent,
-        variants,
-        pricePerUnit: price,
-        unit,
-        stock,
-      })
-    );
+  if (!name || !category || price <= 0 || stock < 0) {
+    alert("Please fill in all required fields");
+    return;
+  }
 
+  try {
+    const formData = new FormData();
+
+    // basic fields
+    formData.append("name", name);
+    formData.append("category", category);
+    formData.append("description", description);
+    formData.append("price", String(price));
+    formData.append("unit", unit);
+    formData.append("stock", String(stock));
+
+    // images
+    images.forEach((img) => {
+      formData.append("images", img);
+    });
+
+    // variants
+    formData.append("variants", JSON.stringify(variants));
+
+    // pricing
+    formData.append("pricingMode", pricingMode);
+    formData.append("taxPercent", String(taxPercent));
+
+    const response = await createSellerProduct(formData);
+
+    console.log("✅ Product created:", response);
+    alert("Product created successfully!");
     navigate("/seller/products");
-  };
+
+  } catch (error: any) {
+    console.error("❌ Error:", error);
+    alert(error?.response?.data?.message || "Failed to create product");
+  }
+};
+
+// TEMPORARY: Inject test token for development
+  useEffect(() => {
+    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjk1YTYxOS0wOWRhLTRlMTEtYjJkMy1jYTdkMmNiOGI0OTQiLCJzZWxsZXJJZCI6Ijc4NTYwMDg4LWU4NzAtNDEzYy1hMTU2LTBiZWYxZGJhOTU1NiIsInJvbGUiOiJTRUxMRVIiLCJpYXQiOjE3Nzc1MjAwNjUsImV4cCI6MTc3ODEyNDg2NX0.qr-SpLzrwxISWWtCfP2Y0_gREDiEBK1ERKzBsxYBJZk')
+  }, [])
 
   const inputClass =
     "mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/60";

@@ -122,7 +122,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <span className="h-8 w-8 rounded-lg bg-primary/20" />
             <span className="text-sm font-semibold">FreshRoute</span>
           </div>
-
           <div className="flex flex-1 items-center justify-end gap-3">
             <span className="hidden text-xs text-slate-400 md:inline">
               {new Date().toLocaleDateString()} · Prototype UI

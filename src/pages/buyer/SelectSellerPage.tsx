@@ -44,8 +44,9 @@ const SelectSellerPage = () => {
         const formattedSellers = sellersData.map((item: any) => ({
           id: item.id,
           sellerId: item.seller?.id,
-          sellerName: item.seller?.user?.name || 'Unknown Seller',
+          sellerName: item.seller?.businessName || 'Unknown Seller',
           price: item.price,
+          stock: item.stock, // ✅ NOW INCLUDED - Available quantity from this seller
           rating: 4.5,
           deliveriesPerWeek: 5,
           etaLabel: 'Within 24 hours',
@@ -169,6 +170,15 @@ const SelectSellerPage = () => {
 
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
 
+    // ✅ VALIDATION: Check if quantity exceeds available stock
+    if (safeQuantity > selectedSeller.stock) {
+      setError(`Insufficient stock! Only ${selectedSeller.stock} ${product.unit} available from ${selectedSeller.sellerName}`)
+      return
+    }
+
+    // Clear previous errors
+    setError(null)
+
     // 1️⃣ Dispatch to Redux immediately (optimistic update)
     dispatch(
       addItemLocal({
@@ -180,6 +190,8 @@ const SelectSellerPage = () => {
         unit: product.unit,
         quantity: safeQuantity,
         imageUrl: product.imageUrl,
+        sellerId: selectedSeller.sellerId,
+        vendor: selectedSeller.sellerName // ✅ Added seller name
       })
     )
 
@@ -189,13 +201,14 @@ const SelectSellerPage = () => {
         addItemAsync({
           productId: product.id,
           quantity: safeQuantity,
-          sellerId: selectedSeller.sellerId,
+          sellerId: selectedSeller.sellerId, // ✅ NOW REQUIRED
         }) as any
       )
       console.log('✅ Item added to cart and saved to DB')
       navigate('/buyer/cart')
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to sync with DB:', error)
+      setError(error.response?.data?.message || 'Failed to add item to cart')
       // Item stays in Redux even if DB save fails - user can retry
     }
   }
@@ -262,33 +275,37 @@ const SelectSellerPage = () => {
           <p className="text-xs font-semibold text-supply-paper">Available sellers ({sellers.length})</p>
           <div className="mt-2 space-y-2">
             {sellers.map((seller) => (
-              <button
-                key={seller.id}
-                type="button"
-                onClick={() => setSelectedSellerId(seller.id)}
-                className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
-                  selectedSellerId === seller.id
-                    ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
-                    : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{seller.sellerName}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-300">
-                      {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-supply-paper">
-                      Rs. {seller.price}{' '}
-                      <span className="font-normal text-slate-300">/ {product.unit}</span>
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
+  <button
+    key={seller.id}
+    type="button"
+    onClick={() => setSelectedSellerId(seller.sellerId)}
+    className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
+      selectedSellerId === seller.sellerId
+        ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
+        : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
+    }`}
+  >
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="font-semibold">{seller.sellerName}</p>
+        <p className="mt-0.5 text-[11px] text-slate-300">
+          {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
+        </p>
+        {/* ✅ SHOW AVAILABLE QUANTITY */}
+        <p className="mt-1 text-[11px] font-medium text-supply-peach">
+          ✓ {seller.stock} {product.unit} available
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-semibold text-supply-paper">
+          Rs. {seller.price}{' '}
+          <span className="font-normal text-slate-300">/ {product.unit}</span>
+        </p>
+        <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
+      </div>
+    </div>
+  </button>
+))}
           </div>
         </section>
 
@@ -296,12 +313,29 @@ const SelectSellerPage = () => {
           <p className="text-xs font-semibold text-supply-paper">Your requirements</p>
           <div className="mt-2 space-y-3">
             <div>
-              <label className="text-[11px] text-slate-200">Quantity ({product.unit})</label>
+              <label className="text-[11px] text-slate-200">
+                Quantity ({product.unit}) 
+                {selectedSeller && (
+                  <span className="ml-2 font-medium text-supply-peach">
+                    Max: {selectedSeller.stock} available
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
                 min={1}
+                max={selectedSeller?.stock || 1}
                 value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  setQuantity(val)
+                  // ✅ VALIDATE ON INPUT CHANGE
+                  if (selectedSeller && val > selectedSeller.stock) {
+                    setError(`Cannot order more than ${selectedSeller.stock} ${product.unit} available`)
+                  } else {
+                    setError(null)
+                  }
+                }}
                 className="mt-1 w-32 rounded-xl border border-white/15 bg-slate-950/60 px-3 py-1.5 text-xs text-supply-paper outline-none focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
               />
             </div>
@@ -317,7 +351,13 @@ const SelectSellerPage = () => {
               />
             </div>
 
-            {selectedSeller && (
+            {error && (
+              <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-50">
+                <p className="font-semibold">❌ {error}</p>
+              </div>
+            )}
+
+            {selectedSeller && !error && (
               <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
                 <p className="font-semibold">
                   Selected seller: <span className="font-normal">{selectedSeller.sellerName}</span>
@@ -331,7 +371,12 @@ const SelectSellerPage = () => {
             <button
               type="button"
               onClick={handleAddToCart}
-              className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white hover:bg-primary-dark"
+              disabled={error !== null} // ✅ DISABLE IF ERROR
+              className={`mt-1 inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium transition ${
+                error 
+                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed' 
+                  : 'bg-primary text-white hover:bg-primary-dark'
+              }`}
             >
               Add to cart from {selectedSeller?.sellerName ?? 'selected seller'}
             </button>
@@ -342,6 +387,6 @@ const SelectSellerPage = () => {
   )
 }
 
-export default SelectSellerPage
+export default SelectSellerPage;
 
 

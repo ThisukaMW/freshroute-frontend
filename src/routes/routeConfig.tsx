@@ -58,17 +58,36 @@ import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
 
 import LandingPage from "../pages/LandingPage";
+
+import AdminLoginPage from "../pages/admin/AdminLoginPage";
+import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import UserManagementPage from "../pages/admin/UserManagementPage";
+import SellerManagementPage from "../pages/admin/SellerManagementPage";
+import BuyerManagementPage from "../pages/admin/BuyerManagementPage";
+import DriverManagementPage from "../pages/admin/DriverManagementPage";
+import OrderManagementPage from "../pages/admin/OrderManagementPage";
+import RouteManagementPage from "../pages/admin/RouteManagementPage";
+import AnalyticsPage from "../pages/admin/AnalyticsPage";
+import PaymentsPage from "../pages/admin/PaymentsPage";
+import TransactionHistoryPage from "../pages/admin/TransactionHistoryPage";
+import SystemSettingsPage from "../pages/admin/SystemSettingsPage";
+import TruckCapacityPage from "../pages/admin/TruckCapacityPage";
+import AddTruckPage from "../pages/admin/AddTruckPage";
+import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
+import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
+
+// import { MainLayout } from "../components/layout/MainLayout/MainLayout";
 import SignUpCustomerPage from "../pages/SignUpCustomerPage";
 import SignUpVendorPage from "../pages/SignUpVendorPage";
 import SignInPage from "../pages/SignInPage";
 import SellerLoginPage from "../pages/seller/SellerLoginPage";
 import RoleSelectPage from "../pages/RoleSelectPage";
-import AdminLoginPage from "../pages/admin/AdminLoginPage";
+//import AdminLoginPage from "../pages/admin/AdminLoginPage";
 
 
 
-import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
-import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.jsx";
+import { MainLayout } from "../components/layout/MainLayout/MainLayout.tsx";
+import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.tsx";
 import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
 import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
 import CartPage from "../pages/buyer/CartPage.tsx";
@@ -109,6 +128,20 @@ export const routeConfig: {
     {
       path: "/",
       element: <LandingPage />,
+    },
+    
+    {
+      path: "/admin/login",
+      element: <AdminLoginPage />,
+    },
+
+    {
+      path: "/payment-success",
+      element: <PaymentSuccessPage />,
+    },
+    {
+      path: "/payment-cancel",
+      element: <PaymentCancelPage />,
     },
     {
       path: "/signup",
@@ -192,9 +225,126 @@ export const routeConfig: {
     
 
   ],
+ protected: [
+    {
+      path: "/admin",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <AdminDashboardPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/users",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <UserManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/sellers",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <SellerManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/buyers",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <BuyerManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/drivers",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <DriverManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/orders",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <OrderManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/routes",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <RouteManagementPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/analytics",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <AnalyticsPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/payments",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <PaymentsPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/transactions",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <TransactionHistoryPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/settings",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <SystemSettingsPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/trucks",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <TruckCapacityPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/trucks/add",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <AddTruckPage />
+        </MainLayout>
+      ),
+    },
 
-  protected: [
-  {
+     {
       path: "/buyer",
       roles: ["buyer"],
       element: (
@@ -209,6 +359,16 @@ export const routeConfig: {
       element: (
         <MainLayout role="buyer">
           <ProductBrowsePage />
+        </MainLayout>
+      ),
+    },
+
+     {
+      path: "/buyer/cart",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CartPage />
         </MainLayout>
       ),
     },
@@ -257,44 +417,8 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
-    // {
-    //   path: "/buyer/orders/:id",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <BuyerOrderDetailPage />
-    //     </MainLayout>
-    //   ),
-    // },
-    // {
-    //   path: "/buyer/track/:id",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <TrackOrderPage />
-    //     </MainLayout>
-    //   ),
-    // },
-    // {
-    //   path: "/buyer/profile",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <BuyerProfilePage />
-    //     </MainLayout>
-    //   ),
-    // },
-    // {
-    //   path: "/buyer/rate/:id",
-    //   roles: ["buyer"],
-    //   element: (
-    //     <MainLayout role="buyer">
-    //       <RateOrderPage />
-    //     </MainLayout>
-    //   ),
-    // },
 
-    // Seller
+     // Seller
     {
       path: "/seller",
       roles: ["seller"],
@@ -360,185 +484,20 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    {
+      path: "/buyer/checkout",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CheckoutPage />
+        </MainLayout>
+      )
+    }
 
-  //   {
-  //     path: "/seller/deliveries",
-  //     roles: ["seller"],
-  //     element: (
-  //       <MainLayout role="seller">
-  //         <DeliveryHistoryPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/seller/earnings",
-  //     roles: ["seller"],
-  //     element: (
-  //       <MainLayout role="seller">
-  //         <EarningsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/seller/tracking",
-  //     roles: ["seller"],
-  //     element: (
-  //       <MainLayout role="seller">
-  //         <LiveTrackingPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/seller/reports",
-  //     roles: ["seller"],
-  //     element: (
-  //       <MainLayout role="seller">
-  //         <SellerReportsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/seller/profile",
-  //     roles: ["seller"],
-  //     element: (
-  //       <MainLayout role="seller">
-  //         <SellerProfilePage />
-  //       </MainLayout>
-  //     ),
-  //   },
 
-  //   // Admin
-  //   {
-  //     path: "/admin",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <AdminDashboardPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/users",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <UserManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/sellers",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <SellerManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/buyers",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <BuyerManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/drivers",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <DriverManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/orders",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <OrderManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/routes",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <RouteManagementPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/tracking",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <TrackingPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/analytics",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <AnalyticsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/payments",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <PaymentsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/transactions",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <TransactionHistoryPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/settings",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <SystemSettingsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/reports",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <AdminReportsPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  //   {
-  //     path: "/admin/trucks",
-  //     roles: ["admin"],
-  //     element: (
-  //       <MainLayout role="admin">
-  //         <TruckCapacityPage />
-  //       </MainLayout>
-  //     ),
-  //   },
-  // ],
-  // fallback: <NotFoundPage />,
-  // error: <ServerErrorPage />,
-  // unauthorized: <UnauthorizedPage />,
   ],
+  //fallback: <Navigate to="/" replace />,
+
   fallback: <NotFoundPage />,
   error: <ServerErrorPage />,
   unauthorized: <UnauthorizedPage />,
