@@ -61,7 +61,7 @@ const pickupQueue: PickupOrder[] = [
 ];
 
 const mapPreview =
-  "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&w=1400&q=80";
+  "https://cdn.prod.website-files.com/5c29380b1110ec92a203aa84/66e5ce469b48938aa34d8684_Google%20Maps%20-%20Compressed.jpg";
 
 const statCards: StatCard[] = [
   { label: "Awaiting pickup", value: pickupQueue.length, helper: "Syncs with rider app" },

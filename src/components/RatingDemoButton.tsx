@@ -17,7 +17,7 @@ const RatingDemoButton = () => {
         ★ Rate your order
       </button>
 
-      <RatingModal
+      /<RatingModal
         isOpen={open}
         onClose={() => setOpen(false)}
         orderId="demo-order-id"

@@ -6,8 +6,9 @@ export const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
-  // Allow login pages to be accessed even when authenticated
-  if (location.pathname.includes("/login")) {
+  const alwaysPublic = ["/login", "/payment-success", "/payment-cancel"];
+
+  if (alwaysPublic.some((path) => location.pathname.includes(path))) {
     return children;
   }
 

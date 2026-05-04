@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LocalStorageService } from "../services/storage/LocalStorageService";
 
@@ -37,40 +37,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  const login = (nextToken: string, nextUser: User) => {
+  const login = useCallback((nextToken: string, nextUser: User) => {
     setToken(nextToken);
     setUser(nextUser);
     LocalStorageService.set("fr_token", nextToken);
     LocalStorageService.set("fr_user", nextUser);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     LocalStorageService.remove("fr_token");
     LocalStorageService.remove("fr_user");
     navigate("/", { replace: true });
-  };
+  }, [navigate]);
 
-  // call this when profile is updated to keep sidebar in sync
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = useCallback((updates: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
       LocalStorageService.set("fr_user", updated);
       return updated;
     });
-  };
+  }, []);
 
-  const value = {
-    user,
-    token,
-    isAuthenticated: !!token,
-    isLoading,
-    login,
-    logout,
-    updateUser,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      isAuthenticated: !!token,
+      isLoading,
+      login,
+      logout,
+      updateUser,
+    }),
+    [user, token, isLoading, login, logout, updateUser]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -37,6 +37,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/admin/users", label: "Users" },
     { to: "/admin/orders", label: "Orders" },
     { to: "/admin/trucks", label: "Trucks" },
+    { to: "/admin/transactions", label: "Transactions" },
     { to: "/admin/analytics", label: "Analytics" },
   ],
 };
@@ -64,6 +65,7 @@ const profileNavByRole: Record<Role, { to: string; label: string }[]> = {
   admin: [
     { to: "/admin/profile", label: "Personal Info" },
     { to: "/admin/profile?tab=password", label: "Password" },
+    { to: "/admin/profile?tab=settings", label: "Settings" },
   ],
 };
 
@@ -244,7 +246,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
               <span className="text-sm font-semibold">FreshRoute</span>
             </div>
           </div>
-
           <div className="flex flex-1 items-center justify-end gap-3">
             <span className="hidden text-xs text-slate-400 md:inline">
               {new Date().toLocaleDateString()} · Prototype UI

@@ -230,24 +230,49 @@ const SelectSellerPage = () => {
   const basePrice = Number(product.pricePerUnit) || 0
   const productImage = getImageForProduct(product)
 
+  // const handleAddToCart = () => {
+  //   if (!selectedSeller) return
+  //   const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+
+  //   const priceForSeller = Math.round(basePrice * selectedSeller.priceMultiplier)
+  //   const compositeId = `${product.id}-${selectedSeller.id}`
+
+  //   dispatch(
+  //     addItem({
+  //       id: compositeId,
+  //       name: product.name,
+  //       vendor: selectedSeller.name,
+  //       price: `Rs. ${priceForSeller}`,
+  //       unit: product.unit,
+  //       quantity: safeQuantity,
+  //       requirements: requirements.trim() || undefined,
+  //     })
+  //   )
+
+  //   navigate('/buyer/cart')
+  // }
+
   const handleAddToCart = () => {
-    if (!selectedSeller) return
-    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
-    const priceForSeller = Math.round(basePrice * selectedSeller.priceMultiplier)
-    const compositeId = `${product.id}-${selectedSeller.id}`
-    dispatch(
-      addItem({
-        id: compositeId,
-        name: product.name,
-        vendor: selectedSeller.name,
-        price: `Rs. ${priceForSeller}`,
-        unit: product.unit,
-        quantity: safeQuantity,
-        requirements: requirements.trim() || undefined,
-      })
-    )
-    navigate('/buyer/cart')
-  }
+  if (!selectedSeller) return
+  const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+  const priceForSeller = Math.round(basePrice * selectedSeller.priceMultiplier)
+  const compositeId = `${product.id}-${selectedSeller.id}`
+
+  dispatch(
+    addItem({
+      id: compositeId,
+      productId: product.id,  // real DB UUID
+      name: product.name,
+      vendor: selectedSeller.name,
+      price: `Rs. ${priceForSeller}`,
+      unit: product.unit,
+      quantity: safeQuantity,
+      requirements: requirements.trim() || undefined,
+    })
+  )
+
+  navigate('/buyer/cart')
+}
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

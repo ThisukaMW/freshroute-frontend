@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { removeItem, clearCart } from "../../store/slices/cartSlice";
 import type { RootState, AppDispatch } from "../../store";
 
-/* ---------- Types ---------- */
+
 interface CartItem {
   id: string;
   name: string;
@@ -23,7 +23,7 @@ const CartPage: React.FC = () => {
     (state: RootState) => state.cart.items
   ) as CartItem[];
 
-  /* ---------- Total Calculation ---------- */
+ 
   const total = items.reduce((sum: number, item: CartItem) => {
     const numeric =
       parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
@@ -31,7 +31,7 @@ const CartPage: React.FC = () => {
     return sum + numeric * item.quantity;
   }, 0);
 
-  /* ---------- Navigation ---------- */
+ 
   const handleProceed = () => {
     if (!items.length) return;
     navigate("/buyer/checkout");
@@ -49,7 +49,7 @@ const CartPage: React.FC = () => {
         </p>
       ) : (
         <>
-          {/* ---------- Cart Items ---------- */}
+          
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             {items.map((item) => (
               <div
@@ -82,7 +82,6 @@ const CartPage: React.FC = () => {
             ))}
           </div>
 
-          {/* ---------- Total Section ---------- */}
           <div className="flex items-center justify-between rounded-2xl border border-supply-teal/40 bg-supply-deep/70 px-4 py-3 text-sm text-supply-paper">
             <div>
               <p className="font-semibold">Estimated total</p>
@@ -106,7 +105,7 @@ const CartPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ---------- Clear Cart ---------- */}
+    
           <button
             type="button"
             onClick={() => dispatch(clearCart())}
