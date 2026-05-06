@@ -27,12 +27,12 @@ const Navbar = ({ variant = "public" }: NavbarProps): JSX.Element => {
     <header
       className="transition-all duration-300"
       style={scrolled ? {
-        background: 'rgba(6,18,26,0.85)',
+        background: '#020617',
         backdropFilter: 'blur(16px)',
         boxShadow: '0 1px 8px rgba(0,0,0,0.4)',
         padding: '4px 0',
       } : {
-        background: 'linear-gradient(to bottom, rgba(6,18,24,0.95) 0%, rgba(6,18,24,0.7) 50%, transparent 100%)',
+        background: 'linear-gradient(to bottom, #020617 0%, #020617 60%, transparent 100%)',
       }}
     >
       <div className={`mx-auto flex max-w-6xl items-center justify-between px-4 ${scrolled ? "py-2" : "py-3"}`}>

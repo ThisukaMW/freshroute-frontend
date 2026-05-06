@@ -2,7 +2,7 @@ import axios from 'axios'
 import { setupInterceptors } from './interceptors'
 
 const client = axios.create({
-  baseURL: 'http://localhost:5000/api/v1',
+  baseURL: `${import.meta.env.VITE_API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },

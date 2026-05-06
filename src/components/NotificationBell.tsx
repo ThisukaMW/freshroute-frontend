@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+/*import { useState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
 
 interface Notification {
@@ -90,7 +90,7 @@ const NotificationBell = (): JSX.Element => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell button */}
+      {/* Bell button 
       <button
         onClick={() => { setOpen((prev) => !prev); if (!open) fetchNotifications(); }}
         className="relative rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors focus:outline-none"
@@ -106,10 +106,10 @@ const NotificationBell = (): JSX.Element => {
         )}
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown 
       {open && (
         <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl backdrop-blur-xl">
-          {/* Header */}
+          {/* Header 
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <p className="text-sm font-semibold text-slate-50">Notifications</p>
             {unreadCount > 0 && (
@@ -122,7 +122,7 @@ const NotificationBell = (): JSX.Element => {
             )}
           </div>
 
-          {/* Notification list */}
+          {/* Notification list 
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10">
@@ -138,7 +138,7 @@ const NotificationBell = (): JSX.Element => {
                   onClick={() => markAsRead(n.id)}
                   className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 ${!n.read ? 'bg-emerald-500/5' : ''}`}
                 >
-                  {/* dot indicator */}
+                  {/* dot indicator 
                   <div className="mt-1.5 flex-shrink-0">
                     <div className={`h-2 w-2 rounded-full ${!n.read ? 'bg-emerald-400' : 'bg-transparent'}`} />
                   </div>
@@ -159,4 +159,4 @@ const NotificationBell = (): JSX.Element => {
   )
 }
 
-export default NotificationBell
+export default NotificationBell*/
