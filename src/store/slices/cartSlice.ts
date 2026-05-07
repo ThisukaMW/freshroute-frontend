@@ -14,6 +14,11 @@ export interface CartItem {
   imageUrl?: string;
   vendor?: string;
   requirements?: string;
+  reservation?: {
+    id: string;
+    status: 'ACTIVE' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    expiresAt: string;
+  };
 }
 
 export interface CartState {
@@ -47,10 +52,10 @@ export const addItemAsync = createAsyncThunk(
 // Async thunk to remove item from cart (updates both Redux + DB)
 export const removeItemAsync = createAsyncThunk(
   "cart/removeItem",
-  async (productId: string, { rejectWithValue }) => {
+  async ({ productId, sellerId }: { productId: string; sellerId: string }, { rejectWithValue }) => {
     try {
-      await removeItemFromCart(productId);
-      return productId;
+      await removeItemFromCart(productId, sellerId);
+      return { productId, sellerId };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to remove item");
     }
@@ -61,12 +66,12 @@ export const removeItemAsync = createAsyncThunk(
 export const updateQuantityAsync = createAsyncThunk(
   "cart/updateQuantity",
   async (
-    { productId, quantity }: { productId: string; quantity: number },
+    { productId, sellerId, quantity }: { productId: string; sellerId: string; quantity: number },
     { rejectWithValue }
   ) => {
     try {
-      await updateCartItemQuantity(productId, quantity);
-      return { productId, quantity };
+      await updateCartItemQuantity(productId, sellerId, quantity);
+      return { productId, sellerId, quantity };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to update quantity");
     }
@@ -77,25 +82,42 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // Instant local updates (for optimistic UI)
+    // ✅ FIXED: Use composite key (productId, sellerId) instead of just productId
+    // This allows same product from different sellers to be separate items
     addItemLocal(state, action: PayloadAction<CartItem>) {
       const incoming = action.payload;
-      const existing = state.items.find((i) => i.productId === incoming.productId);
+      
+      // Find existing item with SAME productId AND sellerId
+      const existing = state.items.find(
+        (i) => i.productId === incoming.productId && i.sellerId === incoming.sellerId
+      );
+      
       if (existing) {
+        // Merge quantities if same product + seller
         existing.quantity += incoming.quantity;
       } else {
+        // Different seller = separate cart entry
         state.items.push(incoming);
       }
     },
-    removeItemLocal(state, action: PayloadAction<string>) {
-      state.items = state.items.filter((i) => i.productId !== action.payload);
+    
+    // ✅ FIXED: Remove only item with matching productId AND sellerId
+    removeItemLocal(state, action: PayloadAction<{ productId: string; sellerId: string }>) {
+      state.items = state.items.filter(
+        (i) => !(i.productId === action.payload.productId && i.sellerId === action.payload.sellerId)
+      );
     },
-    updateQuantityLocal(state, action: PayloadAction<{ productId: string; quantity: number }>) {
-      const item = state.items.find((i) => i.productId === action.payload.productId);
+    
+    // ✅ FIXED: Update only item with matching productId AND sellerId
+    updateQuantityLocal(state, action: PayloadAction<{ productId: string; sellerId: string; quantity: number }>) {
+      const item = state.items.find(
+        (i) => i.productId === action.payload.productId && i.sellerId === action.payload.sellerId
+      );
       if (item) {
         item.quantity = action.payload.quantity;
       }
     },
+    
     setCartItems(state, action: PayloadAction<CartItem[]>) {
       state.items = action.payload;
     },

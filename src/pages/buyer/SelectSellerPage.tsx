@@ -1,15 +1,15 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { useSelector, useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { addItemLocal, addItemAsync } from '../../store/slices/cartSlice.ts'
 import { getProductById, getProductBySellers } from '../../api/endpoints/products'
-
-type RootState = any
+import { showSuccessToast, showErrorToast } from '../../utils/toastNotification'
 
 const SelectSellerPage = () => {
   const { id: productId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const dispatch = useDispatch()
+  const cartItems = useSelector((state: any) => state.cart?.items ?? []) // ✅ Get cart items to calculate remaining stock
 
   const [product, setProduct] = useState<any>(null)
   const [sellers, setSellers] = useState<any[]>([])
@@ -75,6 +75,15 @@ const SelectSellerPage = () => {
     () => sellers.find((s) => s.sellerId === selectedSellerId) ?? sellers[0],
     [selectedSellerId, sellers]
   )
+
+  // ✅ Calculate remaining stock for a specific seller (accounting for items already in cart from this seller)
+  const getRemainingStockForSeller = (sellerId: string, totalSellerStock: number) => {
+    const quantityInCart = cartItems
+      .filter((item: any) => item.productId === productId && item.sellerId === sellerId)
+      .reduce((sum: number, item: any) => sum + item.quantity, 0)
+    
+    return Math.max(0, totalSellerStock - quantityInCart)
+  }
 
   if (loading) {
     return (
@@ -169,10 +178,11 @@ const SelectSellerPage = () => {
     if (!selectedSeller || !product) return
 
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+    const remainingStock = getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)
 
-    // ✅ VALIDATION: Check if quantity exceeds available stock
-    if (safeQuantity > selectedSeller.stock) {
-      setError(`Insufficient stock! Only ${selectedSeller.stock} ${product.unit} available from ${selectedSeller.sellerName}`)
+    // ✅ VALIDATION: Check if quantity exceeds REMAINING available stock (accounting for cart)
+    if (safeQuantity > remainingStock) {
+      setError(`Insufficient stock! Only ${remainingStock} ${product.unit} available for you from ${selectedSeller.sellerName}`)
       return
     }
 
@@ -205,9 +215,11 @@ const SelectSellerPage = () => {
         }) as any
       )
       console.log('✅ Item added to cart and saved to DB')
+      showSuccessToast(`✓ ${product.name} added! Reserved for 20 mins.`)
       navigate('/buyer/cart')
     } catch (error: any) {
       console.error('❌ Failed to sync with DB:', error)
+      showErrorToast(error.response?.data?.message || 'Failed to add item to cart')
       setError(error.response?.data?.message || 'Failed to add item to cart')
       // Item stays in Redux even if DB save fails - user can retry
     }
@@ -274,7 +286,13 @@ const SelectSellerPage = () => {
         <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
           <p className="text-xs font-semibold text-supply-paper">Available sellers ({sellers.length})</p>
           <div className="mt-2 space-y-2">
-            {sellers.map((seller) => (
+            {sellers.map((seller) => {
+              const remainingStock = getRemainingStockForSeller(seller.sellerId, seller.stock)
+              const inYourCart = cartItems
+                .filter((item: any) => item.productId === productId && item.sellerId === seller.sellerId)
+                .reduce((sum: number, item: any) => sum + item.quantity, 0)
+              
+              return (
   <button
     key={seller.id}
     type="button"
@@ -291,10 +309,21 @@ const SelectSellerPage = () => {
         <p className="mt-0.5 text-[11px] text-slate-300">
           {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
         </p>
-        {/* ✅ SHOW AVAILABLE QUANTITY */}
-        <p className="mt-1 text-[11px] font-medium text-supply-peach">
-          ✓ {seller.stock} {product.unit} available
+        {/* ✅ SHOW REMAINING QUANTITY (Total - Already in cart) */}
+        <p className="mt-1 text-[11px] font-medium">
+          {remainingStock === 0 ? (
+            <span className="text-red-400">❌ Out of stock</span>
+          ) : remainingStock <= 5 ? (
+            <span className="text-amber-400">⚠️ Low: {remainingStock} {product.unit} left</span>
+          ) : (
+            <span className="text-emerald-400">✓ {remainingStock} {product.unit} available for you</span>
+          )}
         </p>
+        {inYourCart > 0 && (
+          <p className="mt-0.5 text-[10px] text-supply-peach">
+            📦 {inYourCart} {product.unit} already in your cart from this seller
+          </p>
+        )}
       </div>
       <div className="text-right">
         <p className="text-xs font-semibold text-supply-paper">
@@ -305,7 +334,8 @@ const SelectSellerPage = () => {
       </div>
     </div>
   </button>
-))}
+              )
+            })}
           </div>
         </section>
 
@@ -317,14 +347,14 @@ const SelectSellerPage = () => {
                 Quantity ({product.unit}) 
                 {selectedSeller && (
                   <span className="ml-2 font-medium text-supply-peach">
-                    Max: {selectedSeller.stock} available
+                    Max: {getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)} available for you
                   </span>
                 )}
               </label>
               <input
                 type="number"
                 min={1}
-                max={selectedSeller?.stock || 1}
+                max={selectedSeller ? getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock) : 1}
                 value={quantity}
                 onChange={(e) => {
                   const val = Number(e.target.value)

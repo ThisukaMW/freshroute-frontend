@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth.ts'
 import { useSelector } from 'react-redux'
@@ -16,15 +16,11 @@ const ProductBrowsePage = () => {
   const { isAuthenticated } = useAuth()
   const cartCount = useSelector((state: any) => state.cart?.items?.length ?? 0)
   const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   // Fetch products from backend on component mount
 useEffect(() => {
   const fetchData = async () => {
     try {
-      setLoading(true)
-      setError(null)
       const data = await getProducts()
       
       // Map backend format to frontend format
@@ -34,7 +30,9 @@ useEffect(() => {
         category: product.category,
         pricePerUnit: product.price,
         unit: product.unit,
-        stock: product.stock,
+        stock: product.stock, // Total stock
+        availableStock: product.availableStock, // ✅ Available = Total - Reserved
+        reservedQuantity: product.reservedQuantity, // For debugging
         status: product.status,
         imageUrl: product.imageUrl,
         description: product.description,
@@ -45,9 +43,6 @@ useEffect(() => {
       console.log('✅ Products loaded successfully')
     } catch (err: any) {
       console.error('❌ Error fetching products:', err.message)
-      setError('Failed to load products')
-    } finally {
-      setLoading(false)
     }
   }
   
@@ -307,16 +302,6 @@ useEffect(() => {
                       className="h-full w-full object-cover transition duration-500 hover:scale-105"
                       loading="lazy"
                     />
-                    {/* ✅ Stock Badge */}
-                    <div className="absolute top-2 right-2 rounded-lg bg-black/60 backdrop-blur px-2 py-1 text-xs font-medium">
-                      {p.stock === 0 ? (
-                        <span className="text-red-400">Out of Stock</span>
-                      ) : p.stock <= p.lowStock ? (
-                        <span className="text-amber-400">Low Stock: {p.stock}</span>
-                      ) : (
-                        <span className="text-emerald-400">{p.stock} Available</span>
-                      )}
-                    </div>
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
                   <p className="text-[11px] text-slate-300">{p.sellerName}</p>
@@ -329,14 +314,9 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={() => handleBrowseSellers(p)}
-                    disabled={p.stock === 0}
-                    className={`mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
-                      p.stock === 0
-                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-primary-dark text-supply-paper hover:bg-primary'
-                    }`}
+                    className="mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all bg-primary-dark text-supply-paper hover:bg-primary"
                   >
-                    {p.stock === 0 ? 'Out of Stock' : 'Browse Sellers'}
+                    Browse Sellers
                   </button>
                 </div>
               ))}

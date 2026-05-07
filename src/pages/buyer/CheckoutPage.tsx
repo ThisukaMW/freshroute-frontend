@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { clearCart } from "../../store/slices/cartSlice";
+import { getCart } from "../../api/endpoints/cart";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
+import { getReservationStatus } from "../../utils/reservationUtils";
 import type { RootState, AppDispatch } from "../../store";
 
 interface Address {
@@ -39,10 +41,39 @@ const CheckoutPage: React.FC = () => {
     error: null,
   });
 
+  // ✅ NEW: Track cart totals with applied discount
+  const [cartTotals, setCartTotals] = useState({
+    subtotal: 0,
+    tax: 0,
+    discount: 0,
+    total: 0,
+  });
+
   // Guard: redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) navigate("/buyer/cart");
   }, [items, navigate]);
+
+  // ✅ NEW: Fetch cart totals with applied discount
+  useEffect(() => {
+    const fetchCartTotals = async () => {
+      try {
+        const cartData = await getCart();
+        setCartTotals({
+          subtotal: cartData.subtotal || 0,
+          tax: cartData.tax || 0,
+          discount: cartData.discount || 0,
+          total: cartData.total || 0,
+        });
+      } catch (err) {
+        console.error("Failed to fetch cart totals:", err);
+      }
+    };
+
+    if (items.length > 0) {
+      fetchCartTotals();
+    }
+  }, [items]);
 
   // Fetch buyer's current address
   useEffect(() => {
@@ -71,11 +102,6 @@ const CheckoutPage: React.FC = () => {
 
     fetchAddress();
   }, []);
-
-  const total = items.reduce((sum, item) => {
-    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
-    return sum + numeric * item.quantity;
-  }, 0);
 
   const handleNextStep = () => {
     // Validate current step before moving to next
@@ -116,6 +142,40 @@ const CheckoutPage: React.FC = () => {
     try {
       if (!state.deliveryTimeSlot) {
         throw new Error("Please select a delivery time slot");
+      }
+
+      // ✅ NEW: Validate all reservations are still ACTIVE
+      const expiredItems: string[] = [];
+      const expiringItems: string[] = [];
+
+      items.forEach((item: any) => {
+        if (item.reservation && item.reservation.expiresAt) {
+          const status = getReservationStatus(item.reservation.expiresAt);
+          if (status.isExpired) {
+            expiredItems.push(item.name);
+          } else if (status.percentageRemaining < 10) {
+            expiringItems.push(`${item.name} (${status.timeRemaining})`);
+          }
+        }
+      });
+
+      // If any items have expired, show error
+      if (expiredItems.length > 0) {
+        throw new Error(
+          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`
+        );
+      }
+
+      // Warn if items are running out
+      if (expiringItems.length > 0) {
+        const proceed = window.confirm(
+          `⚠️ The following items are running out of reservation time:\n${expiringItems.join(
+            "\n"
+          )}\n\nDo you want to continue?`
+        );
+        if (!proceed) {
+          throw new Error("Checkout cancelled. Please hurry!");
+        }
       }
 
       const token = localStorage.getItem("fr_token");
@@ -244,7 +304,7 @@ const CheckoutPage: React.FC = () => {
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Subtotal</p>
             <p className="text-lg font-semibold text-supply-teal">
-              Rs. {total.toLocaleString("en-LK")}
+              Rs. {cartTotals.subtotal.toLocaleString("en-LK")}
             </p>
           </div>
         </div>
@@ -334,11 +394,29 @@ const CheckoutPage: React.FC = () => {
             )}
           </div>
 
+          {/* Price Breakdown */}
+          <div className="border-t border-white/10 pt-4 space-y-2">
+            <div className="flex justify-between text-sm text-slate-300">
+              <span>Subtotal:</span>
+              <span>Rs. {cartTotals.subtotal.toLocaleString("en-LK")}</span>
+            </div>
+            <div className="flex justify-between text-sm text-slate-300">
+              <span>Tax (10%):</span>
+              <span>Rs. {cartTotals.tax.toLocaleString("en-LK")}</span>
+            </div>
+            {cartTotals.discount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-400">
+                <span>Discount:</span>
+                <span>-Rs. {cartTotals.discount.toLocaleString("en-LK")}</span>
+              </div>
+            )}
+          </div>
+
           {/* Total */}
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Total Amount</p>
             <p className="text-lg font-semibold text-supply-teal">
-              Rs. {total.toLocaleString("en-LK")}
+              Rs. {cartTotals.total.toLocaleString("en-LK")}
             </p>
           </div>
         </div>

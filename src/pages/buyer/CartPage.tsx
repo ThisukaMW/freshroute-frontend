@@ -5,6 +5,9 @@ import { getCart, removeItemFromCart, clearCart as clearCartApi, updateCartItemQ
 import { validateCartStock } from "../../api/endpoints/inventory"
 import { setCartItems, removeItemLocal, updateQuantityLocal, clearCart } from "../../store/slices/cartSlice"
 import { LocalStorageService } from "../../services/storage/LocalStorageService"
+import { getReservationStatus, isReservationExpiring } from "../../utils/reservationUtils"
+import { showWarningToast, showErrorToast } from "../../utils/toastNotification"
+import PromoCodeInput from "../../components/checkout/PromoCodeInput"
 
 type RootState = any
 
@@ -29,6 +32,8 @@ const CartPage: React.FC = () => {
   const [discount, setDiscount] = useState(0)
   const [total, setTotal] = useState(0)
   const [stockModal, setStockModal] = useState<{ issues: StockIssue[] } | null>(null)
+  const [expiryRefresh, setExpiryRefresh] = useState(0) // Force re-render for expiry timer
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
 
   // TEMPORARY: Inject test token from Postman
   useEffect(() => {
@@ -51,6 +56,37 @@ const CartPage: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
+
+  // ✅ NEW: Refresh expiry timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setExpiryRefresh(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // ✅ NEW: Monitor for expired reservations and notify user
+  useEffect(() => {
+    const expiredItemsLastNotified = new Set<string>()
+
+    const checkExpiredItems = () => {
+      items.forEach((item: any) => {
+        if (!item.reservation?.expiresAt || expiredItemsLastNotified.has(item.id)) return
+
+        const status = getReservationStatus(item.reservation.expiresAt)
+
+        if (status.isExpired && !expiredItemsLastNotified.has(item.id)) {
+          expiredItemsLastNotified.add(item.id)
+          showErrorToast(`⚠️ "${item.name}" reservation expired! Please re-add it.`)
+        } else if (status.percentageRemaining < 15 && !expiredItemsLastNotified.has(item.id)) {
+          expiredItemsLastNotified.add(item.id)
+          showWarningToast(`⏰ "${item.name}" expires in ${status.timeRemaining}`)
+        }
+      })
+    }
+
+    checkExpiredItems()
+  }, [items, expiryRefresh])
 
   const syncCartFromDB = async () => {
     try {
@@ -85,10 +121,10 @@ const CartPage: React.FC = () => {
     setTotal(newTotal)
   }, [items, discount])
 
-  const handleRemoveItem = async (productId: string) => {
-    dispatch(removeItemLocal(productId))
+  const handleRemoveItem = async (productId: string, sellerId: string) => {
+    dispatch(removeItemLocal({ productId, sellerId }))
     try {
-      await removeItemFromCart(productId)
+      await removeItemFromCart(productId, sellerId)
       console.log('✅ Item removed from cart and DB')
     } catch (err: any) {
       console.error('❌ Error removing item from DB:', err.message)
@@ -96,18 +132,26 @@ const CartPage: React.FC = () => {
     }
   }
 
-  const handleUpdateQuantity = async (productId: string, newQuantity: number) => {
+  // ✅ NEW: Validate quantity against seller's available stock
+  const handleUpdateQuantity = async (productId: string, sellerId: string, newQuantity: number, availableStock?: number) => {
     if (newQuantity <= 0) {
-      await handleRemoveItem(productId)
+      await handleRemoveItem(productId, sellerId)
       return
     }
-    dispatch(updateQuantityLocal({ productId, quantity: newQuantity }))
+
+    // ✅ Validate against seller's available stock
+    if (availableStock !== undefined && newQuantity > availableStock) {
+      showErrorToast(`❌ Only ${availableStock} available from this seller!`)
+      return
+    }
+
+    dispatch(updateQuantityLocal({ productId, sellerId, quantity: newQuantity }))
     try {
-      await updateCartItemQuantity(productId, newQuantity)
+      await updateCartItemQuantity(productId, sellerId, newQuantity)
       console.log('✅ Quantity updated')
     } catch (err: any) {
       console.error('❌ Error updating quantity:', err.message)
-      setError('Failed to update item quantity')
+      showErrorToast(err.message || 'Failed to update item quantity')
     }
   }
 
@@ -129,6 +173,8 @@ const CartPage: React.FC = () => {
       const cartItems = items.map((item: any) => ({
         productId: item.productId,
         quantity: item.quantity,
+        sellerId: item.sellerId,
+        cartQuantity: item.quantity,
       }))
 
       const validation = await validateCartStock(cartItems)
@@ -143,11 +189,14 @@ const CartPage: React.FC = () => {
           // Auto-remove items with 0 stock
           for (const issue of issues) {
             if (issue.available === 0) {
-              dispatch(removeItemLocal(issue.productId))
-              try {
-                await removeItemFromCart(issue.productId)
-              } catch (err) {
-                console.error('Error removing out-of-stock item:', err)
+              const item = items.find((i: any) => i.productId === issue.productId)
+              if (item) {
+                dispatch(removeItemLocal({ productId: issue.productId, sellerId: item.sellerId }))
+                try {
+                  await removeItemFromCart(issue.productId, item.sellerId)
+                } catch (err) {
+                  console.error('Error removing out-of-stock item:', err)
+                }
               }
             }
           }
@@ -256,60 +305,116 @@ const CartPage: React.FC = () => {
         <>
           {/* Cart Items */}
           <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            {items.map((item: any) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-3 text-sm text-slate-100"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-xs text-slate-400">
-                    {item.vendor && `🏪 ${item.vendor} · `}{item.category} · ${item.price} / {item.unit}
-                  </p>
-                </div>
+            {items.map((item: any) => {
+              const hasReservation = item.reservation && item.reservation.expiresAt
+              const reservationStatus = hasReservation ? getReservationStatus(item.reservation.expiresAt) : null
+              const isExpiring = hasReservation && isReservationExpiring(item.reservation.expiresAt)
 
-                {/* Quantity Controls */}
-                <div className="flex items-center gap-2 bg-slate-700 rounded px-2 py-1 mr-3">
-                  <button
-                    onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
-                    className="text-primary hover:text-primary-light text-sm"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="999"
-                    value={item.quantity}
-                    onChange={(e) => handleUpdateQuantity(item.productId, Number(e.target.value))}
-                    className="w-8 bg-transparent text-center text-slate-50 text-sm focus:outline-none"
-                  />
-                  <button
-                    onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
-                    className="text-primary hover:text-primary-light text-sm"
-                  >
-                    +
-                  </button>
-                </div>
-
-                {/* Item Total */}
-                <div className="text-right mr-3">
-                  <p className="font-semibold text-sm">
-                    ${(item.price * item.quantity).toFixed(2)}
-                  </p>
-                </div>
-
-                {/* Remove Button */}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveItem(item.productId)}
-                  className="text-xs text-red-300 hover:text-red-200"
+              return (
+                <div
+                  key={item.id}
+                  className={`flex flex-col rounded-xl px-3 py-3 text-sm ${
+                    reservationStatus?.isExpired 
+                      ? 'bg-red-950/40 border border-red-400/30' 
+                      : isExpiring
+                      ? 'bg-amber-950/40 border border-amber-400/30'
+                      : 'bg-slate-950/40'
+                  }`}
                 >
-                  Remove
-                </button>
-              </div>
-            ))}
+                  {/* Item Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-slate-100">{item.name}</p>
+                      <p className="text-xs text-slate-400">
+                        {item.vendor && `🏪 ${item.vendor} · `}{item.category} · Rs. {item.price} / {item.unit}
+                      </p>
+                    </div>
+
+                    {/* Item Total */}
+                    <div className="text-right mr-3">
+                      <p className="font-semibold text-sm text-slate-50">
+                        Rs. {(Number(item.price) * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
+
+                    {/* Remove Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(item.productId, item.sellerId)}
+                      className="text-xs text-red-300 hover:text-red-200"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                
+                  <div className="mt-2 flex items-center justify-between gap-6">
+
+                    <div className="flex items-center gap-3 bg-slate-700 rounded px-2 py-1">
+                      <button
+                        onClick={() => handleUpdateQuantity(item.productId, item.sellerId, item.quantity - 1, item.availableStock)}
+                        className="text-primary hover:text-primary-light text-s p-1"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        max="999"
+                        value={item.quantity}
+                        onChange={(e) => handleUpdateQuantity(item.productId, item.sellerId, Number(e.target.value), item.availableStock)}
+                        className="bg-transparent text-center text-slate-20 text-xs focus:outline-none w-11"
+                      />
+                      <button
+                        onClick={() => handleUpdateQuantity(item.productId, item.sellerId, item.quantity + 1, item.availableStock)}
+                        className="text-primary hover:text-primary-light text-xs"
+                      >
+                        +
+                      </button>
+                    </div> 
+
+                    {/* ✅ Stock Info & Reservation Status */}
+                    <div className="flex items-center gap-2 text-[11px]">
+                      {item.availableStock !== undefined && (
+                        <span className={`px-2 py-1 rounded font-medium ${
+                          item.availableStock < 5
+                            ? 'bg-orange-500/30 text-orange-200'
+                            : 'bg-blue-500/30 text-blue-200'
+                        }`}>
+                          📦 {item.availableStock} left
+                        </span>
+                      )}
+                      {hasReservation && reservationStatus && (
+                        <div className={`font-medium px-2 py-1 rounded ${
+                          reservationStatus.isExpired
+                            ? 'bg-red-500/30 text-red-200'
+                            : isExpiring
+                            ? 'bg-amber-500/30 text-amber-200'
+                            : 'bg-emerald-500/30 text-emerald-200'
+                        }`}>
+                          {reservationStatus.isExpired ? (
+                            <span>⚠️ Expired</span>
+                          ) : (
+                            <span>🔒 {reservationStatus.timeRemaining}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
+
+          {/* Promo Code Input */}
+          <PromoCodeInput 
+            onApply={(discountAmount, code) => {
+              setDiscount(discountAmount)
+              setAppliedPromoCode(code)
+              syncCartFromDB() // Refresh cart to get updated discount
+            }}
+            appliedCode={appliedPromoCode || undefined}
+          />
 
           {/* Pricing Summary */}
           <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl text-sm text-slate-100">
@@ -323,7 +428,14 @@ const CartPage: React.FC = () => {
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-emerald-400">
-                <span>Discount:</span>
+                <div className="flex items-center gap-2">
+                  <span>Discount:</span>
+                  {appliedPromoCode && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40">
+                      {appliedPromoCode}
+                    </span>
+                  )}
+                </div>
                 <span>-${discount.toFixed(2)}</span>
               </div>
             )}

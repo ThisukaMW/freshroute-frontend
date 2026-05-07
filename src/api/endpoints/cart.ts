@@ -11,6 +11,12 @@ export interface CartItem {
   imageUrl?: string
   vendor?: string
   requirements?: string
+  sellerId?: string
+  reservation?: {
+    id: string
+    status: 'ACTIVE' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+    expiresAt: string
+  }
 }
 
 export interface CartResponse {
@@ -62,12 +68,14 @@ export const addItemToCart = async (
 }
 
 /**
- * Remove item from cart
+ * Remove item from cart with seller identification
  */
-export const removeItemFromCart = async (productId: string): Promise<void> => {
+export const removeItemFromCart = async (productId: string, sellerId: string): Promise<void> => {
   try {
-    console.log(`🔄 Removing product ${productId} from cart...`)
-    await apiClient.delete(`/api/v1/cart/${productId}`)
+    console.log(`🔄 Removing product ${productId} from seller ${sellerId} from cart...`)
+    await apiClient.delete(`/api/v1/cart/${productId}`, {
+      params: { sellerId }
+    })
     console.log('✅ Item removed from cart')
   } catch (error) {
     console.error('❌ Failed to remove item from cart:', error)
@@ -76,16 +84,18 @@ export const removeItemFromCart = async (productId: string): Promise<void> => {
 }
 
 /**
- * Update item quantity in cart
+ * Update item quantity in cart with seller identification
  */
 export const updateCartItemQuantity = async (
   productId: string,
+  sellerId: string,
   quantity: number
 ): Promise<CartItem> => {
   try {
-    console.log(`🔄 Updating quantity for product ${productId} to ${quantity}...`)
+    console.log(`🔄 Updating quantity for product ${productId} from seller ${sellerId} to ${quantity}...`)
     const response = await apiClient.patch('/api/v1/cart', {
       productId,
+      sellerId,
       quantity,
     })
     console.log('✅ Item quantity updated:', response.data)

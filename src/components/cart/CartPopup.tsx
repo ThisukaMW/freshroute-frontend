@@ -25,16 +25,16 @@ const CartPopup = ({ isOpen, onClose }: CartPopupProps) => {
     setSubtotal(total)
   }, [cartItems])
 
-  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+  const handleQuantityChange = async (productId: string, sellerId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      await dispatch(removeItemAsync(productId))
+      await dispatch(removeItemAsync({ productId, sellerId }))
     } else {
-      await dispatch(updateQuantityAsync({ productId, quantity: newQuantity }))
+      await dispatch(updateQuantityAsync({ productId, sellerId, quantity: newQuantity }))
     }
   }
 
-  const handleRemoveItem = async (productId: string) => {
-    await dispatch(removeItemAsync(productId))
+  const handleRemoveItem = async (productId: string, sellerId: string) => {
+    await dispatch(removeItemAsync({ productId, sellerId }))
   }
 
   const handleGoToCart = () => {
@@ -93,7 +93,7 @@ const CartPopup = ({ isOpen, onClose }: CartPopupProps) => {
             <div className="space-y-3">
               {cartItems.map((item) => (
                 <div
-                  key={item.productId}
+                  key={`${item.productId}-${item.sellerId}`}
                   className="flex gap-2 rounded-lg border border-primary-dark/40 bg-slate-800/60 p-2 hover:bg-slate-800 transition-colors"
                 >
                   {/* Product Image */}
@@ -114,14 +114,14 @@ const CartPopup = ({ isOpen, onClose }: CartPopupProps) => {
                     <div>
                       <h3 className="text-xs font-medium text-white line-clamp-2">{item.name}</h3>
                       <p className="text-[11px] text-slate-300 mt-0.5">
-                        Rs. {typeof item.price === 'string' ? item.price : item.price.toFixed(2)}
+                        🏪 {item.vendor} · Rs. {typeof item.price === 'string' ? item.price : item.price.toFixed(2)}
                       </p>
                     </div>
 
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-0.5 bg-slate-700/80 rounded w-fit px-1 py-0.5 border border-primary-dark/50">
                       <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                        onClick={() => handleQuantityChange(item.productId, item.sellerId, item.quantity - 1)}
                         disabled={loading}
                         className="flex h-5 w-5 items-center justify-center rounded text-primary-dark hover:bg-primary-dark/30 disabled:opacity-50 transition-colors font-bold text-sm"
                       >
@@ -129,7 +129,7 @@ const CartPopup = ({ isOpen, onClose }: CartPopupProps) => {
                       </button>
                       <span className="w-4 text-center text-[11px] text-slate-300 font-bold">{item.quantity}</span>
                       <button
-                        onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                        onClick={() => handleQuantityChange(item.productId, item.sellerId, item.quantity + 1)}
                         disabled={loading}
                         className="flex h-5 w-5 items-center justify-center rounded text-primary-dark hover:bg-primary-dark/30 disabled:opacity-50 transition-colors font-bold text-sm"
                       >
@@ -139,7 +139,7 @@ const CartPopup = ({ isOpen, onClose }: CartPopupProps) => {
 
                     {/* Remove Link */}
                     <button
-                      onClick={() => handleRemoveItem(item.productId)}
+                      onClick={() => handleRemoveItem(item.productId, item.sellerId)}
                       disabled={loading}
                       className="mt-0.5 text-[10px] text-primary-dark/70 hover:text-primary-dark font-medium disabled:opacity-50 transition-colors w-fit"
                     >
