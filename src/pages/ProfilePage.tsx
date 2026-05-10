@@ -1,3 +1,8 @@
+/**
+ * ProfilePage.tsx
+ * The full profile settings page. Shows different tabs and info based on if you are a buyer, seller, or admin.
+ */
+
 import { useState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -10,17 +15,83 @@ import { useAuthContext } from '../context/AuthContext'
 const API = 'http://localhost:5000/api/v1/profile'
 
 // ─── Types ────────────────────────────────────────────────────────
+
+/** Possible user roles in the app. */
 type Role = 'buyer' | 'seller' | 'admin'
+
+/** Tab names that a buyer can visit. */
 type BuyerTab  = 'profile' | 'orders' | 'address' | 'password' | 'settings'
+
+/** Tab names that a seller can visit. */
 type SellerTab = 'profile' | 'business' | 'password' | 'settings'
+
+/** Tab names that an admin can visit. */
 type AdminTab  = 'profile' | 'password' | 'settings'
+
+/** A Tab is any valid tab from any role. */
 type Tab = BuyerTab | SellerTab | AdminTab
 
-// Shared Tailwind class for all text inputs
+/** Shape of one order row returned by the API. */
+type Order = {
+  id: string
+  date: string
+  status: string
+  total: string
+  items: number
+  sellerName: string
+}
+
+/** Shape of one audit log row returned by the API. */
+type AuditEntry = {
+  id: number
+  action: string
+  target: string
+  time: string
+  type: 'approve' | 'suspend' | 'reject' | 'config'
+}
+
+/** Shape of one product row returned by the API. */
+type Product = {
+  name: string
+  price: string
+  status: 'APPROVED' | 'PENDING_APPROVAL'
+}
+
+/**
+ * Shape of the platform health cards returned by the API for admins.
+ * good=true means it shows green, good=false means yellow.
+ */
+type HealthCard = {
+  label: string
+  value: string
+  good: boolean
+}
+
+/** Shape of the sidebar stats returned by the API — different fields per role. */
+type StatsData = {
+  // Buyer stats
+  totalOrders?:   number
+  delivered?:     number
+  memberSince?:   string
+  // Seller stats
+  totalProducts?: number
+  // Admin stats
+  totalUsers?:    number
+  activeVendors?: number
+  ordersToday?:   number
+  adminSince?:    string
+}
+
+/** Shared CSS class string for all text input boxes in the page. */
 const inputClass =
   'w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-slate-50 outline-none placeholder:text-slate-500 focus:border-emerald-500/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-500/40 transition-all'
 
-// Reusable toggle switch component used across all settings panels
+// ─── Toggle Component ─────────────────────────────────────────────
+
+/**
+ * A simple ON/OFF switch button.
+ * When you click it, it flips between green (ON) and grey (OFF).
+ */
 const Toggle = ({
   value,
   onChange,
@@ -39,6 +110,7 @@ const Toggle = ({
       value ? 'bg-emerald-500' : 'bg-white/20'
     }`}
   >
+    {/* The white dot that slides left or right */}
     <span
       className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
         value ? 'left-4' : 'left-0.5'
@@ -48,6 +120,11 @@ const Toggle = ({
 )
 
 // ─── Sidebar tab configs per role ─────────────────────────────────
+
+/**
+ * List of sidebar sections and tabs shown to a BUYER.
+ * Groups tabs under Account, Security, and Preferences headings.
+ */
 const buyerTabs = [
   {
     section: 'Account',
@@ -67,6 +144,10 @@ const buyerTabs = [
   },
 ]
 
+/**
+ * List of sidebar sections and tabs shown to a SELLER.
+ * Includes a Business Info tab instead of Orders and Address.
+ */
 const sellerTabs = [
   {
     section: 'Account',
@@ -85,6 +166,10 @@ const sellerTabs = [
   },
 ]
 
+/**
+ * List of sidebar sections and tabs shown to an ADMIN.
+ * Fewer tabs — no orders, address, or business info.
+ */
 const adminTabs = [
   {
     section: 'Account',
@@ -100,7 +185,12 @@ const adminTabs = [
   },
 ]
 
-// Renders the correct SVG icon for each sidebar tab
+// ─── TabIcon Component ────────────────────────────────────────────
+
+/**
+ * Shows a tiny SVG icon for each sidebar tab.
+ * Picks the right icon shape based on the 'type' name passed in.
+ */
 const TabIcon = ({ type }: { type: string }) => {
   const icons: Record<string, JSX.Element> = {
     user: (
@@ -138,39 +228,40 @@ const TabIcon = ({ type }: { type: string }) => {
   return icons[type] ?? null
 }
 
-// ─── Mock data ────────────────────────────────────────────────────
-const mockOrders = [
-  { id: 'ORD-2024-042', date: 'Dec 1, 2024',  status: 'Delivered', total: 'Rs. 1,240', items: 4, sellerName: 'Green Market' },
-  { id: 'ORD-2024-038', date: 'Nov 28, 2024', status: 'Delivered', total: 'Rs. 870',   items: 2, sellerName: 'Fresh Farms'  },
-  { id: 'ORD-2024-031', date: 'Nov 20, 2024', status: 'Cancelled', total: 'Rs. 530',   items: 1, sellerName: 'City Veggies' },
-]
-
-const mockAuditLog = [
-  { id: 1, action: 'Approved vendor',    target: 'Green Market (V-0421)',      time: '2 min ago',  type: 'approve' },
-  { id: 2, action: 'Suspended user',     target: 'buyer@email.com (U-1093)',   time: '14 min ago', type: 'suspend' },
-  { id: 3, action: 'Rejected product',   target: 'Spinach Bundle (P-0078)',    time: '1 hr ago',   type: 'reject'  },
-  { id: 4, action: 'Updated platform fee', target: 'Commission → 8%',          time: '3 hrs ago',  type: 'config'  },
-]
-
-const mockProducts = [
-  { name: 'Tomatoes',   price: 'Rs. 120/kg',   status: 'APPROVED'         },
-  { name: 'Red Onions', price: 'Rs. 200/kg',   status: 'APPROVED'         },
-  { name: 'Spinach',    price: 'Rs. 80/bunch', status: 'PENDING_APPROVAL' },
-]
-
 // ─── ProfilePage ──────────────────────────────────────────────────
+
+/**
+ * The main ProfilePage component.
+ * It shows a sidebar with tabs and a content area that changes based on which tab is open.
+ */
 const ProfilePage = (): JSX.Element => {
+
+  // dispatch lets us save things into the global Redux store (shared memory for the app).
   const dispatch    = useDispatch()
+
+  // navigate lets us change the URL to go to different pages or tabs.
   const navigate    = useNavigate()
+
+  // showToast pops up a small notification message at the top of the screen.
   const { showToast }              = useToast()
+
+  // user = the logged-in person. logout = signs them out. updateUser = updates their name etc.
   const { user, logout, updateUser } = useAuthContext()
+
+  // Gets buyer and seller profile data that was already saved in the global store.
   const buyerProfile  = useSelector((state: RootState) => state.user.buyerProfile)
   const sellerProfile = useSelector((state: RootState) => state.user.sellerProfile)
+
+  // searchParams reads the URL — e.g. ?tab=orders — so we know which tab to show.
   const [searchParams] = useSearchParams()
 
+  // Figures out the role from the logged-in user. Defaults to 'buyer' if unknown.
   const role = (user?.role?.toLowerCase() ?? 'buyer') as Role
 
-  // Valid tabs for each role — prevents invalid tab params from the URL
+  /**
+   * Only allows tabs that exist for the current role.
+   * Stops someone from typing ?tab=orders in the URL as a seller.
+   */
   const validTabs: Tab[] =
     role === 'admin'
       ? ['profile', 'password', 'settings']
@@ -178,39 +269,68 @@ const ProfilePage = (): JSX.Element => {
       ? ['profile', 'business', 'password', 'settings']
       : ['profile', 'orders', 'address', 'password', 'settings']
 
+  // Reads the 'tab' value from the URL. If it's not valid, defaults to 'profile'.
   const tabParam  = searchParams.get('tab') as Tab | null
   const activeTab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'profile'
+
+  // Picks the right sidebar tab list based on the role.
   const tabSections = role === 'admin' ? adminTabs : role === 'seller' ? sellerTabs : buyerTabs
 
   // ── UI state ──
+
+  // 'saved' turns true briefly after saving, to show a "✓ saved" message on the button.
   const [saved, setSaved]         = useState(false)
+
+  // Stores the profile picture. Tries to load one saved earlier from localStorage.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     localStorage.getItem(`${role}AvatarUrl`)
   )
 
-  // ── Form fields — seeded from Redux store ──
+  // ── Form field states — pre-filled from the Redux store ──
+
+  // The user's display name — seller uses ownerName, buyer uses name.
   const [name, setName]     = useState(
     role === 'seller' ? (sellerProfile?.ownerName ?? '') : (buyerProfile?.name ?? '')
   )
+
+  // Phone number for buyer or seller.
   const [phone, setPhone]   = useState(
     role === 'seller' ? (sellerProfile?.phone ?? '') : (buyerProfile?.phone ?? '')
   )
+
+  // City — defaults to 'Colombo' if nothing is saved yet.
   const [city, setCity]     = useState(
     role === 'seller' ? (sellerProfile?.city ?? 'Colombo') : (buyerProfile?.city ?? 'Colombo')
   )
-  const [address, setAddress]                 = useState(buyerProfile?.address         ?? '')
-  const [businessName, setBusinessName]       = useState(sellerProfile?.businessName   ?? '')
+
+  // Buyer-only: delivery street address.
+  const [address, setAddress]                 = useState(buyerProfile?.address          ?? '')
+
+  // Seller-only: their shop/business name.
+  const [businessName, setBusinessName]       = useState(sellerProfile?.businessName    ?? '')
+
+  // Seller-only: their business street address.
   const [businessAddress, setBusinessAddress] = useState(sellerProfile?.businessAddress ?? '')
 
-  // ── Admin-specific fields ──
+  // ── Admin-specific field states ──
+
+  // Admin's full name (loaded from the logged-in user, defaults to 'Super Admin').
   const [adminName, setAdminName]   = useState(user?.name ?? 'Super Admin')
+
+  // Admin's phone number (hardcoded placeholder — wire to API when ready).
   const [adminPhone, setAdminPhone] = useState('+94 77 000 0001')
 
-  // ── Seller approval status fetched from API ──
+  // ── Seller approval status ──
+
+  // null = not fetched yet, true = approved, false = not approved.
   const [isApproved, setIsApproved] = useState<boolean | null>(null)
+
+  // The seller's account status — can be 'ACTIVE', 'SUSPENDED', etc.
   const [userStatus, setUserStatus] = useState<string>('ACTIVE')
 
-  // ── Notification toggles ──
+  // ── Notification toggle states ──
+
+  // Each toggle below is a true/false for whether that notification type is turned on.
   const [notifOrders,          setNotifOrders]          = useState(true)
   const [notifPromos,          setNotifPromos]          = useState(false)
   const [notifStock,           setNotifStock]           = useState(true)
@@ -219,22 +339,79 @@ const ProfilePage = (): JSX.Element => {
   const [notifDisputes,        setNotifDisputes]        = useState(true)
   const [notifSystem,          setNotifSystem]          = useState(false)
 
-  // ── Privacy / platform toggles ──
+  // ── Privacy / platform toggle states ──
+
+  // Whether the seller's store shows up to customers.
   const [storeVisible,       setStoreVisible]       = useState(true)
+
+  // Whether the buyer's profile is visible to vendors.
   const [profileVisible,     setProfileVisible]     = useState(true)
+
+  // Whether user data is shared to improve recommendations.
   const [dataSharing,        setDataSharing]        = useState(false)
+
+  // Admin: two-factor login requirement.
   const [twoFactor,          setTwoFactor]          = useState(true)
+
+  // Admin: whether all admin actions are recorded in a log.
   const [auditLogging,       setAuditLogging]       = useState(true)
+
+  // Admin: puts the whole site offline for maintenance.
   const [maintenanceMode,    setMaintenanceMode]    = useState(false)
+
+  // Admin: whether new buyers and sellers can sign up.
   const [newRegistrations,   setNewRegistrations]   = useState(true)
+
+  // Admin: skips manual review for new vendor applications if true.
   const [autoApproveVendors, setAutoApproveVendors] = useState(false)
 
   // ── Danger zone confirmation states ──
+
+  // Shows the "are you sure?" message before deleting the account.
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false)
+
+  // Shows the "are you sure?" message before signing out all sessions (admin only).
   const [showSessionConfirm, setShowSessionConfirm] = useState(false)
+
+  // True while the delete account API call is in progress.
   const [deleteLoading,      setDeleteLoading]      = useState(false)
 
-  // Fetches seller approval status once on mount — silent, never toasts on error
+  // ── Real data state ──
+
+  /** Buyer's real orders from the API. Empty until loaded. */
+  const [orders,         setOrders]         = useState<Order[]>([])
+
+  /** True while the orders API call is running — shows a loading message in the UI. */
+  const [ordersLoading,  setOrdersLoading]  = useState(false)
+
+  /** Seller's real products from the API. Empty until loaded. */
+  const [products,         setProducts]         = useState<Product[]>([])
+
+  /** True while the products API call is running — shows a loading message in the UI. */
+  const [productsLoading,  setProductsLoading]  = useState(false)
+
+  /** Admin's real audit log from the API. Empty until loaded. */
+  const [auditLog,         setAuditLog]         = useState<AuditEntry[]>([])
+
+  /** True while the audit log API call is running — shows a loading message in the UI. */
+  const [auditLoading,     setAuditLoading]     = useState(false)
+
+  /** Admin's platform health cards from the API. Empty until loaded. */
+  const [healthCards,      setHealthCards]      = useState<HealthCard[]>([])
+
+  /** True while the health cards API call is running — shows a loading message in the UI. */
+  const [healthLoading,    setHealthLoading]    = useState(false)
+
+  /** Sidebar stats from the API — different fields depending on role. Null until loaded. */
+  const [statsData,        setStatsData]        = useState<StatsData | null>(null)
+
+  // ── Seller status fetch ──
+
+  /**
+   * Runs once when the page loads (if the user is a seller).
+   * Calls the API to check if the seller is approved or suspended.
+   * Uses a ref so it only runs once — not every re-render. Silent on error.
+   */
   const hasFetchedStatus = useRef(false)
   useEffect(() => {
     if (role !== 'seller' || hasFetchedStatus.current) return
@@ -253,12 +430,140 @@ const ProfilePage = (): JSX.Element => {
           setUserStatus(data.status)
         }
       })
-      .catch(() => {
-        // Silent — background fetch, no toast
-      })
+      .catch(() => { /* Silent — background fetch, no toast on error */ })
   }, [role])
 
-  // Converts uploaded image to base64 and persists it in localStorage
+  // ── Buyer orders fetch ──
+
+  /**
+   * Runs once on mount for BUYERS only.
+   * Fetches real order history from the API.
+   * API must return: { orders: [ { id, date, status, total, items, sellerName } ] }
+   */
+  const hasFetchedOrders = useRef(false)
+  useEffect(() => {
+    if (role !== 'buyer' || hasFetchedOrders.current) return
+    hasFetchedOrders.current = true
+
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+
+    setOrdersLoading(true)
+    fetch(`${API}/orders`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.orders) setOrders(data.orders) })
+      .catch(() => { /* Silent — leaves the list empty on error */ })
+      .finally(() => setOrdersLoading(false))
+  }, [role])
+
+  // ── Seller products fetch ──
+
+  /**
+   * Runs once on mount for SELLERS only.
+   * Fetches the seller's real product list from the API.
+   * API must return: { products: [ { name, price, status } ] }
+   */
+  const hasFetchedProducts = useRef(false)
+  useEffect(() => {
+    if (role !== 'seller' || hasFetchedProducts.current) return
+    hasFetchedProducts.current = true
+
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+
+    setProductsLoading(true)
+    fetch(`${API}/products`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.products) setProducts(data.products) })
+      .catch(() => { /* Silent — leaves the list empty on error */ })
+      .finally(() => setProductsLoading(false))
+  }, [role])
+
+  // ── Admin audit log fetch ──
+
+  /**
+   * Runs once on mount for ADMINS only.
+   * Fetches the recent admin activity log from the API.
+   * API must return: { auditLog: [ { id, action, target, time, type } ] }
+   */
+  const hasFetchedAuditLog = useRef(false)
+  useEffect(() => {
+    if (role !== 'admin' || hasFetchedAuditLog.current) return
+    hasFetchedAuditLog.current = true
+
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+
+    setAuditLoading(true)
+    fetch(`${API}/audit-log`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.auditLog) setAuditLog(data.auditLog) })
+      .catch(() => { /* Silent — leaves the list empty on error */ })
+      .finally(() => setAuditLoading(false))
+  }, [role])
+
+  // ── Admin platform health fetch ──
+
+  /**
+   * Runs once on mount for ADMINS only.
+   * Fetches the platform health summary cards from the API.
+   * API must return: { healthCards: [ { label, value, good } ] }
+   */
+  const hasFetchedHealth = useRef(false)
+  useEffect(() => {
+    if (role !== 'admin' || hasFetchedHealth.current) return
+    hasFetchedHealth.current = true
+
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+
+    setHealthLoading(true)
+    fetch(`${API}/health`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.healthCards) setHealthCards(data.healthCards) })
+      .catch(() => { /* Silent — leaves the cards empty on error */ })
+      .finally(() => setHealthLoading(false))
+  }, [role])
+
+  // ── Sidebar stats fetch ──
+
+  /**
+   * Runs once on mount for ALL roles.
+   * Fetches the sidebar stat numbers from the API. The server returns different
+   * fields depending on the role attached to the token.
+   * API must return: { stats: { ... } } — see StatsData type for fields per role.
+   */
+  const hasFetchedStats = useRef(false)
+  useEffect(() => {
+    if (hasFetchedStats.current) return
+    hasFetchedStats.current = true
+
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+
+    fetch(`${API}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.stats) setStatsData(data.stats) })
+      .catch(() => { /* Silent — shows "—" for every stat on error */ })
+  }, [])
+
+  // ── Avatar upload handler ──
+
+  /**
+   * Runs when the user picks a new profile picture file.
+   * Reads the image, converts it to base64, saves to state and localStorage.
+   * This way the avatar stays even after the page refreshes.
+   */
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -271,7 +576,13 @@ const ProfilePage = (): JSX.Element => {
     reader.readAsDataURL(file)
   }
 
-  // Handles all save actions — routes to the correct API endpoint based on activeTab + role
+  // ── Save handler ──
+
+  /**
+   * Runs when the user clicks any "Save Changes" button.
+   * Looks at which tab is open and which role the user is, then sends the right data to the right API endpoint.
+   * Shows a toast message telling the user if it worked or failed.
+   */
   const handleSave = async () => {
     const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
 
@@ -284,7 +595,9 @@ const ProfilePage = (): JSX.Element => {
 
     try {
       if (activeTab === 'profile') {
+
         if (role === 'buyer') {
+          // Buyer saving their name, phone, and city.
           const res  = await fetch(`${API}/personal`, {
             method:  'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -297,6 +610,7 @@ const ProfilePage = (): JSX.Element => {
           showToast('Personal info updated successfully')
 
         } else if (role === 'seller') {
+          // Seller saving their owner name, phone, and city.
           const res  = await fetch(`${API}/personal`, {
             method:  'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -314,6 +628,7 @@ const ProfilePage = (): JSX.Element => {
         }
 
       } else if (activeTab === 'business' && role === 'seller') {
+        // Seller saving their business name and business address.
         const res  = await fetch(`${API}/business`, {
           method:  'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -325,6 +640,7 @@ const ProfilePage = (): JSX.Element => {
         showToast('Business info updated successfully')
 
       } else if (activeTab === 'address' && role === 'buyer') {
+        // Buyer saving their delivery address and city.
         const res  = await fetch(`${API}/address`, {
           method:  'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -336,21 +652,25 @@ const ProfilePage = (): JSX.Element => {
         showToast('Delivery address updated successfully')
 
       } else if (activeTab === 'password') {
-        // Read password values directly from DOM inputs
+        // Reads password values directly from the DOM input fields (never stored in state).
         const currentPwd = (document.getElementById('current-password') as HTMLInputElement)?.value?.trim()
         const newPwd     = (document.getElementById('new-password')     as HTMLInputElement)?.value?.trim()
         const confirmPwd = (document.getElementById('confirm-password') as HTMLInputElement)?.value?.trim()
 
+        // Checks that all fields are filled in.
         if (!currentPwd || !newPwd || !confirmPwd) {
           showToast('Please fill in all password fields', 'error'); setSaved(false); return
         }
+        // Checks that the new password and confirm password match.
         if (newPwd !== confirmPwd) {
           showToast('New passwords do not match', 'error'); setSaved(false); return
         }
+        // Checks that the new password is long enough.
         if (newPwd.length < 8) {
           showToast('Password must be at least 8 characters', 'error'); setSaved(false); return
         }
 
+        // Sends the old and new passwords to the API.
         const res  = await fetch(`${API}/password`, {
           method:  'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -365,16 +685,23 @@ const ProfilePage = (): JSX.Element => {
       showToast('Network error — please check your connection', 'error')
     }
 
+    // After 2.5 seconds, resets the save button back to normal text.
     setTimeout(() => setSaved(false), 2500)
   }
 
-  // Deletes the account via API, clears local storage, and redirects to sign in
+  // ── Delete account handler ──
+
+  /**
+   * Runs when the user confirms they want to delete their account.
+   * Calls the DELETE API, navigates to home first, then logs out.
+   * Navigating before logout avoids a visual glitch from the page resetting.
+   */
   const handleDeleteAccount = async () => {
     setDeleteLoading(true)
     try {
       const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
-      const res   = await fetch(`${API}/`, {
-        method:  'DELETE',
+      const res = await fetch(`${API}/`, {
+        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
@@ -383,19 +710,30 @@ const ProfilePage = (): JSX.Element => {
         setDeleteLoading(false)
         return
       }
-      localStorage.clear()
       showToast('Account deleted successfully')
-      navigate('/signin')
+      // Go to home page first, then log out after a tiny delay to avoid a visual glitch.
+      navigate('/')
+      setTimeout(() => logout(), 100)
     } catch {
       showToast('Something went wrong', 'error')
       setDeleteLoading(false)
     }
   }
 
-  // Navigates to a tab by updating the URL search param
+  // ── Tab navigation helper ──
+
+  /**
+   * Changes the active tab by updating the URL with ?tab=tabName.
+   * React Router picks up the URL change and the page re-renders to show the right tab.
+   */
   const goToTab = (tab: Tab) => navigate(`?tab=${tab}`)
 
   // ── Derived display values ──
+
+  /**
+   * The name shown at the top of the sidebar.
+   * Seller shows business name or owner name. Admin shows adminName. Buyer shows their name.
+   */
   const displayName =
     role === 'seller'
       ? (sellerProfile?.businessName || sellerProfile?.ownerName || 'Vendor')
@@ -403,6 +741,10 @@ const ProfilePage = (): JSX.Element => {
       ? adminName
       : (buyerProfile?.name ?? user?.name ?? 'User')
 
+  /**
+   * The email shown under the name in the sidebar.
+   * Each role reads from a slightly different place.
+   */
   const displayEmail =
     role === 'seller'
       ? (sellerProfile?.email ?? user?.email ?? '')
@@ -410,12 +752,19 @@ const ProfilePage = (): JSX.Element => {
       ? (user?.email ?? 'admin@freshroute.lk')
       : (buyerProfile?.email ?? user?.email ?? '')
 
-  // Role label + gradient + accent color — changes per role
-  const roleLabel    = role === 'admin' ? 'Admin'  : role === 'seller' ? 'Seller' : 'Buyer'
+  // The text label shown in the role badge — "Admin", "Seller", or "Buyer".
+  const roleLabel    = role === 'admin' ? 'Admin' : role === 'seller' ? 'Seller' : 'Buyer'
+
+  // The gradient color used for buttons and the avatar background.
   const roleGradient = role === 'admin' ? 'from-emerald-500 to-teal-600' : 'from-emerald-500 to-supply-teal'
+
+  // The accent text color used for section labels.
   const accentColor  = 'text-emerald-400'
 
-  // Status badge colors for orders and products
+  /**
+   * Maps order/product status strings to Tailwind color classes.
+   * Used to color status badges like "Delivered" (green) or "Cancelled" (red).
+   */
   const statusStyles: Record<string, string> = {
     Delivered:        'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
     Cancelled:        'text-red-400    bg-red-400/10    border-red-400/20',
@@ -424,7 +773,10 @@ const ProfilePage = (): JSX.Element => {
     PENDING_APPROVAL: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
   }
 
-  // Badge colors for the admin audit log entries
+  /**
+   * Maps audit log entry types to Tailwind color classes.
+   * Used to color the little icon badge next to each admin action.
+   */
   const auditStyles: Record<string, string> = {
     approve: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
     suspend: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
@@ -432,32 +784,40 @@ const ProfilePage = (): JSX.Element => {
     config:  'text-sky-400    bg-sky-400/10    border-sky-400/20',
   }
 
-  // Sidebar stat cards — different values per role
+  /**
+   * Sidebar stat cards built from real API data.
+   * Shows "—" for each value while the data is still loading.
+   */
   const stats =
     role === 'admin'
       ? [
-          { label: 'Total users',    value: '1,284' },
-          { label: 'Active vendors', value: '94'    },
-          { label: 'Orders today',   value: '217'   },
-          { label: 'Admin since',    value: '2023'  },
+          { label: 'Total users',    value: statsData?.totalUsers    != null ? String(statsData.totalUsers)    : '—' },
+          { label: 'Active vendors', value: statsData?.activeVendors != null ? String(statsData.activeVendors) : '—' },
+          { label: 'Orders today',   value: statsData?.ordersToday   != null ? String(statsData.ordersToday)   : '—' },
+          { label: 'Admin since',    value: statsData?.adminSince                                               ?? '—' },
         ]
       : role === 'seller'
       ? [
-          { label: 'Products',     value: '3'    },
-          { label: 'Orders',       value: '18'   },
-          { label: 'Member since', value: '2024' },
+          { label: 'Products',     value: statsData?.totalProducts != null ? String(statsData.totalProducts) : '—' },
+          { label: 'Orders',       value: statsData?.totalOrders   != null ? String(statsData.totalOrders)   : '—' },
+          { label: 'Member since', value: statsData?.memberSince                                              ?? '—' },
         ]
       : [
-          { label: 'Orders',       value: '3'    },
-          { label: 'Delivered',    value: '2'    },
-          { label: 'Member since', value: '2024' },
+          { label: 'Orders',       value: statsData?.totalOrders != null ? String(statsData.totalOrders) : '—' },
+          { label: 'Delivered',    value: statsData?.delivered   != null ? String(statsData.delivered)   : '—' },
+          { label: 'Member since', value: statsData?.memberSince                                         ?? '—' },
         ]
 
-  // Save button label changes based on active tab and saved state
+  /**
+   * The text shown on the save button.
+   * Changes based on which tab is open and whether saving just happened.
+   */
   const saveLabel =
     activeTab === 'password' ? (saved ? '✓ Password updated' : 'Update Password')
     : activeTab === 'address' ? (saved ? '✓ Address saved'   : 'Save Address')
     : (saved ? '✓ Changes saved' : 'Save Changes')
+
+  // ── Render ──
 
   return (
     <main className="flex min-h-screen gap-0" aria-label="Profile page">
@@ -465,7 +825,7 @@ const ProfilePage = (): JSX.Element => {
       {/* ── SIDEBAR ── */}
       <aside className="flex w-64 flex-shrink-0 flex-col gap-4 border-r border-white/10 px-3 py-6">
 
-        {/* Avatar, display name, email, role badges */}
+        {/* Avatar card: profile picture, name, email, role badges */}
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-center">
           <div className="relative">
             <div
@@ -473,12 +833,14 @@ const ProfilePage = (): JSX.Element => {
               role="img"
               aria-label={`Profile picture for ${displayName}`}
             >
+              {/* Shows the uploaded avatar image, or the first letter of the name if no image */}
               {avatarUrl
                 ? <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
                 : displayName.charAt(0).toUpperCase()
               }
             </div>
-            {/* Avatar upload button — hidden for admin */}
+
+            {/* Camera / edit button to upload a new profile picture — hidden for admins */}
             {role !== 'admin' && (
               <label
                 className="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-slate-900 text-[9px] text-slate-300 hover:bg-slate-700 transition-colors"
@@ -489,7 +851,8 @@ const ProfilePage = (): JSX.Element => {
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               </label>
             )}
-            {/* Online indicator dot — admin only */}
+
+            {/* Green dot shown only for admins to indicate they are online */}
             {role === 'admin' && (
               <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-slate-900 bg-emerald-400" />
             )}
@@ -500,7 +863,7 @@ const ProfilePage = (): JSX.Element => {
             <p className="text-[11px] text-slate-400">{displayEmail}</p>
           </div>
 
-          {/* Role + approval status badges */}
+          {/* Role + approval/suspension badges */}
           <div className="flex gap-2 flex-wrap justify-center">
             <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
               {roleLabel}
@@ -528,7 +891,7 @@ const ProfilePage = (): JSX.Element => {
           </div>
         </div>
 
-        {/* Sidebar nav — tabs grouped by section */}
+        {/* Sidebar navigation tabs grouped by section */}
         <nav className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-white/5 px-2 py-3" aria-label="Profile sections">
           {tabSections.map((section, si) => (
             <div key={section.section}>
@@ -555,7 +918,8 @@ const ProfilePage = (): JSX.Element => {
           ))}
 
           <div className="my-2 border-t border-white/10" />
-          {/* Sign out button */}
+
+          {/* Sign out button at the bottom of the sidebar nav */}
           <button
             onClick={logout}
             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -568,7 +932,7 @@ const ProfilePage = (): JSX.Element => {
           </button>
         </nav>
 
-        {/* Sidebar stats */}
+        {/* Sidebar stats — real numbers from API, shows "—" while loading */}
         <div className="flex flex-col gap-2">
           {stats.map((s) => (
             <div key={s.label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2.5">
@@ -579,10 +943,10 @@ const ProfilePage = (): JSX.Element => {
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* ── MAIN CONTENT AREA ── */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
 
-        {/* ── PERSONAL INFO (all roles) ── */}
+        {/* ── PERSONAL INFO TAB (all roles) ── */}
         {activeTab === 'profile' && (
           <div className="space-y-5">
             <div>
@@ -592,6 +956,8 @@ const ProfilePage = (): JSX.Element => {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
+
+                {/* Name field — label changes based on role */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-300">
                     {role === 'seller' ? 'Owner name' : 'Full name'}
@@ -603,11 +969,14 @@ const ProfilePage = (): JSX.Element => {
                     autoComplete="name"
                   />
                 </div>
+
+                {/* Email field — always read-only, cannot be changed here */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-300">Email</label>
-                  {/* Email is read-only — cannot be changed from the profile page */}
                   <input value={displayEmail} disabled className={`${inputClass} cursor-not-allowed opacity-50`} autoComplete="email" />
                 </div>
+
+                {/* Phone field */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-300">Phone number</label>
                   <input
@@ -619,6 +988,8 @@ const ProfilePage = (): JSX.Element => {
                     autoComplete="tel"
                   />
                 </div>
+
+                {/* City dropdown for buyer/seller. Admin sees a read-only Role field instead. */}
                 {role !== 'admin' ? (
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-300">City</label>
@@ -629,7 +1000,6 @@ const ProfilePage = (): JSX.Element => {
                     </select>
                   </div>
                 ) : (
-                  // Admin sees a read-only Role field instead of City
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-300">Role</label>
                     <input value="Super Administrator" disabled className={`${inputClass} cursor-not-allowed opacity-50`} />
@@ -637,7 +1007,7 @@ const ProfilePage = (): JSX.Element => {
                 )}
               </div>
 
-              {/* Admin permissions list */}
+              {/* Admin-only: shows all the permissions this admin account has */}
               {role === 'admin' && (
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-300">Permissions</p>
@@ -662,40 +1032,49 @@ const ProfilePage = (): JSX.Element => {
             {/* Admin-only extras: platform health cards + recent audit log */}
             {role === 'admin' && (
               <>
+                {/* Platform health cards — real data from API */}
                 <div>
                   <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.2em] ${accentColor}`}>Platform Health</p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[
-                      { label: 'Uptime',             value: '99.8%',    good: true  },
-                      { label: 'Pending approvals',  value: '7',        good: false },
-                      { label: 'Open disputes',      value: '2',        good: false },
-                      { label: 'Revenue (MTD)',       value: 'Rs. 1.2M', good: true  },
-                    ].map((c) => (
-                      <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-1">
-                        <p className={`text-lg font-bold ${c.good ? 'text-emerald-400' : 'text-yellow-400'}`}>{c.value}</p>
-                        <p className="text-sm font-medium text-slate-200">{c.label}</p>
-                      </div>
-                    ))}
-                  </div>
+                  {healthLoading ? (
+                    <p className="py-4 text-center text-sm text-slate-400">Loading platform health…</p>
+                  ) : healthCards.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-slate-400">No health data available.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {healthCards.map((c) => (
+                        <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-1">
+                          <p className={`text-lg font-bold ${c.good ? 'text-emerald-400' : 'text-yellow-400'}`}>{c.value}</p>
+                          <p className="text-sm font-medium text-slate-200">{c.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
+                {/* Recent admin activity — real audit log from API */}
                 <div>
                   <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.2em] ${accentColor}`}>Recent Activity</p>
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                    <ul className="space-y-2">
-                      {mockAuditLog.map((entry) => (
-                        <li key={entry.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
-                          <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold ${auditStyles[entry.type]}`}>
-                            {entry.type === 'approve' ? '✓' : entry.type === 'reject' ? '✕' : entry.type === 'suspend' ? '!' : '⚙'}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-100">{entry.action}</p>
-                            <p className="text-xs text-slate-400 truncate">{entry.target}</p>
-                          </div>
-                          <span className="text-xs text-slate-500">{entry.time}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {auditLoading ? (
+                      <p className="py-4 text-center text-sm text-slate-400">Loading activity…</p>
+                    ) : auditLog.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-slate-400">No recent activity.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {auditLog.map((entry) => (
+                          <li key={entry.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
+                            <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold ${auditStyles[entry.type]}`}>
+                              {entry.type === 'approve' ? '✓' : entry.type === 'reject' ? '✕' : entry.type === 'suspend' ? '!' : '⚙'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-100">{entry.action}</p>
+                              <p className="text-xs text-slate-400 truncate">{entry.target}</p>
+                            </div>
+                            <span className="text-xs text-slate-500">{entry.time}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </>
@@ -703,7 +1082,7 @@ const ProfilePage = (): JSX.Element => {
           </div>
         )}
 
-        {/* ── BUSINESS INFO (seller only) ── */}
+        {/* ── BUSINESS INFO TAB (seller only) ── */}
         {activeTab === 'business' && role === 'seller' && (
           <div className="space-y-5">
             <div>
@@ -722,33 +1101,39 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               </div>
 
-              {/* Seller's listed products with approval status */}
+              {/* Seller's product list — real data from API */}
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-300">Your Products</p>
-                <ul className="space-y-2">
-                  {mockProducts.map((p) => (
-                    <li key={p.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
-                      <div>
-                        <p className="text-base font-medium text-slate-50">{p.name}</p>
-                        <p className="text-sm text-slate-400">{p.price}</p>
-                      </div>
-                      <span className={`rounded-full border px-3 py-0.5 text-sm font-medium ${statusStyles[p.status]}`}>
-                        {p.status === 'PENDING_APPROVAL' ? 'Pending' : 'Approved'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                {productsLoading ? (
+                  <p className="py-4 text-center text-sm text-slate-400">Loading products…</p>
+                ) : products.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-slate-400">No products listed yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {products.map((p) => (
+                      <li key={p.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
+                        <div>
+                          <p className="text-base font-medium text-slate-50">{p.name}</p>
+                          <p className="text-sm text-slate-400">{p.price}</p>
+                        </div>
+                        <span className={`rounded-full border px-3 py-0.5 text-sm font-medium ${statusStyles[p.status]}`}>
+                          {p.status === 'PENDING_APPROVAL' ? 'Pending' : 'Approved'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {/* Earnings summary cards */}
+              {/* Earnings summary — real numbers from the stats API */}
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="mb-3 text-sm font-semibold text-slate-200">Earnings Summary</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: 'This month',     value: 'Rs. 32,500' },
-                    { label: 'Last month',     value: 'Rs. 28,100' },
-                    { label: 'Total orders',   value: '18'         },
-                    { label: 'Pending payout', value: 'Rs. 8,400'  },
+                    { label: 'This month',     value: (statsData as any)?.thisMonth     ?? '—' },
+                    { label: 'Last month',     value: (statsData as any)?.lastMonth     ?? '—' },
+                    { label: 'Total orders',   value: statsData?.totalOrders != null ? String(statsData.totalOrders) : '—' },
+                    { label: 'Pending payout', value: (statsData as any)?.pendingPayout ?? '—' },
                   ].map((e) => (
                     <div key={e.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
                       <p className="text-base font-semibold text-slate-50">{e.value}</p>
@@ -768,7 +1153,7 @@ const ProfilePage = (): JSX.Element => {
           </div>
         )}
 
-        {/* ── ORDERS (buyer only) ── */}
+        {/* ── ORDERS TAB (buyer only) ── */}
         {activeTab === 'orders' && role === 'buyer' && (
           <div className="space-y-5">
             <div>
@@ -776,27 +1161,33 @@ const ProfilePage = (): JSX.Element => {
               <h2 className="mt-0.5 text-xl font-semibold text-slate-50">Your Orders</h2>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
-              <ul className="space-y-2">
-                {mockOrders.map((order) => (
-                  <li key={order.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-base font-semibold text-slate-50">{order.id}</p>
-                      <p className="mt-0.5 text-sm text-slate-400">{order.date} · {order.items} items · {order.sellerName}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <p className="text-base font-semibold text-slate-200">{order.total}</p>
-                      <span className={`rounded-full border px-3 py-0.5 text-sm font-medium ${statusStyles[order.status] ?? statusStyles['Pending']}`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {ordersLoading ? (
+                <p className="py-6 text-center text-sm text-slate-400">Loading your orders…</p>
+              ) : orders.length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-400">No orders yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {orders.map((order) => (
+                    <li key={order.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-base font-semibold text-slate-50">{order.id}</p>
+                        <p className="mt-0.5 text-sm text-slate-400">{order.date} · {order.items} items · {order.sellerName}</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="text-base font-semibold text-slate-200">{order.total}</p>
+                        <span className={`rounded-full border px-3 py-0.5 text-sm font-medium ${statusStyles[order.status] ?? statusStyles['Pending']}`}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         )}
 
-        {/* ── DELIVERY ADDRESS (buyer only) ── */}
+        {/* ── DELIVERY ADDRESS TAB (buyer only) ── */}
         {activeTab === 'address' && role === 'buyer' && (
           <div className="space-y-5">
             <div>
@@ -826,7 +1217,7 @@ const ProfilePage = (): JSX.Element => {
           </div>
         )}
 
-        {/* ── PASSWORD (all roles) ── */}
+        {/* ── PASSWORD TAB (all roles) ── */}
         {activeTab === 'password' && (
           <div className="space-y-5">
             <div>
@@ -834,6 +1225,7 @@ const ProfilePage = (): JSX.Element => {
               <h2 className="mt-0.5 text-xl font-semibold text-slate-50">Change Password</h2>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl space-y-4">
+              {/* Three password fields: current, new, confirm */}
               {[
                 { id: 'current-password', label: 'Current password',     placeholder: 'Enter current password', auto: 'current-password' },
                 { id: 'new-password',     label: 'New password',         placeholder: 'At least 8 characters',  auto: 'new-password'     },
@@ -845,7 +1237,7 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               ))}
 
-              {/* Admin 2FA notice */}
+              {/* Blue info box shown only to admins reminding them 2FA is on */}
               {role === 'admin' && (
                 <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                   <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 16 16">
@@ -867,7 +1259,7 @@ const ProfilePage = (): JSX.Element => {
           </div>
         )}
 
-        {/* ── SETTINGS (all roles) ── */}
+        {/* ── SETTINGS TAB (all roles) ── */}
         {activeTab === 'settings' && (
           <div className="space-y-5">
             <div>
@@ -875,7 +1267,7 @@ const ProfilePage = (): JSX.Element => {
               <h2 className="mt-0.5 text-xl font-semibold text-slate-50">Settings</h2>
             </div>
 
-            {/* Notification toggles — different options per role */}
+            {/* Notification toggle section — different options per role */}
             <fieldset className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-base font-semibold text-slate-200">Notifications</p>
               {role === 'buyer' && [
@@ -911,7 +1303,7 @@ const ProfilePage = (): JSX.Element => {
               ))}
             </fieldset>
 
-            {/* Privacy toggles — buyer and seller only */}
+            {/* Privacy toggles — only shown to buyer and seller */}
             {(role === 'buyer' || role === 'seller') && (
               <fieldset className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-base font-semibold text-slate-200">Privacy</p>
@@ -929,7 +1321,7 @@ const ProfilePage = (): JSX.Element => {
               </fieldset>
             )}
 
-            {/* Security + platform switches — admin only */}
+            {/* Admin-only: security toggles + platform on/off switches */}
             {role === 'admin' && (
               <>
                 <fieldset className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -956,7 +1348,7 @@ const ProfilePage = (): JSX.Element => {
                       <div>
                         <p className={`text-sm ${item.danger && item.value ? 'text-red-400 font-medium' : 'text-slate-200'}`}>
                           {item.label}
-                          {/* Active warning badge — only shown when a dangerous switch is ON */}
+                          {/* "ACTIVE" badge shown only when a dangerous switch is turned ON */}
                           {item.danger && item.value && (
                             <span className="ml-2 rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] text-red-400">
                               ACTIVE
@@ -972,7 +1364,7 @@ const ProfilePage = (): JSX.Element => {
               </>
             )}
 
-            {/* Danger zone — delete account (buyer/seller) or sign out all sessions (admin) */}
+            {/* Danger zone at the bottom — delete account or sign out all sessions */}
             <div className="space-y-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
               <p className="text-sm font-semibold text-red-400">Danger Zone</p>
               {role === 'admin' ? (
@@ -986,14 +1378,16 @@ const ProfilePage = (): JSX.Element => {
                       Sign out all sessions
                     </button>
                   ) : (
-                    // Two-step confirmation to prevent accidental sign-out
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-red-300">Are you sure? All devices will be signed out.</p>
                       <div className="flex gap-2">
                         <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors">
                           Yes, sign out all
                         </button>
-                        <button onClick={() => setShowSessionConfirm(false)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors">
+                        <button
+                          onClick={() => setShowSessionConfirm(false)}
+                          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
+                        >
                           Cancel
                         </button>
                       </div>
@@ -1011,7 +1405,6 @@ const ProfilePage = (): JSX.Element => {
                       {role === 'seller' ? 'Delete My Store' : 'Delete My Account'}
                     </button>
                   ) : (
-                    // Two-step confirmation to prevent accidental deletion
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-red-300">Are you sure? This cannot be undone.</p>
                       <div className="flex gap-2">
@@ -1022,7 +1415,11 @@ const ProfilePage = (): JSX.Element => {
                         >
                           {deleteLoading ? 'Deleting...' : 'Yes, delete it'}
                         </button>
-                        <button onClick={() => setShowDeleteConfirm(false)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors">
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          disabled={deleteLoading}
+                          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
                           Cancel
                         </button>
                       </div>

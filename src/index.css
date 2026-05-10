@@ -1,28 +1,12 @@
-/* @tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* index.css */
+/* Global styles. Sets up Tailwind, makes the whole page dark, and adds a fade-in animation. */
 
-html,
-body,
-#app {
-  height: 100%;
-}
-
-@layer base {
-  html {
-    font-family: theme('fontFamily.sans');
-    @apply bg-brand-background;
-  }
-
-  body {
-    @apply text-slate-50 ;
-  }
-} */
-
+/* Loads all of Tailwind's helper classes into the project. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Makes the html, body, and app div fill the full screen height. */
 html,
 body,
 #app {
@@ -30,20 +14,25 @@ body,
 }
 
 @layer base {
+  /* Sets the default font and dark background for every page. */
   html {
     font-family: theme('fontFamily.sans');
     @apply bg-brand-background;
   }
 
+  /* Makes all text light-coloured by default (works on dark backgrounds). */
   body {
-    @apply text-slate-50 ;
+    @apply text-slate-50;
   }
 }
 
+/* Defines a "slide up and fade in" animation — elements start invisible and move up slightly. */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Helper class you can add to any element to play the fade-in-up animation. */
 .animate-fade-in-up {
   animation: fade-in-up 0.2s ease-out;
 }

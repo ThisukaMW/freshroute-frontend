@@ -1,243 +1,7 @@
-// import React, { useState } from "react";
-// import { useDispatch } from "react-redux";
-// import { useNavigate } from "react-router-dom";
-// import { addProduct } from "../../store/slices/sellerProductsSlice";
-// import type { AppDispatch } from "../../store";
-
-// const AddProductPage: React.FC = () => {
-//   const dispatch = useDispatch<AppDispatch>();
-//   const navigate = useNavigate();
-
-//   const [name, setName] = useState<string>("");
-//   const [category, setCategory] = useState<string>("Fruits");
-//   const [price, setPrice] = useState<number>(0);
-//   const [unit, setUnit] = useState<string>("kg");
-//   const [stock, setStock] = useState<number>(0);
-
-//   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-//     e.preventDefault();
-
-//     dispatch(
-//       addProduct({
-//         name,
-//         category,
-//         pricePerUnit: price,
-//         unit,
-//         stock: stock,
-//       })
-//     );
-
-//     navigate("/seller/products");
-//   };
-
-//   return (
-//     <div className="max-w-xl space-y-4">
-//       <h1 className="text-xl font-semibold text-slate-50">
-//         Add new product
-//       </h1>
-
-//       <form
-//         onSubmit={handleSubmit}
-//         className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl text-sm"
-//       >
-//         <div>
-//           <label>Product name</label>
-//           <input
-//             type="text"
-//             value={name}
-//             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-//               setName(e.target.value)
-//             }
-//           />
-//         </div>
-
-//         <div>
-//           <label>Category</label>
-//           <select
-//             value={category}
-//             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-//               setCategory(e.target.value)
-//             }
-//           >
-//             <option>Fruits</option>
-//             <option>Vegetables</option>
-//             <option>Dairy</option>
-//             <option>Bakery</option>
-//           </select>
-//         </div>
-
-//         <div>
-//           <label>Price</label>
-//           <input
-//             type="number"
-//             value={price}
-//             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-//               setPrice(Number(e.target.value))
-//             }
-//           />
-//         </div>
-
-//         <button type="submit" >Save product</button>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default AddProductPage;
-
-
-// import React, { useState } from "react";
-// import { useDispatch } from "react-redux";
-// import { useNavigate } from "react-router-dom";
-// import { addProduct } from "../../store/slices/sellerProductsSlice";
-// import type { AppDispatch } from "../../store";
-
-// const AddProductPage: React.FC = () => {
-//   const dispatch = useDispatch<AppDispatch>();
-//   const navigate = useNavigate();
-
-//   const [name, setName] = useState<string>("");
-//   const [category, setCategory] = useState<string>("Fruits");
-//   const [price, setPrice] = useState<number>(0);
-//   const [unit, setUnit] = useState<string>("kg");
-//   const [stock, setStock] = useState<number>(0);
-
-//   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-//     e.preventDefault();
-
-//     dispatch(
-//       addProduct({
-//         name,
-//         category,
-//         pricePerUnit: price,
-//         unit,
-//         stock,
-//       })
-//     );
-
-//     navigate("/seller/products");
-//   };
-
-//   return (
-//     <div className="max-w-xl space-y-4">
-//       <h1 className="text-xl font-semibold text-slate-50">
-//         Add new product
-//       </h1>
-
-//       <p className="text-sm text-slate-300">
-//         Frontend-only form to demonstrate how sellers create products.
-//       </p>
-
-//       <form
-//         onSubmit={handleSubmit}
-//         className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl text-sm"
-//       >
-//         {/* Product Name */}
-//         <div>
-//           <label className="block text-xs font-medium text-slate-200">
-//             Product name
-//           </label>
-//           <input
-//             type="text"
-//             value={name}
-//             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-//               setName(e.target.value)
-//             }
-//             placeholder="e.g. Red Apple"
-//             className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/60"
-//           />
-//         </div>
-
-//         {/* Category + Unit */}
-//         <div className="grid grid-cols-2 gap-3">
-//           <div>
-//             <label className="block text-xs font-medium text-slate-200">
-//               Category
-//             </label>
-//             <select
-//               value={category}
-//               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-//                 setCategory(e.target.value)
-//               }
-//               className="mt-1 w-full rounded-xl border border-white/10 bg-brand-background/60 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/60"
-//             >
-//               <option>Fruits</option>
-//               <option>Vegetables</option>
-//               <option>Dairy</option>
-//               <option>Bakery</option>
-//             </select>
-//           </div>
-
-//           <div>
-//             <label className="block text-xs font-medium text-slate-200">
-//               Unit
-//             </label>
-//             <select
-//               value={unit}
-//               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-//                 setUnit(e.target.value)
-//               }
-//               className="mt-1 w-full rounded-xl border border-white/10 bg-brand-background/60 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/60"
-//             >
-//               <option value="kg">kg</option>
-//               <option value="bunch">bunch</option>
-//               <option value="pack">pack</option>
-//               <option value="piece">piece</option>
-//             </select>
-//           </div>
-//         </div>
-
-//         {/* Price + Stock */}
-//         <div className="grid grid-cols-2 gap-3">
-//           <div>
-//             <label className="block text-xs font-medium text-slate-200">
-//               Price per unit (Rs.)
-//             </label>
-//             <input
-//               type="number"
-//               value={price}
-//               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-//                 setPrice(Number(e.target.value))
-//               }
-//               className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/60"
-//             />
-//           </div>
-
-//           <div>
-//             <label className="block text-xs font-medium text-slate-200">
-//               Stock quantity
-//             </label>
-//             <input
-//               type="number"
-//               value={stock}
-//               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-//                 setStock(Number(e.target.value))
-//               }
-//               className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/60"
-//             />
-//           </div>
-//         </div>
-
-//         {/* Button */}
-//         <button
-//           type="submit"
-//           className="mt-2 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark transition"
-//         >
-//           Save product
-//         </button>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default AddProductPage;
-
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useEffect,useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addProduct } from "../../store/slices/sellerProductsSlice";
-import type { AppDispatch } from "../../store";
-
+import { createSellerProduct } from "../../api/endpoints/products";
+import { LocalStorageService } from "../../services/storage/LocalStorageService";
 interface Variant {
   id: number;
   label: string;
@@ -246,7 +10,6 @@ interface Variant {
 }
 
 const AddProductPage: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   /* ---------- BASIC PRODUCT ---------- */
@@ -307,26 +70,53 @@ const AddProductPage: React.FC = () => {
   };
 
   /* ---------- SUBMIT ---------- */
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-    dispatch(
-      addProduct({
-        name,
-        category,
-        description,
-        images,
-        pricingMode,
-        taxPercent,
-        variants,
-        pricePerUnit: price,
-        unit,
-        stock,
-      })
-    );
+  if (!name || !category || price <= 0 || stock < 0) {
+    alert("Please fill in all required fields");
+    return;
+  }
 
+  try {
+    const formData = new FormData();
+
+    // basic fields
+    formData.append("name", name);
+    formData.append("category", category);
+    formData.append("description", description);
+    formData.append("price", String(price));
+    formData.append("unit", unit);
+    formData.append("stock", String(stock));
+
+    // images
+    images.forEach((img) => {
+      formData.append("images", img);
+    });
+
+    // variants
+    formData.append("variants", JSON.stringify(variants));
+
+    // pricing
+    formData.append("pricingMode", pricingMode);
+    formData.append("taxPercent", String(taxPercent));
+
+    const response = await createSellerProduct(formData);
+
+    console.log("✅ Product created:", response);
+    alert("Product created successfully!");
     navigate("/seller/products");
-  };
+
+  } catch (error: any) {
+    console.error("❌ Error:", error);
+    alert(error?.response?.data?.message || "Failed to create product");
+  }
+};
+
+// TEMPORARY: Inject test token for development
+  /*useEffect(() => {
+    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjk1YTYxOS0wOWRhLTRlMTEtYjJkMy1jYTdkMmNiOGI0OTQiLCJzZWxsZXJJZCI6Ijc4NTYwMDg4LWU4NzAtNDEzYy1hMTU2LTBiZWYxZGJhOTU1NiIsInJvbGUiOiJTRUxMRVIiLCJpYXQiOjE3Nzc1MjAwNjUsImV4cCI6MTc3ODEyNDg2NX0.qr-SpLzrwxISWWtCfP2Y0_gREDiEBK1ERKzBsxYBJZk')
+  }, [])*/
 
   const inputClass =
     "mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/60";

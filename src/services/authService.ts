@@ -1,104 +1,91 @@
-import client from '../store/api/client'
-import { LocalStorageService } from './storage/LocalStorageService'
+// authService.ts
+// All the functions for talking to the backend's auth endpoints:
+// register a customer, register a vendor, log in, and log out.
 
-// ── TYPES ──
+import client from '../store/api/client';
+import { LocalStorageService } from './storage/LocalStorageService';
 
+// ── TYPE DEFINITIONS ──
+// These describe the shape of the data going in and coming out of each function.
+
+// Data needed to sign up a new customer.
 export interface CustomerRegisterInput {
-  name: string
-  email: string
-  password: string
-  phone?: string
-  city?: string
-  address?: string
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  city?: string;
+  address?: string;
 }
 
+// Data needed to sign up a new vendor.
 export interface VendorRegisterInput {
-  businessName: string
-  ownerName: string
-  email: string
-  phone?: string
-  password: string
-  confirmPassword: string
-  businessAddress: string
-  city: string
-  latitude?: number
-  longitude?: number
-  agreedToPolicy: boolean
-  verificationDoc?: File
+  businessName: string;
+  ownerName: string;
+  email: string;
+  phone?: string;
+  password: string;
+  confirmPassword: string;
+  businessAddress: string;
+  city: string;
+  latitude?: number;
+  longitude?: number;
+  agreedToPolicy: boolean;
+  verificationDoc?: File;
 }
 
-// ── unified login input (same fields for both) ──
+// Data needed to log in (same fields for both buyers and sellers).
 export interface LoginInput {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
+// Shape of the user object the backend sends back after login/register.
 export interface AuthUser {
-  id: string
-  name: string
-  email: string
-  role: string        // "buyer" | "seller"
-  status: string      // "ACTIVE" | "SUSPENDED"
-  phone?: string
-  city?: string
-  address?: string
+  id: string;
+  name: string;
+  email: string;
+  role: string;    // "buyer" | "seller"
+  status: string;  // "ACTIVE" | "SUSPENDED"
+  phone?: string;
+  city?: string;
+  address?: string;
 }
 
+// Shape of the seller's business profile the backend sends back (null for buyers).
 export interface SellerProfile {
-  id: string
-  businessName: string
-  businessAddress: string
+  id: string;
+  businessName: string;
+  businessAddress: string;
 }
 
-// ── updated response shape to match backend ──
+// The full response the backend sends back after a successful login or registration.
 export interface AuthResponse {
-  token: string
-  user: AuthUser
-  profile: SellerProfile | null   // null for buyers, sellerProfile for sellers
-  redirectTo: string              // "/buyer/:id/dashboard" or "/seller/:id/dashboard"
+  token: string;
+  user: AuthUser;
+  profile: SellerProfile | null; // null for buyers, filled in for sellers.
+  redirectTo: string;            // The URL to send the user to after login.
 }
 
-// ── CUSTOMER REGISTER ──
+// ── FUNCTIONS ──
 
+// Sends customer registration data to the backend and saves the returned token.
 export const registerCustomer = async (input: CustomerRegisterInput): Promise<AuthResponse> => {
-  const { data } = await client.post<AuthResponse>('/auth/customer/register', input)
-  LocalStorageService.set('fr_token', data.token)
-  return data
-}
+  const { data } = await client.post<AuthResponse>('/auth/customer/register', input);
+  LocalStorageService.set('fr_token', data.token); // Save the token so the user stays logged in.
+  return data;
+};
 
-// ── UNIFIED LOGIN (buyer + seller) ──
-
+// Sends login credentials to the backend for both buyers and sellers.
+// Saves the token and returns the full response (including where to redirect the user).
 export const loginUser = async (input: LoginInput): Promise<AuthResponse> => {
-  const { data } = await client.post<AuthResponse>('/auth/login', input)  // ✅ new route
-  LocalStorageService.set('fr_token', data.token)
-  return data
-}
+  const { data } = await client.post<AuthResponse>('/auth/login', input);
+  LocalStorageService.set('fr_token', data.token);
+  return data;
+};
 
-// ── VENDOR REGISTER ──
-
-/*export const registerVendor = async (input: VendorRegisterInput): Promise<AuthResponse> => {
-  const formData = new FormData()
-  formData.append('businessName', input.businessName)
-  formData.append('ownerName', input.ownerName)
-  formData.append('email', input.email)
-  formData.append('password', input.password)
-  formData.append('confirmPassword', input.confirmPassword)
-  formData.append('businessAddress', input.businessAddress)
-  formData.append('city', input.city)
-  formData.append('agreedToPolicy', String(input.agreedToPolicy))
-  if (input.phone) formData.append('phone', input.phone)
-  if (input.latitude) formData.append('latitude', String(input.latitude))
-  if (input.longitude) formData.append('longitude', String(input.longitude))
-  if (input.verificationDoc) formData.append('verificationDoc', input.verificationDoc)
-
-  const { data } = await client.post<AuthResponse>('/auth/vendor/signup', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  LocalStorageService.set('fr_token', data.token)
-  return data
-}*/
-
-// ── VENDOR REGISTER ──
+// Sends vendor registration data to the backend (as JSON, not a form).
+// Saves the token and returns the full response.
 export const registerVendor = async (input: VendorRegisterInput): Promise<AuthResponse> => {
   const payload = {
     businessName:    input.businessName,
@@ -112,15 +99,15 @@ export const registerVendor = async (input: VendorRegisterInput): Promise<AuthRe
     phone:           input.phone,
     latitude:        input.latitude,
     longitude:       input.longitude,
-  }
+  };
 
-  const { data } = await client.post<AuthResponse>('/auth/vendor/signup', payload)
-  LocalStorageService.set('fr_token', data.token)
-  return data
-}
+  const { data } = await client.post<AuthResponse>('/auth/vendor/signup', payload);
+  LocalStorageService.set('fr_token', data.token);
+  return data;
+};
 
-// ── LOGOUT ──
-
+// Logs the user out by removing the saved token from localStorage.
+// No backend call needed — just clearing local storage is enough.
 export const logoutUser = () => {
-  LocalStorageService.remove('fr_token')
-}
+  LocalStorageService.remove('fr_token');
+};

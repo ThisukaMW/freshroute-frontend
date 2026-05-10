@@ -16,17 +16,14 @@ import TruckCapacityPage from "../pages/admin/TruckCapacityPage";
 import AddTruckPage from "../pages/admin/AddTruckPage";
 import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
 import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
-// SignUpPage handles both customer and vendor registration via the :role URL param
 import SignUpPage from "../pages/SignUpPage.tsx";
 import SignInPage from "../pages/SignInPage";
-// RoleSelectPage is the landing point for /signup — users pick Customer or Vendor here
 import RoleSelectPage from "../pages/RoleSelectPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
 import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
 import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
 import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
 import CartPage from "../pages/buyer/CartPage.tsx";
-import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
 import DashboardPage from "../pages/seller/DashboardPage.tsx";
 import ProductsPage from "../pages/seller/ProductsPage.tsx";
 import AddProductPage from "../pages/seller/AddProductPage.tsx";
@@ -46,6 +43,12 @@ import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import SecureAccountPage from "../pages/auth/SecureAccountPage";
 import RateOrderPage from '../pages/buyer/RateOrderPage';
+import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
+import { Route } from "react-router-dom";
+import NotificationsPage from "../pages/NotificationPage.tsx";
+import PendingApprovalsPage from "../pages/admin/PendingApprovalsPage.tsx";
+import PendingApprovalPage from "../pages/PendingApprovalPage";
+import { useAuth } from "../hooks/useAuth";
 
 // Shape of a basic public route — path and the element to render
 interface RouteConfig {
@@ -56,6 +59,16 @@ interface RouteConfig {
 // Extends RouteConfig with an optional roles array for role-based access control
 interface ProtectedRouteConfig extends RouteConfig {
   roles?: string[];
+}
+
+const NotificationsRoute = () => {
+  const { user } = useAuth()
+  const role = (user?.role?.toLowerCase() ?? "buyer") as "buyer" | "seller" | "admin"
+  return (
+    <MainLayout role={role}>
+      <NotificationsPage />
+    </MainLayout>
+  )
 }
 
 // Central route registry — consumed by the router to register all public and protected routes
@@ -94,6 +107,7 @@ export const routeConfig: {
     { path: "/payment-cancel", element: <PaymentCancelPage /> },
     // Account security page — reached via link in a security verification email
     { path: "/auth/secure-account", element: <SecureAccountPage /> },
+    { path: "/pending-approval", element: <PendingApprovalPage /> },
   ],
 
   // ─── Protected Routes ─────────────────────────────────────────────────────
@@ -242,6 +256,15 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    {
+      path: "/admin/approvals",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <PendingApprovalsPage />  
+        </MainLayout>
+      ),
+    },
 
     // ── Buyer routes ─────────────────────────────────────────────────────────
 
@@ -286,6 +309,33 @@ export const routeConfig: {
       ),
     },
     // Order history — buyer views past and active orders with status
+    // {
+    //   path: "/buyer/products/:id",
+    //   roles: ["buyer"],
+    //   element: (
+    //     <MainLayout role="buyer">
+    //       <ProductDetailPage  />
+    //     </MainLayout>
+    //   ),
+    // },
+    {
+      path: "/buyer/cart",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CartPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/buyer/checkout",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <CheckoutPage />
+        </MainLayout>
+      ),
+    },
     {
       path: "/buyer/orders",
       roles: ["buyer"],
@@ -419,6 +469,13 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    {
+      path: "/notifications",
+      roles: ["buyer", "seller", "admin"],
+      element: (
+        <NotificationsRoute />
+      ),
+    } 
   ],
 
   // Rendered when no route matches — 404 not found page

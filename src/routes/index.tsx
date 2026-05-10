@@ -1,23 +1,31 @@
+// AppRoutes.tsx
+// Reads the current URL and decides which page to show. Also adds security wrappers
+// around pages that need login or a specific role.
+
 import { useRoutes } from "react-router-dom";
 import { PublicRoute } from "./PublicRoute";
 import { PrivateRoute } from "./PrivateRoute";
 import { RoleBasedRoute } from "./RoleBasedRoute";
 import { routeConfig } from "./routeConfig";
-import SellerRatingsPage from '../pages/seller/SellerRatingsPage'
+import SellerRatingsPage from '../pages/seller/SellerRatingsPage';
 
-// Composes the full route tree by combining the demo route, public routes, protected routes, and the 404 fallback
+// Builds the full list of routes and returns whichever page matches the current URL.
 export const AppRoutes = () => {
   const element = useRoutes([
-    // Demo route for the seller ratings page — accessible without authentication
+
+    // A demo route — anyone can visit /ratings-demo without logging in.
     { path: "/ratings-demo", element: <SellerRatingsPage /> },
 
-    // Wraps every public route in PublicRoute to redirect authenticated users away from pages like sign-in
+    // Loops through all public routes (sign-in, sign-up, etc.) and wraps each one in PublicRoute.
+    // PublicRoute will redirect logged-in users away from these pages (e.g. away from /signin).
     ...routeConfig.public.map((route) => ({
       path: route.path,
       element: <PublicRoute>{route.element}</PublicRoute>,
     })),
 
-    // Wraps every protected route in PrivateRoute (auth check) and RoleBasedRoute (role check)
+    // Loops through all protected routes (dashboard, cart, etc.) and wraps each one in two guards:
+    // PrivateRoute = checks the user is logged in.
+    // RoleBasedRoute = checks the user has the right role (buyer / seller / admin).
     ...routeConfig.protected.map((route) => ({
       path: route.path,
       element: (
@@ -29,7 +37,7 @@ export const AppRoutes = () => {
       ),
     })),
 
-    // Catches all unmatched paths and renders the 404 fallback page
+    // If the URL doesn't match anything above, show the 404 not-found page.
     {
       path: "*",
       element: routeConfig.fallback,

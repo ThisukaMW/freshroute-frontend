@@ -1,19 +1,58 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth.ts'
 import { useSelector } from 'react-redux'
-
+import { getProducts } from '../../api/endpoints/products'
+import CartPopup from '../../components/cart/CartPopup'
 const ProductBrowsePage = () => {
 
   const [activeCategory, setActiveCategory] = useState('All')
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 })
   const [sortBy, setSortBy] = useState('recommended')
   const [searchQuery, setSearchQuery] = useState('')  // ← NEW: Search state
+  const [cartPopupOpen, setCartPopupOpen] = useState(false)
   
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const cartCount = useSelector((state: any) => state.cart?.items?.length ?? 0)
-  const products = useSelector((state: any) => state.sellerProducts?.products ?? [])
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch products from backend on component mount
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getProducts()
+      
+      // Map backend format to frontend format
+      const formattedProducts = data.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        pricePerUnit: product.price,
+        unit: product.unit,
+        stock: product.stock,
+        status: product.status,
+        imageUrl: product.imageUrl,
+        description: product.description,
+        sellerName: product.seller?.user?.name || 'Unknown Vendor',
+      }))
+      
+      setProducts(formattedProducts)
+      console.log('✅ Products loaded successfully')
+    } catch (err: any) {
+      console.error('❌ Error fetching products:', err.message)
+      setError('Failed to load products')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  fetchData()
+}, [])
 
   const categories: string[] = [
     'All',
@@ -46,7 +85,7 @@ const ProductBrowsePage = () => {
   // ✅ UPDATED: Filter with category, price, AND search
   const filteredProducts = products.filter((p: any) => {
     // Filter by status
-    if (p.status !== 'active') return false
+    if (p.status !== 'APPROVED') return false
     
     // Filter by category
     if (activeCategory !== 'All' && p.category !== activeCategory) return false
@@ -134,18 +173,13 @@ const ProductBrowsePage = () => {
             onChange={handleSearchChange}
             className="w-56 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-supply-paper outline-none ring-supply-teal/60 placeholder:text-slate-400 focus:border-supply-teal focus:ring-2 md:w-72"
           />
-          <Link
-            to="/signup/customer"
-            className="rounded-xl bg-supply-orange/80 px-4 py-2 text-xs font-medium text-supply-paper hover:bg-supply-clay"
-          >
-            Sign up to order
-          </Link>
-          <Link
-            to="/buyer/cart"
-            className="rounded-xl border border-white/15 px-4 py-2 text-xs font-medium text-supply-paper hover:bg-white/10"
+          
+          <button
+            onClick={() => setCartPopupOpen(true)}
+            className="rounded-xl border border-white/15 px-4 py-2 text-xs font-medium text-supply-paper hover:bg-white/10 transition-colors"
           >
             Cart ({cartCount})
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -224,17 +258,7 @@ const ProductBrowsePage = () => {
         </aside>
 
         <section>
-          <div className="mb-4 rounded-2xl border border-supply-teal/40 bg-gradient-to-r from-supply-teal/20 via-supply-peach/20 to-supply-orange/20 p-3 text-[11px] text-supply-paper/80 backdrop-blur-xl">
-            You are currently browsing as a guest.{' '}
-            <Link to="/signup/customer" className="font-semibold underline">
-              Sign up as a customer
-            </Link>{' '}
-            or{' '}
-            <Link to="/signin" className="font-semibold underline">
-              sign in
-            </Link>{' '}
-            to add products to your cart and place orders.
-          </div>
+          
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-300">
@@ -276,16 +300,26 @@ const ProductBrowsePage = () => {
                   key={p.id}
                   className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-xl"
                 >
-                  <div className="mb-2 h-24 overflow-hidden rounded-xl bg-white/5">
+                  <div className="mb-2 h-24 overflow-hidden rounded-xl bg-white/5 relative">
                     <img
                       src={getImageForProduct(p)}
                       alt={p.name}
                       className="h-full w-full object-cover transition duration-500 hover:scale-105"
                       loading="lazy"
                     />
+                    {/* ✅ Stock Badge */}
+                    <div className="absolute top-2 right-2 rounded-lg bg-black/60 backdrop-blur px-2 py-1 text-xs font-medium">
+                      {p.stock === 0 ? (
+                        <span className="text-red-400">Out of Stock</span>
+                      ) : p.stock <= p.lowStock ? (
+                        <span className="text-amber-400">Low Stock: {p.stock}</span>
+                      ) : (
+                        <span className="text-emerald-400">{p.stock} Available</span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
-                  <p className="text-[11px] text-slate-300">Demo vendor</p>
+                  <p className="text-[11px] text-slate-300">{p.sellerName}</p>
                   <p className="mt-1 text-xs font-semibold text-supply-paper">
                     Rs. {p.pricePerUnit}{' '}
                     <span className="font-normal text-slate-300">
@@ -295,9 +329,14 @@ const ProductBrowsePage = () => {
                   <button
                     type="button"
                     onClick={() => handleBrowseSellers(p)}
-                    className="mt-2 inline-flex items-center justify-center rounded-xl bg-primary-dark px-3 py-1.5 text-xs font-medium text-supply-paper hover:bg-primary"
+                    disabled={p.stock === 0}
+                    className={`mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
+                      p.stock === 0
+                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed opacity-50'
+                        : 'bg-primary-dark text-supply-paper hover:bg-primary'
+                    }`}
                   >
-                    Browse Sellers
+                    {p.stock === 0 ? 'Out of Stock' : 'Browse Sellers'}
                   </button>
                 </div>
               ))}
@@ -305,6 +344,9 @@ const ProductBrowsePage = () => {
           )}
         </section>
       </div>
+      
+      {/* Cart Popup Modal */}
+      <CartPopup isOpen={cartPopupOpen} onClose={() => setCartPopupOpen(false)} />
     </div>
   )
 };

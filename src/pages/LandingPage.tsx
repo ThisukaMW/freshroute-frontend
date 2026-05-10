@@ -1,9 +1,12 @@
+// LandingPage.tsx
+// This is the main home page of FreshRoute — shows the hero, slideshow, stats, services, and footer.
+
 import { Link, useLocation } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import type { JSX } from 'react'
 import { useEffect, useRef, useState } from 'react'
 
-// Counts from 0 to target over duration ms, starts only when trigger is true
+// Counts a number up from 0 to a target value, but only starts when trigger becomes true.(increasing no section)
 function useCountUp(target: number, duration = 2000, trigger: boolean = false) {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -20,7 +23,7 @@ function useCountUp(target: number, duration = 2000, trigger: boolean = false) {
   return count
 }
 
-// Returns a ref and inView flag — flips true once element enters the viewport
+// Watches an element on the page and flips inView to true once the user scrolls to it.(increasing no section)
 function useInView(threshold = 0.3) {
   const ref = useRef<HTMLDivElement>(null)
   const [inView, setInView] = useState(false)
@@ -35,7 +38,7 @@ function useInView(threshold = 0.3) {
   return { ref, inView }
 }
 
-// Animated stat number that counts up when scrolled into view
+// Shows a single animated stat number that counts up when the user scrolls to it.ex:0->12000 happy customers
 function StatCounter({ value, suffix, label }: { value: number; suffix: string; label: string }) {
   const { ref, inView } = useInView()
   const count = useCountUp(value, 2000, inView)
@@ -49,7 +52,7 @@ function StatCounter({ value, suffix, label }: { value: number; suffix: string; 
   )
 }
 
-// Slideshow data — each slide has an image, tag badge, headline, and subtitle
+// The list of slides shown in the image carousel — each has a photo, badge, headline, and subtitle.
 const slides = [
   {
     url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80',
@@ -77,18 +80,21 @@ const slides = [
   },
 ]
 
-// Fixed navbar height — keep in sync with your Navbar component
+// How tall the fixed navbar is in pixels — used to push content below it.
 const NAVBAR_HEIGHT = 64
 
-// Full-viewport image carousel — auto-advances every 2s, slides in from right
+// Full-screen image slideshow that auto-advances every 2 seconds with a slide-in animation.
 function HeroSlideshow() {
   const [current, setCurrent] = useState(0)
+  // Remembers the previous slide so we can keep it visible while the new one slides in.
   const [prev, setPrev] = useState<number | null>(null)
 
+  // Runs a timer that moves to the next slide every 2 seconds.
   useEffect(() => {
     const id = setInterval(() => {
       setPrev(current)
       setCurrent(c => (c + 1) % slides.length)
+      // Clears the previous slide after the slide animation finishes (0.7s).
       setTimeout(() => setPrev(null), 700)
     }, 2000)
     return () => clearInterval(id)
@@ -99,11 +105,13 @@ function HeroSlideshow() {
       className="relative w-full overflow-hidden"
       style={{ height: `calc(100dvh - ${NAVBAR_HEIGHT}px)` }}
     >
+      {/* Renders only the current and previous slide — all others are hidden */}
       {slides.map((slide, i) => {
         const isCurrent = i === current
         const isPrev    = i === prev
         if (!isCurrent && !isPrev) return null
 
+        // Current slide slides in from the right; previous slide stays still underneath.
         let style: React.CSSProperties = {}
         if (isCurrent) {
           style = { animation: 'slideInRight 0.7s cubic-bezier(0.22,1,0.36,1) forwards', zIndex: 2 }
@@ -113,13 +121,16 @@ function HeroSlideshow() {
 
         return (
           <div key={i} className="absolute inset-0" style={style}>
+            {/* Background photo */}
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${slide.url})` }}
             />
+            {/* Dark gradient overlay so white text is readable on top of the photo */}
             <div className="absolute inset-0" style={{
               background: 'linear-gradient(to bottom, rgba(4,18,26,0.35) 0%, rgba(4,18,26,0.15) 40%, rgba(4,18,26,0.80) 100%)',
             }} />
+            {/* Slide text content — tag badge, headline, subtitle */}
             <div className="absolute inset-0 flex flex-col justify-end px-8 pb-16 md:px-20 md:pb-20">
               <span className="mb-3 inline-block w-fit rounded-full border border-supply-teal/60 bg-supply-teal/20 px-4 py-1 text-[11px] font-bold uppercase tracking-[0.35em] text-supply-teal backdrop-blur-sm">
                 {slide.tag}
@@ -141,7 +152,7 @@ function HeroSlideshow() {
         )
       })}
 
-      {/* Dot indicators */}
+      {/* Small dots at the bottom showing which slide is active */}
       <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 flex gap-2">
         {slides.map((_, i) => (
           <span
@@ -155,7 +166,7 @@ function HeroSlideshow() {
         ))}
       </div>
 
-      {/* Progress bar */}
+      {/* Thin teal progress bar at the very bottom that fills up over 2 seconds then resets */}
       <div className="absolute bottom-0 left-0 z-10 h-[3px] w-full bg-white/10">
         <div
           key={current}
@@ -164,6 +175,7 @@ function HeroSlideshow() {
         />
       </div>
 
+      {/* CSS keyframe definitions for the slide and progress bar animations */}
       <style>{`
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes progressBar  { from { width: 0%; } to { width: 100%; } }
@@ -175,6 +187,7 @@ function HeroSlideshow() {
 // ─── LandingPage ─────────────────────────────────────────────────────────────
 const LandingPage = (): JSX.Element => {
 
+  // The list of produce categories shown in the services grid section.
   const services = [
     { title: 'Farm-Fresh Vegetables', desc: 'Direct from upcountry farms to your door. Handpicked each morning, delivered by noon.',      tag: 'Most ordered', emoji: '🥦' },
     { title: 'Tropical Fruits',       desc: 'Seasonal mangoes, papayas, pineapples and more — sourced from certified local growers.',     tag: 'In season',    emoji: '🍍' },
@@ -183,9 +196,12 @@ const LandingPage = (): JSX.Element => {
     { title: 'Root Vegetables',       desc: 'Potatoes, carrots, beetroot, and more — bulk or per-unit pricing from multiple vendors.',    tag: 'Best value',   emoji: '🥕' },
   ]
 
+  // The scrolling partner name strip data.
   const partners = ['Peiris Farm', 'Green Valley', 'Kandy Farms', 'Coastal Co-op', 'Uva Organics', 'Matale Growers', 'Ceylon Herbs', 'Lanka Fresh']
 
   const location = useLocation()
+
+  // When the URL has a #hash (like #how-it-works), smoothly scrolls the page down to that section.
   useEffect(() => {
     if (!location.hash) return
     const id = location.hash.replace('#', '')
@@ -196,23 +212,22 @@ const LandingPage = (): JSX.Element => {
   }, [location])
 
   return (
-    //<div className="flex min-h-screen flex-col bg-brand-background text-supply-ash">
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-brand-background via-supply-teal/60 to-brand-background text-supply-ash">
 
-      {/* Fixed navbar — bg-supply-charcoal to match doc 1 */}
+      {/* Fixed navbar pinned to the top of the screen */}
       <div className="fixed top-0 left-0 right-0 z-50">
         <Navbar variant="public" />
       </div>
 
-      {/* All content pushed below the fixed navbar */}
+      {/* Pushes all page content below the fixed navbar */}
       <div style={{ paddingTop: `${NAVBAR_HEIGHT}px` }}>
         <main className="relative flex-1 overflow-hidden">
 
-          {/* ── HERO SECTION — matches doc 1: bg-gradient-to-br from-brand-background/90 via-supply-teal/60 to-supply-teal/45 ── */}
+          {/* ── HERO SECTION — headline, CTA buttons, and stat card ── */}
           <section className="relative flex min-h-screen w-full justify-center bg-gradient-to-br from-brand-background/90 via-supply-teal/60 to-supply-teal/45 px-4 py-12 md:py-20">
             <div className="flex w-full max-w-6xl flex-col gap-10 md:flex-row md:items-center">
 
-              {/* Left: text content */}
+              {/* Left side: brand name, tagline, CTA buttons, and quick facts */}
               <div
                 className="flex-1 space-y-6"
                 style={{ animation: 'freshRouteSlideIn 0.9s cubic-bezier(0.22,1,0.36,1) both' }}
@@ -237,22 +252,13 @@ const LandingPage = (): JSX.Element => {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    to="/signup/customer"
-                    className="rounded-full bg-primary-dark px-6 py-2 text-sm font-medium text-supply-paper hover:bg-primary-dark/80"
-                  >
+                  <Link to="/signup/customer" className="rounded-full bg-primary-dark px-6 py-2 text-sm font-medium text-supply-paper hover:bg-primary-dark/80">
                     Start Ordering
                   </Link>
-                  <Link
-                    to="/signup/vendor"
-                    className="rounded-full border border-supply-ash/40 px-6 py-2 text-sm font-medium text-supply-ash hover:bg-white/10"
-                  >
+                  <Link to="/signup/vendor" className="rounded-full border border-supply-ash/40 px-6 py-2 text-sm font-medium text-supply-ash hover:bg-white/10">
                     Become a Vendor
                   </Link>
-                  <a
-                    href="#how-it-works"
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 transition hover:text-slate-200"
-                  >
+                  <a href="#how-it-works" className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 transition hover:text-slate-200">
                     How it works <span className="text-supply-teal">↓</span>
                   </a>
                 </div>
@@ -273,7 +279,7 @@ const LandingPage = (): JSX.Element => {
                 </div>
               </div>
 
-              {/* Right: stat card widget */}
+              {/* Right side: small stat card widget */}
               <div
                 className="flex-1"
                 style={{ animation: 'freshRouteSlideIn 1.1s cubic-bezier(0.22,1,0.36,1) both' }}
@@ -283,9 +289,7 @@ const LandingPage = (): JSX.Element => {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="text-[11px] font-medium text-supply-peach">Today&apos;s picks</p>
                       <p className="mt-1 text-lg font-semibold text-supply-paper">Fresh veggies</p>
-                      <p className="mt-2 text-[11px] text-slate-300">
-                        Handpicked from local markets each morning.
-                      </p>
+                      <p className="mt-2 text-[11px] text-slate-300">Handpicked from local markets each morning.</p>
                     </div>
                     <div className="flex flex-col gap-3">
                       <div className="rounded-2xl border border-supply-teal/40 bg-supply-teal/30 p-3">
@@ -298,16 +302,10 @@ const LandingPage = (): JSX.Element => {
                       </div>
                     </div>
                   </div>
-
-                  {/* Trust badges */}
+                  {/* Trust badge pills */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {['30+ verified vendors', '96% on-time delivery', '12,000+ customers', 'Same-day delivery'].map(t => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-slate-300 backdrop-blur-sm"
-                      >
-                        {t}
-                      </span>
+                      <span key={t} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-slate-300 backdrop-blur-sm">{t}</span>
                     ))}
                   </div>
                 </div>
@@ -315,12 +313,13 @@ const LandingPage = (): JSX.Element => {
             </div>
           </section>
 
-          {/* ── CAROUSEL SECTION ── */}
+          {/* ── CAROUSEL SECTION — full-screen image slideshow ── */}
           <section style={{ height: `calc(100dvh - ${NAVBAR_HEIGHT}px)` }}>
             <HeroSlideshow />
           </section>
+          
 
-          {/* ── Animated stats bar — matches doc 1 section bg style ── */}
+          {/* ── STATS BAR — animated numbers that count up on scroll ── */}
           <section className="relative w-full  bg-gradient-to-br from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-16">
             <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-10 md:grid-cols-5">
               <StatCounter value={30}   suffix="+"       label="Local vendors"    />
@@ -331,93 +330,131 @@ const LandingPage = (): JSX.Element => {
             </div>
           </section>
 
-          {/* ── Services / produce range grid ── */}
-          <section className="relative w-full  bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-16 md:py-20">
+
+          {/* ── SERVICES / produce range grid ── */}
+          <section className="relative w-full bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-16 md:py-20">
             <div className="mx-auto w-full max-w-6xl">
+
+              {/* Section header */}
               <div className="mb-10 flex items-end justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-supply-peach">What we deliver</p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-50 md:text-3xl">Our produce range</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-supply-peach">
+                    What we deliver
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-50 md:text-3xl">
+                    Our produce range
+                  </h2>
                 </div>
-                <Link to="/products" className="hidden text-xs font-semibold text-primary-light hover:text-supply-peach md:block">
+                <Link
+                  to="/products"
+                  className="hidden text-xs font-semibold text-primary-light hover:text-supply-peach md:block"
+                >
                   Browse all →
                 </Link>
               </div>
-              {/* Bento-style grid — first card is large */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="group relative col-span-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-md transition hover:border-supply-teal/40 hover:bg-white/10 md:col-span-2 md:row-span-2">
-                  <span className="text-7xl">{services[0].emoji}</span>
-                  <div className="mt-6">
-                    <span className="rounded-full border border-supply-teal/30 bg-supply-teal/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-supply-teal">
-                      {services[0].tag}
-                    </span>
-                    <h3 className="mt-3 text-2xl font-bold text-slate-50">{services[0].title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-300">{services[0].desc}</p>
-                  </div>
-                  <Link
-                    to="/products"
-                    className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-supply-teal transition group-hover:gap-3"
-                  >
-                    Browse category →
-                  </Link>
-                </div>
-                {services.slice(1).map((s) => (
+
+              {/* Uniform 5-card grid — all cards same size, no bento */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+                {[
+                  {
+                    ...services[0],
+                    img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&q=80',
+                  },
+                  {
+                    ...services[1],
+                    img: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=600&q=80',
+                  },
+                  {
+                    ...services[2],
+                    img: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=600&q=80',
+                  },
+                  {
+                    ...services[3],
+                    img: 'https://images.unsplash.com/photo-1587735243615-c03f25aaff15?w=600&q=80',
+                  },
+                  {
+                    ...services[4],
+                    img: 'https://images.unsplash.com/photo-1445282768818-728615cc910a?w=600&q=80',
+                  },
+                ].map((s) => (
                   <div
                     key={s.title}
-                    className="group rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md transition hover:border-supply-teal/40 hover:bg-white/10"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-supply-teal/40"
                   >
-                    <span className="text-4xl">{s.emoji}</span>
-                    <div className="mt-4">
-                      <span className="rounded-full border border-supply-peach/20 bg-supply-peach/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-supply-peach">
+                    {/* Card photo */}
+                    <img
+                      src={s.img}
+                      alt={s.title}
+                      className="h-36 w-full object-cover"
+                    />
+
+                    {/* Card body */}
+                    <div className="flex flex-1 flex-col gap-2 p-4">
+
+                      {/* Badge */}
+                      <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider
+                        ${s.tag === 'Most ordered' ? 'bg-supply-teal/20 text-supply-teal-400 border border-supply-teal/30' : ''}
+                        ${s.tag === 'In season'    ? 'bg-supply-peach/10 text-supply-peach border border-supply-peach/20' : ''}
+                        ${s.tag === 'New arrivals' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ''}
+                        ${s.tag === 'Certified'    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ''}
+                        ${s.tag === 'Best value'   ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : ''}
+                      `}>
                         {s.tag}
                       </span>
-                      <h3 className="mt-2 text-sm font-bold text-slate-50">{s.title}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-slate-300">{s.desc}</p>
+
+                      {/* Title */}
+                      <h3 className="text-sm font-bold text-slate-50">{s.title}</h3>
+
+                      {/* Description */}
+                      <p className="text-xs leading-relaxed text-slate-400">{s.desc}</p>
+
+                      {/* Footer row — divider + link + icon */}
+                      <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-3">
+                        <Link
+                          to="/products"
+                          className="text-[11px] font-semibold text-supply-teal group-hover:underline"
+                        >
+                          Browse →
+                        </Link>
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/5">
+                          <svg
+                            className="h-3 w-3 text-slate-400"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+
                     </div>
-                    <Link
-                      to="/products"
-                      className="mt-4 inline-flex text-[11px] font-semibold text-supply-teal group-hover:underline"
-                    >
-                      Learn More →
-                    </Link>
                   </div>
                 ))}
               </div>
+
             </div>
           </section>
 
-          {/* ── Scrolling partner name strip ── */}
+          {/* ── PARTNER STRIP — scrolling marquee of vendor partner names ── */}
           <section className="w-full overflow-hidden border-y border-white/10 bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 py-6">
-            <p className="mb-4 text-center text-[10px] font-semibold uppercase tracking-[0.4em] text-slate-400">
-              Trusted vendor partners
-            </p>
-            <div
-              className="flex gap-8 whitespace-nowrap px-8"
-              style={{ animation: 'marquee 20s linear infinite' }}
-            >
+            <p className="mb-4 text-center text-[10px] font-semibold uppercase tracking-[0.4em] text-slate-400">Trusted vendor partners</p>
+            {/* List is doubled so the scroll loop looks seamless */}
+            <div className="flex gap-8 whitespace-nowrap px-8" style={{ animation: 'marquee 20s linear infinite' }}>
               {[...partners, ...partners].map((p, i) => (
-                <span
-                  key={i}
-                  className="inline-block rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-semibold text-slate-300"
-                >
-                  {p}
-                </span>
+                <span key={i} className="inline-block rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-semibold text-slate-300">{p}</span>
               ))}
             </div>
           </section>
 
-          {/* ── How it works — matches doc 1: bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 ── */}
-          <section
-            id="how-it-works"
-            className="relative w-full bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-12 md:py-16"
-          >
+          {/* ── HOW IT WORKS — 3 numbered step cards ── */}
+          <section id="how-it-works" className="relative w-full bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-12 md:py-16">
             <div className="mx-auto w-full max-w-6xl">
               <div className="mb-12 text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-supply-peach">Simple process</p>
                 <h2 className="mt-2 text-center text-xl font-semibold text-slate-50 md:text-2xl">How FreshRoute works</h2>
-                <p className="mx-auto mt-3 max-w-xl text-sm text-slate-300">
-                  From browse to doorstep in three easy steps — no phone calls, no haggling.
-                </p>
+                <p className="mx-auto mt-3 max-w-xl text-sm text-slate-300">From browse to doorstep in three easy steps — no phone calls, no haggling.</p>
               </div>
               <div className="mt-8 grid gap-6 md:grid-cols-3">
                 {[
@@ -425,10 +462,8 @@ const LandingPage = (): JSX.Element => {
                   { n: '02', title: 'Place your order',       desc: 'Add items to cart, choose your address and delivery time slot. Pay online or cash on delivery.' },
                   { n: '03', title: 'Track your delivery',    desc: 'Follow your order status from confirmation to your doorstep. 32-minute average.' },
                 ].map((step, i) => (
-                  <div
-                    key={step.n}
-                    className="relative rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
-                  >
+                  <div key={step.n} className="relative rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
+                    {/* Horizontal connector line between cards (hidden on mobile) */}
                     {i < 2 && (
                       <div className="absolute right-0 top-1/2 hidden h-px w-8 -translate-y-1/2 bg-white/15 md:block" />
                     )}
@@ -441,72 +476,39 @@ const LandingPage = (): JSX.Element => {
             </div>
           </section>
 
-          {/* ── For every role — matches doc 1: bg-gradient-to-br from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 ── */}
+          {/* ── FOR EVERY ROLE — 3 cards for Buyers, Sellers, Admins ── */}
           <section className="bg-gradient-to-br from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-12 text-slate-50">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 md:flex-row">
               <div className="flex-1 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">
-                  For every role
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">For every role</p>
                 <h2 className="text-xl font-semibold md:text-2xl">Who is FreshRoute built for?</h2>
-                <p className="text-sm text-slate-300">
-                  A single platform for buyers, sellers, and admins — each with their own tailored experience.
-                </p>
-                <Link
-                  to="/products"
-                  className="inline-flex rounded-full border border-white/20 px-5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
-                >
-                  Explore platform →
-                </Link>
+                <p className="text-sm text-slate-300">A single platform for buyers, sellers, and admins — each with their own tailored experience.</p>
+                <Link to="/products" className="inline-flex rounded-full border border-white/20 px-5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Explore platform →</Link>
               </div>
               <div className="grid flex-1 gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs backdrop-blur-xl">
                   <p className="text-[11px] font-semibold tracking-[0.18em] text-supply-teal">BUYERS</p>
                   <p className="mt-2 text-sm font-semibold text-supply-paper">Order fresh produce</p>
-                  <p className="mt-2 text-slate-300">
-                    Browse products, add to cart, and run through a demo checkout flow to explain the
-                    customer journey.
-                  </p>
-                  <Link
-                    to="/products"
-                    className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach"
-                  >
-                    Open buyer demo →
-                  </Link>
+                  <p className="mt-2 text-slate-300">Browse products, add to cart, and run through a demo checkout flow to explain the customer journey.</p>
+                  <Link to="/products" className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach">Open buyer demo →</Link>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs backdrop-blur-xl">
                   <p className="text-[11px] font-semibold tracking-[0.18em] text-supply-peach">SELLERS</p>
                   <p className="mt-2 text-sm font-semibold text-supply-paper">Manage inventory</p>
-                  <p className="mt-2 text-slate-300">
-                    Vendors can add products, update prices per kg, adjust stock, and toggle
-                    availability without a backend.
-                  </p>
-                  <Link
-                    to="/seller/login"
-                    className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach"
-                  >
-                    Open seller demo →
-                  </Link>
+                  <p className="mt-2 text-slate-300">Vendors can add products, update prices per kg, adjust stock, and toggle availability without a backend.</p>
+                  <Link to="/seller/login" className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach">Open seller demo →</Link>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs backdrop-blur-xl">
                   <p className="text-[11px] font-semibold tracking-[0.18em] text-supply-orange">ADMINS</p>
                   <p className="mt-2 text-sm font-semibold text-supply-paper">Oversee the network</p>
-                  <p className="mt-2 text-slate-300">
-                    Admin pages outline how you would manage users, routes, payments, and analytics in
-                    a real deployment.
-                  </p>
-                  <Link
-                    to="/admin/login"
-                    className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach"
-                  >
-                    Admin login
-                  </Link>
+                  <p className="mt-2 text-slate-300">Admin pages outline how you would manage users, routes, payments, and analytics in a real deployment.</p>
+                  <Link to="/admin/login" className="mt-3 inline-flex text-[11px] font-semibold text-primary-light hover:text-supply-peach">Admin login</Link>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* ── Testimonials — supply-charcoal base ── */}
+          {/* ── TESTIMONIALS — 3 customer review cards ── */}
           <section className="w-full bg-gradient-to-tr from-supply-teal/30 via-supply-teal/60 to-supply-teal/45 px-4 py-16">
             <div className="mx-auto w-full max-w-6xl">
               <div className="mb-10 text-center">
@@ -519,16 +521,12 @@ const LandingPage = (): JSX.Element => {
                   { name: 'Ruchira Silva',    role: 'Restaurant owner, Kandy', q: 'I switched my entire supply chain to FreshRoute. The vendor comparison feature saves me hours every week.' },
                   { name: 'Nimasha Fernando', role: 'Caterer, Gampaha',        q: 'Reliable, fast, and the quality check system means I never get a bad batch. Highly recommend.' },
                 ].map((t) => (
-                  <div
-                    key={t.name}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md"
-                  >
+                  <div key={t.name} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
                     <div className="text-sm tracking-wider text-supply-teal">★★★★★</div>
                     <p className="text-xs leading-relaxed text-slate-300">&ldquo;{t.q}&rdquo;</p>
                     <div className="mt-auto flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-supply-teal/20 text-xs font-bold text-supply-teal ring-1 ring-supply-teal/30">
-                        {t.name[0]}
-                      </div>
+                      {/* Avatar circle showing first letter of name */}
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-supply-teal/20 text-xs font-bold text-supply-teal ring-1 ring-supply-teal/30">{t.name[0]}</div>
                       <div>
                         <p className="text-xs font-semibold text-slate-50">{t.name}</p>
                         <p className="text-[10px] text-slate-400">{t.role}</p>
@@ -540,17 +538,14 @@ const LandingPage = (): JSX.Element => {
             </div>
           </section>
 
-          {/* ── Footer — matches doc 1 exactly ── */}
+          {/* ── FOOTER — links, contact info, social icons, copyright ── */}
           <footer className="w-full bg-brand-background px-4 pb-6 pt-14 text-xs text-slate-400">
             <div className="mx-auto w-full max-w-6xl">
               <div className="grid gap-10 md:grid-cols-12">
                 {/* Brand blurb + social icons */}
                 <div className="space-y-4 md:col-span-4">
                   <p className="text-lg font-black uppercase tracking-widest text-slate-50">FreshRoute</p>
-                  <p className="text-[11px] leading-relaxed text-slate-400">
-                    A fresh produce marketplace connecting local vendors with buyers across Sri Lanka.
-                    Farm-fresh quality, transparent pricing, delivered fast.
-                  </p>
+                  <p className="text-[11px] leading-relaxed text-slate-400">A fresh produce marketplace connecting local vendors with buyers across Sri Lanka. Farm-fresh quality, transparent pricing, delivered fast.</p>
                   <div className="flex gap-5 pt-1">
                     {[
                       { name: 'Facebook',  svg: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M15 8h-2a1 1 0 0 0-1 1v3h3l-0.5 3H12v7H9v-7H7v-3h2V9a4 4 0 0 1 4-4h3z" /></> },
@@ -559,14 +554,12 @@ const LandingPage = (): JSX.Element => {
                       { name: 'YouTube',   svg: <><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><polygon points="10 8 17 12 10 16 10 8" fill="currentColor" stroke="none" /></> },
                     ].map((s) => (
                       <a key={s.name} href="#" aria-label={s.name} className="text-slate-400 transition hover:text-supply-teal">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          {s.svg}
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{s.svg}</svg>
                       </a>
                     ))}
                   </div>
                 </div>
-                {/* Footer nav columns */}
+                {/* Shop links */}
                 <div className="space-y-3 md:col-span-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-supply-peach">Shop</p>
                   <div className="flex flex-col gap-2">
@@ -575,6 +568,7 @@ const LandingPage = (): JSX.Element => {
                     ))}
                   </div>
                 </div>
+                {/* Platform links */}
                 <div className="space-y-3 md:col-span-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-supply-peach">Platform</p>
                   <div className="flex flex-col gap-2">
@@ -585,6 +579,7 @@ const LandingPage = (): JSX.Element => {
                     <Link to="/signup/vendor" className="transition hover:text-supply-teal">Become a vendor</Link>
                   </div>
                 </div>
+                {/* Company links */}
                 <div className="space-y-3 md:col-span-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-supply-peach">Company</p>
                   <div className="flex flex-col gap-2">
@@ -593,6 +588,7 @@ const LandingPage = (): JSX.Element => {
                     ))}
                   </div>
                 </div>
+                {/* Contact info */}
                 <div className="space-y-3 md:col-span-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-supply-peach">Contact</p>
                   <div className="flex flex-col gap-2 text-[11px]">
@@ -603,7 +599,7 @@ const LandingPage = (): JSX.Element => {
                   </div>
                 </div>
               </div>
-              {/* Bottom bar */}
+              {/* Bottom copyright bar */}
               <div className="mt-10 border-t border-slate-800/60 pt-5">
                 <div className="flex flex-col items-center justify-between gap-3 text-[11px] text-slate-500 md:flex-row">
                   <p>FreshRoute · Frontend demo (no live backend) · Built for academic/project use</p>
@@ -617,7 +613,7 @@ const LandingPage = (): JSX.Element => {
         </main>
       </div>
 
-      {/* Global keyframe animations */}
+      {/* Global CSS animations used across the page */}
       <style>{`
         @keyframes marquee           { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         @keyframes freshRouteSlideIn { from { transform: translateX(-60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
