@@ -49,6 +49,26 @@ const AdminDashboardPage = () => {
   )
   const dispatch = useDispatch()
 
+  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [activeVendors, setActiveVendors] = useState<number>(0)
+
+  useEffect(() => {
+    fetch('/api/v1/users')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch users')
+        return res.json()
+      })
+      .then((users: Array<{ role: string; status: string }>) => {
+        setTotalUsers(users.filter((user) => user.role !== 'ADMIN').length)
+        setActiveVendors(
+          users.filter((user) => user.role === 'SELLER' && user.status === 'ACTIVE').length
+        )
+      })
+      .catch((error) => {
+        console.error('Failed to load admin counts:', error)
+      })
+  }, [])
+
   const todaysOrders = orders.length
   const delivered = orders.filter((o: any) => o.status === 'Delivered').length
 
@@ -87,9 +107,9 @@ const AdminDashboardPage = () => {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'Total users', value: '1,250', helper: 'Customers + vendors' },
-          { label: 'Vendors live', value: '45', helper: '5 pending approval' },
-          { label: 'Orders today', value: todaysOrders, helper: `${delivered} delivered` },
+          { label: 'Total users', value: totalUsers, helper: 'Buyers + sellers + drivers + field admins' },
+          { label: 'Active vendors', value: activeVendors, helper: 'Active seller accounts only' },
+          { label: 'Today’s orders', value: todaysOrders, helper: `${delivered} delivered` },
           { label: 'Revenue today', value: 'Rs. 540,000', helper: 'Platform gross' },
         ].map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">

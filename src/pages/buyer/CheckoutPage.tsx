@@ -24,7 +24,7 @@ const CheckoutPage: React.FC = () => {
   }, [items, navigate]);
 
   const total = items.reduce((sum, item) => {
-    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
+    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;    //first ensure prce is a string then remove non-numeric characters, parse to int. If parsing fails, default to 0
     return sum + numeric * item.quantity;
   }, 0);
 
@@ -45,7 +45,7 @@ const CheckoutPage: React.FC = () => {
         headers,
         body: JSON.stringify({
           items: items.map((item) => ({
-            productId: item.productId,       // item.id maps to productId in your schema
+            productId: item.productId,       // item.id maps to productId in schema
             quantity: item.quantity,
           })),
         }),
@@ -75,7 +75,7 @@ const CheckoutPage: React.FC = () => {
 
       const { checkoutUrl } = await paymentRes.json();
 
-      // Step 3: Clear cart then redirect to Stripe
+      // Clear cart then redirect to Stripe
       dispatch(clearCart());
       window.location.href = checkoutUrl;
     } catch (err: unknown) {

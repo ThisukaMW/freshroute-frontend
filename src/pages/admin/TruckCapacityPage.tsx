@@ -12,7 +12,7 @@ type Truck = {
   route: string;
   type: string;
   capacityLbs: number;
-  loadedLbs: number;
+  loadedLbs: number;       
   palletsLoaded: number;
   palletsCap: number;
   cratesLoaded: number;
@@ -26,8 +26,9 @@ type Truck = {
 };
 
 type TruckMetrics = Truck & {
-  freeSpacePercent: number;
-  fillPercent: number;
+  freeSpacePercent: number; // pallet-slot based
+  fillPercent: number;      // weight based
+  palletFillPercent: number; // pallet count based
 };
 
 const gridColors = [
@@ -36,6 +37,8 @@ const gridColors = [
   "bg-supply-orange/70",
   "bg-supply-teal/70",
 ];
+
+
 const PER_PALLET_WEIGHT = 1800;
 
 function readFleet(): Truck[] {
@@ -52,7 +55,7 @@ function writeFleet(fleet: Truck[]) {
   try {
     localStorage.setItem("fleet", JSON.stringify(fleet));
   } catch {
-    
+    // ignore
   }
 }
 
@@ -60,7 +63,6 @@ const TruckCapacityPage = () => {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"side" | "top">("side");
-
   const [userFleet, setUserFleet] = useState<Truck[]>([]);
 
   useEffect(() => {
@@ -108,15 +110,32 @@ const TruckCapacityPage = () => {
 
   const fleet: TruckMetrics[] = useMemo(() => {
     return userFleet.map((truck) => {
-      const loadedLbs = Math.min(
-        truck.capacityLbs,
-        truck.palletsLoaded * PER_PALLET_WEIGHT
-      );
+      // Use the actual stored loadedLbs — clamped to capacity as a safety guard
+      const loadedLbs = Math.min(truck.capacityLbs, truck.loadedLbs ?? 0);
+
+      // Weight fill % — how much of the weight capacity is used
       const fillPercent = truck.capacityLbs
         ? Math.round((loadedLbs / truck.capacityLbs) * 100)
         : 0;
-      const freeSpacePercent = Math.max(0, 100 - fillPercent);
-      return { ...truck, loadedLbs, freeSpacePercent, fillPercent };
+
+      // Pallet fill % — how many pallet slots are occupied
+      const palletFillPercent =
+        truck.palletsCap > 0
+          ? Math.round((truck.palletsLoaded / truck.palletsCap) * 100)
+          : 0;
+
+      // Free space % — pallet slots remaining (not weight based)
+      const freeSpacePercent =
+        truck.palletsCap > 0
+          ? Math.max(
+              0,
+              Math.round(
+                ((truck.palletsCap - truck.palletsLoaded) / truck.palletsCap) * 100
+              )
+            )
+          : 0;
+
+      return { ...truck, loadedLbs, freeSpacePercent, fillPercent, palletFillPercent };
     });
   }, [userFleet]);
 
@@ -133,7 +152,12 @@ const TruckCapacityPage = () => {
             t.palletsCap,
             Math.max(0, t.palletsLoaded + delta)
           );
-          return { ...t, palletsLoaded: nextPallets };
+          // Each pallet weighs PER_PALLET_WEIGHT lbs — keep loadedLbs in sync
+          const nextLoadedLbs = Math.min(
+            t.capacityLbs,
+            nextPallets * PER_PALLET_WEIGHT
+          );
+          return { ...t, palletsLoaded: nextPallets, loadedLbs: nextLoadedLbs };
         });
         writeFleet(updated);
         return updated;
@@ -168,9 +192,10 @@ const TruckCapacityPage = () => {
         helper: "Automate pallet limits",
       },
       {
+        // Free space is pallet-slot based — how many slots are still open
         label: "Free space remaining",
         value: `${selectedTruck.freeSpacePercent}%`,
-        helper: "Add more crates before departure",
+        helper: `${selectedTruck.palletsCap - selectedTruck.palletsLoaded} pallet slots open`,
       },
       {
         label: "Delivery efficiency",
@@ -187,7 +212,7 @@ const TruckCapacityPage = () => {
 
   const gridCells = useMemo(() => {
     if (!selectedTruck) return [];
-    const totalCells = 30;
+    const totalCells = selectedTruck.palletsCap;
     const filled = Math.min(selectedTruck.palletsLoaded, totalCells);
     return Array.from({ length: totalCells }, (_, index) => ({
       id: `${selectedTruck.id}-${index}`,
@@ -266,7 +291,7 @@ const TruckCapacityPage = () => {
 
       {selectedTruck && (
         <section className="grid gap-6 lg:grid-cols-[1.7fr,1fr]">
-          
+
           <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
@@ -361,10 +386,6 @@ const TruckCapacityPage = () => {
                                 />
                               ))}
                             </div>
-                            <p className="mt-3 text-[11px] text-slate-400">
-                              Side profile highlights pallet height vs reefer
-                              coils.
-                            </p>
                           </div>
                         </motion.div>
                       )}
@@ -403,10 +424,6 @@ const TruckCapacityPage = () => {
                               </div>
                             </div>
                           </div>
-                          <p className="mt-3 text-[11px] text-slate-400">
-                            Top view is perfect for explaining aisle planning
-                            and unfilled slots.
-                          </p>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -427,19 +444,13 @@ const TruckCapacityPage = () => {
                       Cap {selectedTruck.palletsCap}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-widest text-slate-500">
-                        Crates
-                      </p>
-                      <p className="text-lg font-semibold text-white">
-                        {selectedTruck.cratesLoaded}
-                      </p>
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      Boxes {selectedTruck.boxesLoaded}
-                    </p>
-                  </div>
+
+                  {/*
+                    Reefer utilization — shows pallet slot usage (palletFillPercent).
+                    This tells the operator how much of the refrigerated space
+                    (measured in pallet slots) is currently occupied.
+                    Temperature is shown as a label alongside.
+                  */}
                   <div>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500">
                       Reefer utilization
@@ -448,14 +459,16 @@ const TruckCapacityPage = () => {
                       <div className="h-1.5 flex-1 rounded-full bg-white/10">
                         <div
                           className="h-full rounded-full bg-emerald-400"
-                          style={{
-                            width: `${100 - selectedTruck.freeSpacePercent}%`,
-                          }}
+                          style={{ width: `${selectedTruck.palletFillPercent}%` }}
                         />
                       </div>
                       <span>{selectedTruck.temperature}</span>
                     </div>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {selectedTruck.palletFillPercent}% of pallet slots in use
+                    </p>
                   </div>
+
                   <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
                     <p className="text-[11px] uppercase tracking-widest text-slate-500">
                       Assistant
@@ -465,6 +478,11 @@ const TruckCapacityPage = () => {
                       15h cumulative rest on this route.
                     </p>
                   </div>
+
+                  {/*
+                    Weight utilization — shows actual loaded lbs vs capacity.
+                    fillPercent = loadedLbs / capacityLbs × 100
+                  */}
                   <div>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500">
                       Weight utilization
@@ -476,13 +494,14 @@ const TruckCapacityPage = () => {
                       />
                     </div>
                     <div className="mt-1 flex justify-between text-[11px] text-slate-400">
-                      <span>{selectedTruck.fillPercent}% filled</span>
+                      <span>{selectedTruck.fillPercent}% of weight capacity</span>
                       <span>
-                        {selectedTruck.capacityLbs - selectedTruck.loadedLbs}{" "}
+                        {(selectedTruck.capacityLbs - selectedTruck.loadedLbs).toLocaleString()}{" "}
                         lbs free
                       </span>
                     </div>
                   </div>
+
                   <div className="flex flex-wrap gap-2 text-xs">
                     <button
                       onClick={() => handleAdjustPallets(1)}
@@ -563,26 +582,11 @@ const TruckCapacityPage = () => {
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
                     <span>{truck.palletsLoaded} pallets</span>
-                    <span>{truck.freeSpacePercent}% free space</span>
+                    {/* freeSpacePercent = pallet slots remaining */}
+                    <span>{truck.freeSpacePercent}% slots free</span>
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-xs text-slate-300">
-              <p className="text-[11px] uppercase tracking-widest text-slate-500">
-                Loading guidance
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-4">
-                <li>Keep heavy pallets near the center axle.</li>
-                <li>
-                  Use yellow crates for mid-cargo segments and blue for cold
-                  chain.
-                </li>
-                <li>
-                  Switch to top view to demonstrate how to manage unfilled
-                  slots.
-                </li>
-              </ul>
             </div>
           </div>
         </section>

@@ -9,6 +9,7 @@ type Truck = {
   route: string;
   type: string;
   capacityLbs: number;
+  loadedLbs: number;       // actual weight currently loaded
   palletsLoaded: number;
   palletsCap: number;
   cratesLoaded: number;
@@ -25,6 +26,9 @@ type FormErrors = Partial<Record<string, string>>;
 
 const TRUCK_TYPES = ["Refrigerated van", "Dry cargo", "Reefer"];
 const TEMPERATURE_OPTIONS = ["Ambient", "2°C", "4°C", "6°C", "-10°C", "-18°C"];
+
+// Must match TruckCapacityPage so +/- pallet buttons stay in sync
+const PER_PALLET_WEIGHT = 1800;
 
 const inputBase = (hasError: boolean) =>
   `w-full rounded-xl border ${
@@ -82,6 +86,7 @@ const AddTruckPage = () => {
     route: "",
     type: TRUCK_TYPES[0],
     capacityLbs: 0,
+    loadedLbs: 0,       // actual weight loaded — entered by user
     palletsLoaded: 0,
     palletsCap: 0,
     cratesLoaded: 0,
@@ -99,30 +104,61 @@ const AddTruckPage = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "number" ? Number(value) : value,
-    }));
-    // Clear error on change
+    const numericValue = type === "number" ? Number(value) : value;
+
+    setForm((prev) => {
+      const next = { ...prev, [name]: numericValue };
+
+      // When capacity changes, auto-calculate max pallets and clamp related fields
+      if (name === "capacityLbs") {
+        const cap = Number(value);
+        const maxPallets = cap > 0 ? Math.floor(cap / PER_PALLET_WEIGHT) : 0;
+        next.palletsCap = maxPallets;
+        // Clamp palletsLoaded to the new max
+        next.palletsLoaded = Math.min(prev.palletsLoaded, maxPallets);
+        // Clamp loadedLbs to the new capacity
+        next.loadedLbs = Math.min(prev.loadedLbs, cap);
+      }
+
+      // When palletsLoaded changes, clamp to palletsCap and sync loadedLbs
+      if (name === "palletsLoaded") {
+        const loaded = Math.min(Number(value), next.palletsCap);
+        next.palletsLoaded = loaded;
+        next.loadedLbs = Math.min(next.capacityLbs, loaded * PER_PALLET_WEIGHT);
+      }
+
+      return next;
+    });
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
       setShowErrorBanner(false);
     }
   };
 
+  // Derived: max pallets based on current capacityLbs
+  const maxPallets = form.capacityLbs > 0
+    ? Math.floor(form.capacityLbs / PER_PALLET_WEIGHT)
+    : 0;
+
   const validate = (): FormErrors => {
     const e: FormErrors = {};
-    if (!form.id.trim())              e.id          = "Truck ID is required";
-    if (!form.operator.trim())        e.operator    = "Operator name is required";
-    if (!form.route.trim())           e.route       = "Route is required";
-    if (!form.fuelNeeded.trim())      e.fuelNeeded  = "Fuel needed is required";
+    if (!form.id.trim())         e.id          = "Truck ID is required";
+    if (!form.operator.trim())   e.operator    = "Operator name is required";
+    if (!form.route.trim())      e.route       = "Route is required";
+    if (!form.fuelNeeded.trim()) e.fuelNeeded  = "Fuel needed is required";
     if (!form.capacityLbs || form.capacityLbs <= 0)
-                                      e.capacityLbs = "Capacity must be greater than 0";
-    if (!form.palletsCap || form.palletsCap <= 0)
-                                      e.palletsCap  = "Pallet capacity must be greater than 0";
+                                 e.capacityLbs = "Capacity must be greater than 0";
+    if (form.loadedLbs < 0)
+                                 e.loadedLbs   = "Loaded weight cannot be negative";
+    if (form.loadedLbs > form.capacityLbs && form.capacityLbs > 0)
+                                 e.loadedLbs   = "Loaded weight exceeds capacity";
+    // palletsCap is auto-calculated — no manual validation needed
+    if (form.palletsLoaded > form.palletsCap && form.palletsCap > 0)
+                                 e.palletsLoaded = "Pallets loaded exceeds pallet capacity";
     if (!form.efficiency || form.efficiency <= 0)
-                                      e.efficiency  = "Efficiency is required";
-    if (!form.avgDelay.trim())        e.avgDelay    = "Avg. delay is required";
+                                 e.efficiency  = "Efficiency is required";
+    if (!form.avgDelay.trim())   e.avgDelay    = "Avg. delay is required";
     return e;
   };
 
@@ -131,7 +167,6 @@ const AddTruckPage = () => {
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setShowErrorBanner(true);
-      // Scroll to top to show banner
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -256,9 +291,9 @@ const AddTruckPage = () => {
               </div>
             </section>
 
-            {/* Cargo */}
+            {/* Cargo & Loading */}
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading title="Cargo & loading" subtitle="Weight capacity and pallet count" />
+              <SectionHeading title="Cargo & loading" subtitle="Weight capacity, loaded weight, and pallet count" />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Capacity (lbs)" error={errors.capacityLbs}>
                   <input
@@ -271,16 +306,70 @@ const AddTruckPage = () => {
                     className={inputBase(!!errors.capacityLbs)}
                   />
                 </Field>
-                <Field label="Pallet capacity" error={errors.palletsCap}>
+                {/*
+                  loadedLbs — actual weight currently on the truck.
+                  This drives the Weight utilization bar.
+                  It is stored directly and never recalculated from pallets.
+                */}
+                <Field label="Loaded weight (lbs)" error={errors.loadedLbs}>
                   <input
-                    name="palletsCap"
+                    name="loadedLbs"
                     type="number"
-                    min={1}
-                    placeholder="30"
-                    value={form.palletsCap || ""}
+                    min={0}
+                    placeholder="e.g. 18000"
+                    value={form.loadedLbs || ""}
                     onChange={handleChange}
-                    className={inputBase(!!errors.palletsCap)}
+                    className={inputBase(!!errors.loadedLbs)}
                   />
+                </Field>
+                {/*
+                  palletsCap is auto-calculated from capacityLbs / PER_PALLET_WEIGHT.
+                  Shown as read-only so the operator sees the physical limit.
+                */}
+                <div>
+                  <Label>Max pallets (auto)</Label>
+                  <div className="relative">
+                    <input
+                      readOnly
+                      value={
+                        maxPallets > 0
+                          ? `${maxPallets} pallets`
+                          : "Enter capacity first"
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400 outline-none cursor-not-allowed"
+                    />
+                    {maxPallets > 0 && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">
+                        {form.capacityLbs.toLocaleString()} lbs ÷ {PER_PALLET_WEIGHT} lbs
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Calculated from weight capacity — cannot exceed this
+                  </p>
+                </div>
+                {/*
+                  palletsLoaded — number of pallet slots currently occupied.
+                  Capped to maxPallets. Drives the visual grid, reefer utilization,
+                  and free space % in the manifest list.
+                */}
+                <Field label="Pallets loaded" error={errors.palletsLoaded}>
+                  <input
+                    name="palletsLoaded"
+                    type="number"
+                    min={0}
+                    max={maxPallets}
+                    placeholder={maxPallets > 0 ? `0 – ${maxPallets}` : "Enter capacity first"}
+                    value={form.palletsLoaded || ""}
+                    onChange={handleChange}
+                    disabled={maxPallets === 0}
+                    className={`${inputBase(!!errors.palletsLoaded)} ${maxPallets === 0 ? "cursor-not-allowed opacity-40" : ""}`}
+                  />
+                  {maxPallets > 0 && (
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      Max {maxPallets} pallets · each ~{PER_PALLET_WEIGHT.toLocaleString()} lbs
+                    </p>
+                  )}
                 </Field>
               </div>
             </section>
@@ -314,25 +403,26 @@ const AddTruckPage = () => {
             </section>
           </div>
 
+          {/* ── Right column: summary + actions ── */}
           <div className="space-y-5">
             <div className="sticky top-6 space-y-4">
-
-             
               <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5 backdrop-blur-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">
                   Live summary
                 </p>
                 <div className="space-y-3 text-xs">
                   {[
-                    ["Truck ID", form.id || "—"],
-                    ["Operator", form.operator || "—"],
-                    ["Type", form.type],
-                    ["Route", form.route || "—"],
-                    ["Temperature", form.temperature],
-                    ["Capacity", form.capacityLbs ? `${form.capacityLbs.toLocaleString()} lbs` : "—"],
-                    ["Pallets cap.", form.palletsCap ? `${form.palletsCap}` : "—"],
-                    ["Efficiency", form.efficiency ? `${form.efficiency}%` : "—"],
-                    ["Avg. delay", form.avgDelay || "—"],
+                    ["Truck ID",       form.id || "—"],
+                    ["Operator",       form.operator || "—"],
+                    ["Type",           form.type],
+                    ["Route",          form.route || "—"],
+                    ["Temperature",    form.temperature],
+                    ["Capacity",       form.capacityLbs ? `${form.capacityLbs.toLocaleString()} lbs` : "—"],
+                    ["Loaded weight",  form.loadedLbs   ? `${form.loadedLbs.toLocaleString()} lbs`   : "—"],
+                    ["Max pallets",    maxPallets > 0   ? `${maxPallets} pallets`                    : "—"],
+                    ["Pallets loaded", form.palletsLoaded ? `${form.palletsLoaded}`                   : "—"],
+                    ["Efficiency",     form.efficiency   ? `${form.efficiency}%`                      : "—"],
+                    ["Avg. delay",     form.avgDelay || "—"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -346,41 +436,41 @@ const AddTruckPage = () => {
                   ))}
                 </div>
 
-                {/* Completion indicator */}
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  {(() => {
-                    const total = 8;
-                    const filled = [
-                      form.id,
-                      form.operator,
-                      form.route,
-                      form.fuelNeeded,
-                      form.capacityLbs > 0,
-                      form.palletsCap > 0,
-                      form.efficiency > 0,
-                      form.avgDelay,
-                    ].filter(Boolean).length;
-                    const pct = Math.round((filled / total) * 100);
-                    return (
-                      <>
-                        {/* <div className="flex justify-between text-[11px] text-slate-500 mb-1.5">
-                          <span>Form completion</span>
-                          <span className={pct === 100 ? "text-emerald-400" : "text-slate-400"}>{pct}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-white/10">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              pct === 100
-                                ? "bg-emerald-400"
-                                : "bg-gradient-to-r from-primary via-supply-peach to-supply-orange"
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div> */}
-                      </>
-                    );
-                  })()}
-                </div>
+                {/* Weight fill preview */}
+                {form.capacityLbs > 0 && form.loadedLbs > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5">
+                    <p className="text-[11px] text-slate-500 mb-1.5">Weight utilization preview</p>
+                    <div className="h-1.5 rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary via-supply-peach to-supply-orange transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, Math.round((form.loadedLbs / form.capacityLbs) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {Math.min(100, Math.round((form.loadedLbs / form.capacityLbs) * 100))}% of weight capacity
+                    </p>
+                  </div>
+                )}
+
+                {/* Pallet fill preview */}
+                {form.palletsCap > 0 && form.palletsLoaded > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[11px] text-slate-500 mb-1.5">Reefer utilization preview</p>
+                    <div className="h-1.5 rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, Math.round((form.palletsLoaded / form.palletsCap) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {Math.min(100, Math.round((form.palletsLoaded / form.palletsCap) * 100))}% of pallet slots occupied
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -398,10 +488,6 @@ const AddTruckPage = () => {
                   Cancel
                 </button>
               </div>
-
-              <p className="text-center text-[11px] text-slate-600">
-                Data saved to local fleet manifest
-              </p>
             </div>
           </div>
         </div>
