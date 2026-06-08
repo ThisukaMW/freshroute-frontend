@@ -1,4 +1,4 @@
-import apiClient from '../client'
+import apiClient from '../../store/api/client'
 
 // ============= TYPES =============
 
@@ -65,13 +65,13 @@ export interface CartValidationResult {
 // ============= SELLER ENDPOINTS =============
 
 /**
- * GET /api/v1/inventory/seller
+ * GET /inventory/seller
  * Get all seller's products with inventory details
  */
 export const getSellerInventory = async (): Promise<ProductInventory[]> => {
   try {
     console.log('🔄 Fetching seller inventory...')
-    const response = await apiClient.get('/api/v1/inventory/seller')
+    const response = await apiClient.get('/inventory/seller')
     console.log('✅ Seller inventory loaded:', response.data)
     return response.data.data || []
   } catch (error) {
@@ -81,13 +81,13 @@ export const getSellerInventory = async (): Promise<ProductInventory[]> => {
 }
 
 /**
- * GET /api/v1/inventory/stats
+ * GET /inventory/stats
  * Get inventory dashboard statistics
  */
 export const getInventoryStats = async (): Promise<InventoryStats> => {
   try {
     console.log('🔄 Fetching inventory stats...')
-    const response = await apiClient.get('/api/v1/inventory/stats')
+    const response = await apiClient.get('/inventory/stats')
     console.log('✅ Inventory stats loaded:', response.data)
     return response.data.data
   } catch (error) {
@@ -97,13 +97,13 @@ export const getInventoryStats = async (): Promise<InventoryStats> => {
 }
 
 /**
- * GET /api/v1/inventory/low-stock
+ * GET /inventory/low-stock
  * Get all low-stock products for seller
  */
 export const getLowStockProducts = async (): Promise<ProductInventory[]> => {
   try {
     console.log('🔄 Fetching low-stock products...')
-    const response = await apiClient.get('/api/v1/inventory/low-stock')
+    const response = await apiClient.get('/inventory/low-stock')
     console.log('✅ Low-stock products loaded:', response.data)
     return response.data.data || []
   } catch (error) {
@@ -113,13 +113,13 @@ export const getLowStockProducts = async (): Promise<ProductInventory[]> => {
 }
 
 /**
- * GET /api/v1/inventory/suggestions
+ * GET /inventory/suggestions
  * Get restock recommendations
  */
 export const getRestockSuggestions = async (): Promise<RestockSuggestion[]> => {
   try {
     console.log('🔄 Fetching restock suggestions...')
-    const response = await apiClient.get('/api/v1/inventory/suggestions')
+    const response = await apiClient.get('/inventory/suggestions')
     console.log('✅ Restock suggestions loaded:', response.data)
     return response.data.data || []
   } catch (error) {
@@ -129,7 +129,7 @@ export const getRestockSuggestions = async (): Promise<RestockSuggestion[]> => {
 }
 
 /**
- * POST /api/v1/inventory/restock
+ * POST /inventory/restock
  * Manually add stock to a product
  */
 export const restockProduct = async (
@@ -139,7 +139,7 @@ export const restockProduct = async (
 ): Promise<{ product: any; history: StockHistoryEntry }> => {
   try {
     console.log(`🔄 Restocking product ${productId} with ${quantity} units...`)
-    const response = await apiClient.post('/api/v1/inventory/restock', {
+    const response = await apiClient.post('/inventory/restock', {
       productId,
       quantity,
       reason: reason || 'Manual restock',
@@ -155,13 +155,13 @@ export const restockProduct = async (
 // ============= PUBLIC ENDPOINTS (No Auth) =============
 
 /**
- * GET /api/v1/inventory/:productId
+ * GET /inventory/:productId
  * Get stock details for a single product
  */
 export const getProductStock = async (productId: string): Promise<ProductInventory> => {
   try {
     console.log(`🔄 Fetching stock for product ${productId}...`)
-    const response = await apiClient.get(`/api/v1/inventory/${productId}`)
+    const response = await apiClient.get(`/inventory/${productId}`)
     console.log('✅ Product stock loaded:', response.data)
     return response.data.data
   } catch (error) {
@@ -171,7 +171,7 @@ export const getProductStock = async (productId: string): Promise<ProductInvento
 }
 
 /**
- * GET /api/v1/inventory/:productId/history
+ * GET /inventory/:productId/history
  * Get complete stock history for a product
  */
 export const getProductStockHistory = async (
@@ -180,7 +180,7 @@ export const getProductStockHistory = async (
 ): Promise<StockHistoryEntry[]> => {
   try {
     console.log(`🔄 Fetching stock history for product ${productId}...`)
-    const response = await apiClient.get(`/api/v1/inventory/${productId}/history`, {
+    const response = await apiClient.get(`/inventory/${productId}/history`, {
       params: { limit },
     })
     console.log('✅ Stock history loaded:', response.data)
@@ -192,7 +192,7 @@ export const getProductStockHistory = async (
 }
 
 /**
- * POST /api/v1/inventory/validate-cart
+ * POST /inventory/validate-cart
  * Validate if cart items are in stock
  */
 export const validateCartStock = async (
@@ -200,7 +200,7 @@ export const validateCartStock = async (
 ): Promise<CartValidationResult> => {
   try {
     console.log('🔄 Validating cart stock...')
-    const response = await apiClient.post('/api/v1/inventory/validate-cart', {
+    const response = await apiClient.post('/inventory/validate-cart', {
       cartItems,
     })
     console.log('✅ Cart stock validation result:', response.data)

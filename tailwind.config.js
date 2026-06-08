@@ -81,7 +81,7 @@ export default {
         brand: {
           // Deep navy background
           background: '#020617', // Main app background color
-          // Footer color
+          //Footer color
           //footer: "#11151d",
           // Slightly lighter surface behind main truck area
           surface: '#a8bff7',

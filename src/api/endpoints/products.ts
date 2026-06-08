@@ -1,4 +1,4 @@
-import apiClient from '../client'
+import apiClient from '../../store/api/client'
 import type { ProductInventory } from './inventory'
 
 export interface Product {
@@ -19,7 +19,7 @@ export interface Product {
 export const getProducts = async (): Promise<Product[]> => {
   try {
     console.log('🔄 Fetching products from backend...')
-    const response = await apiClient.get('/api/v1/products')
+    const response = await apiClient.get('/products')
     console.log('✅ Products fetched:', response.data)
     return response.data || []
   } catch (error) {
@@ -34,7 +34,7 @@ export const getProducts = async (): Promise<Product[]> => {
 export const getProductById = async (productId: string): Promise<Product> => {
   try {
     console.log(`🔄 Fetching product ${productId}...`)
-    const response = await apiClient.get(`/api/v1/products/${productId}`)
+    const response = await apiClient.get(`/products/${productId}`)
     console.log('✅ Product fetched:', response.data)
     return response.data
   } catch (error) {
@@ -49,7 +49,7 @@ export const getProductById = async (productId: string): Promise<Product> => {
 export const getProductBySellers = async (productId: string): Promise<Product[]> => {
   try {
     console.log(`🔄 Fetching sellers for product ${productId}...`)
-    const response = await apiClient.get(`/api/v1/products/${productId}/sellers`)
+    const response = await apiClient.get(`/products/${productId}/sellers`)
     console.log('✅ Sellers fetched:', response.data)
     return response.data || []
   } catch (error) {
@@ -63,7 +63,7 @@ export const getProductBySellers = async (productId: string): Promise<Product[]>
  */
 export const createSellerProduct = async (productData: any): Promise<Product> => {
   try {
-    const response = await apiClient.post('/api/v1/products/add', productData);
+    const response = await apiClient.post('/products/add', productData);
     return response.data;
   } catch (error) {
     console.error('❌ Failed to create product:', error);
@@ -77,7 +77,7 @@ export const createSellerProduct = async (productData: any): Promise<Product> =>
 export const updateSellerProduct = async (productId: string, productData: any): Promise<any> => {
   try {
     console.log(`🔄 Updating product ${productId}...`, productData)
-    const response = await apiClient.patch(`/api/v1/products/${productId}`, productData)
+    const response = await apiClient.patch(`/products/${productId}`, productData)
     console.log('✅ Product updated:', response.data)
     // Response structure: { message, data: { id, name, sellerPrice, sellerStock, ... } }
     return response.data?.data || response.data
@@ -93,7 +93,7 @@ export const updateSellerProduct = async (productId: string, productData: any): 
 export const getSellerProducts = async (): Promise<Product[]> => {
   try {
     console.log('🔄 Fetching seller products...')
-    const response = await apiClient.get('/api/v1/products/seller/my-products')
+    const response = await apiClient.get('/products/seller/my-products')
     console.log('✅ Seller products fetched:', response.data)
     return response.data?.data || []
   } catch (error) {
@@ -108,7 +108,7 @@ export const getSellerProducts = async (): Promise<Product[]> => {
 export const getSellerProductById = async (productId: string): Promise<Product> => {
   try {
     console.log(`🔄 Fetching seller product ${productId}...`)
-    const response = await apiClient.get(`/api/v1/products/${productId}`)
+    const response = await apiClient.get(`/products/${productId}`)
     console.log('✅ Seller product fetched:', response.data)
     return response.data
   } catch (error) {

@@ -81,6 +81,16 @@ const sellerProductsSlice = createSlice({
           product.status === "active" ? "inactive" : "active";
       }
     },
+    // Admin-only: approve or reject pending products
+    setProductStatus: (
+      state,
+      action: PayloadAction<{ id: string; status: "active" | "rejected" }>
+    ) => {
+      const product = state.products.find((p) => p.id === action.payload.id);
+      if (product) {
+        product.status = action.payload.status;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -140,5 +150,5 @@ const sellerProductsSlice = createSlice({
 });
 
 // ---------------- EXPORTS ----------------
-export const { toggleStatus } = sellerProductsSlice.actions;
+export const { toggleStatus, setProductStatus } = sellerProductsSlice.actions;
 export default sellerProductsSlice.reducer;

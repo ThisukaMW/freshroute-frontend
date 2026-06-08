@@ -1,4 +1,4 @@
-import apiClient from '../client'
+import apiClient from '../../store/api/client'
 
 // ============= TYPES =============
 
@@ -65,14 +65,14 @@ export interface LowStockAlertsData {
 // ============= DASHBOARD ENDPOINTS =============
 
 /**
- * GET /api/v1/dashboard/seller/metrics
+ * GET /dashboard/seller/metrics
  * Get all dashboard metrics for a seller
  * Returns: { ordersToday, revenueToday, activeProducts, fulfillmentSLA, recentProducts }
  */
 export const getSellerDashboardMetrics = async (): Promise<SellerDashboardMetrics> => {
   try {
     console.log('🔄 Fetching seller dashboard metrics...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/metrics')
+    const response = await apiClient.get('/dashboard/seller/metrics')
     console.log('✅ Dashboard metrics fetched:', response.data)
     return response.data
   } catch (error) {
@@ -82,14 +82,14 @@ export const getSellerDashboardMetrics = async (): Promise<SellerDashboardMetric
 }
 
 /**
- * GET /api/v1/dashboard/seller/orders-today
+ * GET /dashboard/seller/orders-today
  * Get today's orders count
  * Returns: { ordersToday, vsYesterday }
  */
 export const getOrdersToday = async (): Promise<OrdersTodayData> => {
   try {
     console.log('🔄 Fetching today\'s orders...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/orders-today')
+    const response = await apiClient.get('/dashboard/seller/orders-today')
     console.log('✅ Today\'s orders fetched:', response.data)
     return response.data
   } catch (error) {
@@ -99,14 +99,14 @@ export const getOrdersToday = async (): Promise<OrdersTodayData> => {
 }
 
 /**
- * GET /api/v1/dashboard/seller/revenue-today
+ * GET /dashboard/seller/revenue-today
  * Get today's revenue
  * Returns: { revenueToday, payoutInfo }
  */
 export const getRevenueToday = async (): Promise<RevenueTodayData> => {
   try {
     console.log('🔄 Fetching today\'s revenue...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/revenue-today')
+    const response = await apiClient.get('/dashboard/seller/revenue-today')
     console.log('✅ Today\'s revenue fetched:', response.data)
     return response.data
   } catch (error) {
@@ -116,14 +116,14 @@ export const getRevenueToday = async (): Promise<RevenueTodayData> => {
 }
 
 /**
- * GET /api/v1/dashboard/seller/active-products
+ * GET /dashboard/seller/active-products
  * Get count of active products
  * Returns: { activeProducts, lowInStock }
  */
 export const getActiveProducts = async (): Promise<ActiveProductsData> => {
   try {
     console.log('🔄 Fetching active products count...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/active-products')
+    const response = await apiClient.get('/dashboard/seller/active-products')
     console.log('✅ Active products count fetched:', response.data)
     return response.data
   } catch (error) {
@@ -133,14 +133,14 @@ export const getActiveProducts = async (): Promise<ActiveProductsData> => {
 }
 
 /**
- * GET /api/v1/dashboard/seller/fulfillment-sla
+ * GET /dashboard/seller/fulfillment-sla
  * Get fulfillment SLA percentage
  * Returns: { slaPercentage, period }
  */
 export const getFulfillmentSLA = async (): Promise<FulfillmentSLAData> => {
   try {
     console.log('🔄 Fetching fulfillment SLA...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/fulfillment-sla')
+    const response = await apiClient.get('/dashboard/seller/fulfillment-sla')
     console.log('✅ Fulfillment SLA fetched:', response.data)
     return response.data
   } catch (error) {
@@ -150,14 +150,14 @@ export const getFulfillmentSLA = async (): Promise<FulfillmentSLAData> => {
 }
 
 /**
- * GET /api/v1/dashboard/seller/recent-products
+ * GET /dashboard/seller/recent-products
  * Get recent catalog updates
  * Returns: Array of recent products with name, price, stock, status
  */
 export const getRecentCatalogUpdates = async (): Promise<RecentProduct[]> => {
   try {
     console.log('🔄 Fetching recent catalog updates...')
-    const response = await apiClient.get('/api/v1/dashboard/seller/recent-products')
+    const response = await apiClient.get('/dashboard/seller/recent-products')
     console.log('✅ Recent catalog updates fetched:', response.data)
     return response.data
   } catch (error) {
@@ -167,14 +167,14 @@ export const getRecentCatalogUpdates = async (): Promise<RecentProduct[]> => {
 }
 
 /**
- * GET /api/v1/inventory/low-stock
+ * GET /inventory/low-stock
  * Get all low-stock products for seller dashboard
  * Returns: { alerts: Array of low stock products, count: number }
  */
 export const getLowStockAlerts = async (): Promise<LowStockAlertsData> => {
   try {
     console.log('🔄 Fetching low stock alerts...')
-    const response = await apiClient.get('/api/v1/inventory/low-stock')
+    const response = await apiClient.get('/inventory/low-stock')
     console.log('✅ Low stock alerts fetched:', response.data)
     
     // Transform backend response to match frontend interface

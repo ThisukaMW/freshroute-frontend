@@ -1,64 +1,5 @@
-// import { Navigate } from "react-router-dom";
-// import type { ReactElement } from "react";
-// //import InventoryPage from "../pages/seller/InventoryPage";
-// //import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
-// //import ProductsPage from "../pages/seller/ProductsPage";
-// //import LandingPage from "../pages/LandingPage";
-// //import AddProductPage from "../pages/seller/AddProductPage.tsx";
-// import ProductBrowsePage from "../pages/buyer/ProductBrowsePage.tsx";
-// import InventoryPage from "../pages/seller/InventoryPage.tsx";
-// import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
-// //import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
-// //import DashboardPage from "../pages/seller/DashboardPage.tsx";
-
-// interface RouteConfig {
-//   path: string;
-//   element: ReactElement;
-// }
-
-// interface ProtectedRouteConfig extends RouteConfig {
-//   roles?: string[];
-// }
-
-// export const routeConfig: {
-//   public: RouteConfig[];
-//   protected: ProtectedRouteConfig[];
-//   fallback: ReactElement;
-// } = {
-//   public: [
-    
-//     {
-//       path: "/",
-//       element: <InventoryPage/>,
-//     },
-//   ],
-//   protected: [
-//     // Add your protected routes here
-//     // Example:
-//     // {
-//     //   path: "/buyer",
-//     //   element: <BuyerDashboard />,
-//     //   roles: ["buyer"],
-//     // },
-//     {
-//       path: "/buyer/products/:id/sellers",
-//       roles: ["buyer"],
-//       element: (
-//         <MainLayout role="buyer"><SelectSellerPage</MainLayout> 
-          
-        
-//       ),
-//     },
-//   ],
-//   fallback: <Navigate to="/" replace />,
-// };
-
-
-import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
-
 import LandingPage from "../pages/LandingPage";
-
 import AdminLoginPage from "../pages/admin/AdminLoginPage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import UserManagementPage from "../pages/admin/UserManagementPage";
@@ -75,19 +16,11 @@ import TruckCapacityPage from "../pages/admin/TruckCapacityPage";
 import AddTruckPage from "../pages/admin/AddTruckPage";
 import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
 import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
-
-// import { MainLayout } from "../components/layout/MainLayout/MainLayout";
-import SignUpCustomerPage from "../pages/SignUpCustomerPage";
-import SignUpVendorPage from "../pages/SignUpVendorPage";
+import SignUpPage from "../pages/SignUpPage.tsx";
 import SignInPage from "../pages/SignInPage";
-import SellerLoginPage from "../pages/seller/SellerLoginPage";
 import RoleSelectPage from "../pages/RoleSelectPage";
-//import AdminLoginPage from "../pages/admin/AdminLoginPage";
-
-
-
-import { MainLayout } from "../components/layout/MainLayout/MainLayout.tsx";
-import { AuthLayout } from "../components/layout/AuthLayout/AuthLayout.tsx";
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
 import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
 import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
 import CartPage from "../pages/buyer/CartPage.tsx";
@@ -96,27 +29,49 @@ import ProductsPage from "../pages/seller/ProductsPage.tsx";
 import AddProductPage from "../pages/seller/AddProductPage.tsx";
 import EditProductPage from "../pages/seller/EditProductPage.tsx";
 import InventoryPage from "../pages/seller/InventoryPage";
+import SellerRatingsPage from '../pages/seller/SellerRatingsPage';
 import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
 import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
 import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
 import NotFoundPage from "../pages/common/NotFoundPage.tsx";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage.tsx";
+import BuyerRatingsPage from '../pages/buyer/BuyerRatingsPage';
 import OrderDetailPage from "../pages/seller/OrderDetailPage.tsx";
 import OrdersPage from "../pages/seller/OrdersPage.tsx";
 import HomePage from "../pages/buyer/HomePage.tsx";
 import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
+import ProfilePage from "../pages/ProfilePage.tsx";
+import SecureAccountPage from "../pages/auth/SecureAccountPage";
+import RateOrderPage from '../pages/buyer/RateOrderPage';
 import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
+import { Route } from "react-router-dom";
+import NotificationsPage from "../pages/NotificationPage.tsx";
+import PendingApprovalsPage from "../pages/admin/PendingApprovalsPage.tsx";
+import PendingApprovalPage from "../pages/PendingApprovalPage";
+import { useAuth } from "../hooks/useAuth";
 
-/* ---------- types ---------- */
+// Shape of a basic public route — path and the element to render
 interface RouteConfig {
   path: string;
   element: ReactElement;
-  
 }
 
+// Extends RouteConfig with an optional roles array for role-based access control
 interface ProtectedRouteConfig extends RouteConfig {
   roles?: string[];
 }
 
+const NotificationsRoute = () => {
+  const { user } = useAuth()
+  const role = (user?.role?.toLowerCase() ?? "buyer") as "buyer" | "seller" | "admin"
+  return (
+    <MainLayout role={role}>
+      <NotificationsPage />
+    </MainLayout>
+  )
+}
+
+// Central route registry — consumed by the router to register all public and protected routes
 export const routeConfig: {
   public: RouteConfig[];
   protected: ProtectedRouteConfig[];
@@ -124,108 +79,44 @@ export const routeConfig: {
   error?: ReactElement;
   unauthorized?: ReactElement;
 } = {
+
+  // ─── Public Routes ────────────────────────────────────────────────────────
+  // Accessible by anyone regardless of authentication state
   public: [
-    {
-      path: "/",
-      element: <LandingPage />,
-    },
-    
-    {
-      path: "/admin/login",
-      element: <AdminLoginPage />,
-    },
-
-    {
-      path: "/payment-success",
-      element: <PaymentSuccessPage />,
-    },
-    {
-      path: "/payment-cancel",
-      element: <PaymentCancelPage />,
-    },
-    {
-      path: "/signup",
-      element: <RoleSelectPage />,
-    },
-    {
-      path: "/signup/customer",
-      element: <SignUpCustomerPage />,
-    },
-    {
-      path: "/signup/vendor",
-      element: <SignUpVendorPage />,
-    },
-    {
-      path: "/products",
-      element: <DefaultBrowsePage />,
-    },
-    {
-      path: "/signin",
-      element: <SignInPage />,
-    },
-    {
-      path: "/seller/login",
-      element: <SellerLoginPage />,
-    },
-    {
-      path: "/admin/login",           
-      element: <AdminLoginPage />,    
-    },
-    
-    
-    // {
-    //  path: "/signin",
-    //   element: <SignInPage />,
-    // },
-    // {
-    //   path: "/signup",
-    //   element: <RoleSelectPage />,
-    // },
-    // {
-    //   path: "/signup/customer",
-    //   element: <SignUpCustomerPage />,
-    // },
-    // {
-    //   path: "/signup/vendor",
-    //   element: <SignUpVendorPage />,
-    // },
-   
-
-    
-    // {
-    //   path: "/seller/login",
-    //   element: <SellerLoginPage />,
-    // },
-    // {
-    //   path: "/admin/login",
-    //   element: <AdminLoginPage />,
-    // },
-
-    // Auth pages using the new AuthLayout shell
-    // {
-    //   path: "/auth/login",
-    //   element: <Navigate to="/" replace />,
-    // },
-    // {
-    //   path: "/auth/register",
-    //   element: (
-    //     <AuthLayout>
-    //       <RegisterPage />
-    //     </AuthLayout>
-    //   ),
-    // },
-    // {
-    //   path: "/auth/forgot-password",
-    //   element: (
-    //     <AuthLayout>
-    //       <ForgotPasswordPage />
-    //     </AuthLayout>
-    //   ),
-    // },
-    
-
+    // Root landing page — marketing and entry point for all users
+    { path: "/", element: <LandingPage /> },
+    // Role picker — user selects Customer or Vendor before reaching a signup form
+    { path: "/signup", element: <RoleSelectPage /> },
+    // Dynamic signup form — :role param is either 'customer' or 'vendor'
+    { path: "/signup/:role", element: <SignUpPage /> },
+    // Public product browse — visible without login for discovery
+    { path: "/products", element: <DefaultBrowsePage /> },
+    // Unified sign-in page — backend detects role and redirects accordingly
+    { path: "/signin", element: <SignInPage /> },
+    // Seller-specific login alias — same page, separate entry point for vendors
+    { path: "/seller/login", element: <SignInPage /> },
+    // Dedicated admin login — separate from the main sign-in flow
+    { path: "/admin/login", element: <AdminLoginPage /> },
+    // Password reset request page — user enters email to receive reset link
+    { path: "/forgot-password", element: <ForgotPasswordPage /> },
+    // Password reset confirmation page — reached via link in the reset email
+    { path: "/reset-password", element: <ResetPasswordPage /> },
+    // Stripe payment success callback — shown after a successful checkout
+    { path: "/payment-success", element: <PaymentSuccessPage /> },
+    // Stripe payment cancel callback — shown when user cancels at checkout
+    { path: "/payment-cancel", element: <PaymentCancelPage /> },
+    // Account security page — reached via link in a security verification email
+    { path: "/auth/secure-account", element: <SecureAccountPage /> },
+    { path: "/pending-approval", element: <PendingApprovalPage /> },
   ],
- protected: [
+
+  // ─── Protected Routes ─────────────────────────────────────────────────────
+  // Require authentication; roles array limits access to specific user types
+  protected: [
+
+    // ── Admin routes ────────────────────────────────────────────────────────
+
+    // Admin overview dashboard — entry point after admin login
     {
       path: "/admin",
       roles: ["admin"],
@@ -235,6 +126,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Full user list — admin can view, search and manage all platform users
     {
       path: "/admin/users",
       roles: ["admin"],
@@ -244,6 +136,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Seller management — admin can approve, suspend or review vendor accounts
     {
       path: "/admin/sellers",
       roles: ["admin"],
@@ -253,6 +146,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Buyer management — admin can view and manage customer accounts
     {
       path: "/admin/buyers",
       roles: ["admin"],
@@ -262,6 +156,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Driver management — admin can assign, track and manage delivery drivers
     {
       path: "/admin/drivers",
       roles: ["admin"],
@@ -271,6 +166,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Order management — admin can view and action all platform orders
     {
       path: "/admin/orders",
       roles: ["admin"],
@@ -280,6 +176,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Route management — admin configures delivery zones and driver routes
     {
       path: "/admin/routes",
       roles: ["admin"],
@@ -289,6 +186,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Analytics dashboard — platform-wide sales, orders and usage insights
     {
       path: "/admin/analytics",
       roles: ["admin"],
@@ -298,6 +196,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Payments overview — admin can review all payment transactions
     {
       path: "/admin/payments",
       roles: ["admin"],
@@ -307,6 +206,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Full transaction history — detailed log of all financial activity
     {
       path: "/admin/transactions",
       roles: ["admin"],
@@ -316,6 +216,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // System settings — platform configuration and feature toggles
     {
       path: "/admin/settings",
       roles: ["admin"],
@@ -325,6 +226,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Truck capacity overview — admin manages delivery vehicle capacity
     {
       path: "/admin/trucks",
       roles: ["admin"],
@@ -334,6 +236,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Add new truck — form to register a new delivery vehicle
     {
       path: "/admin/trucks/add",
       roles: ["admin"],
@@ -343,8 +246,30 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Admin profile — hideSidebar keeps the layout clean for profile editing
+    {
+      path: "/admin/profile",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin" hideSidebar>
+          <ProfilePage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/approvals",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <PendingApprovalsPage />  
+        </MainLayout>
+      ),
+    },
 
-     {
+    // ── Buyer routes ─────────────────────────────────────────────────────────
+
+    // Buyer home — personalised landing page after login
+    {
       path: "/buyer",
       roles: ["buyer"],
       element: (
@@ -353,6 +278,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Product browse — buyer searches and filters available products
     {
       path: "/buyer/products",
       roles: ["buyer"],
@@ -362,8 +288,8 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
-
-     {
+    // Cart — buyer reviews selected items before proceeding to checkout
+    {
       path: "/buyer/cart",
       roles: ["buyer"],
       element: (
@@ -372,6 +298,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Seller selection — buyer picks which vendor to buy a specific product from
     {
       path: "/buyer/products/:id/sellers",
       roles: ["buyer"],
@@ -381,6 +308,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Order history — buyer views past and active orders with status
     // {
     //   path: "/buyer/products/:id",
     //   roles: ["buyer"],
@@ -417,17 +345,40 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Buyer profile — hideSidebar keeps the layout clean for profile editing
+    {
+      path: "/profile",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer" hideSidebar>
+          <ProfilePage />
+        </MainLayout>
+      ),
+    },
 
-     // Seller
+    {
+      path: "/buyer/rate/:orderId/:productId",
+      roles: ["buyer"],
+      element: (
+        <MainLayout role="buyer">
+          <RateOrderPage />
+        </MainLayout>
+      ),
+    },
+
+    // ── Seller routes ─────────────────────────────────────────────────────────
+
+    // Seller dashboard — vendor overview of orders, earnings and activity
     {
       path: "/seller",
       roles: ["seller"],
       element: (
         <MainLayout role="seller">
-          < DashboardPage/>
+          <DashboardPage />
         </MainLayout>
       ),
     },
+    // Seller product list — vendor manages all their listed products
     {
       path: "/seller/products",
       roles: ["seller"],
@@ -437,34 +388,58 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Add product — form for the vendor to create a new product listing
     {
       path: "/seller/products/add",
-      //roles: ["seller"],
       element: (
         <MainLayout role="seller">
           <AddProductPage />
         </MainLayout>
       ),
     },
+    // Edit product — vendor updates pricing, stock or details of an existing product
     {
       path: "/seller/products/:id/edit",
       roles: ["seller"],
       element: (
         <MainLayout role="seller">
-          <EditProductPage/>
+          <EditProductPage />
         </MainLayout>
       ),
     },
+    // Inventory — vendor manages stock levels and availability toggles
     {
       path: "/seller/inventory",
       roles: ["seller"],
       element: (
         <MainLayout role="seller">
-          <InventoryPage/>
+          <InventoryPage />
         </MainLayout>
       ),
     },
-
+    // Seller profile — hideSidebar keeps the layout clean for profile editing
+    {
+      path: "/seller/profile",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller" hideSidebar>
+          <ProfilePage />
+        </MainLayout>
+      ),
+    },
+    // Buyer ratings — buyer can view and submit ratings for completed orders
+    { path: "/buyer/ratings", element: <MainLayout role="buyer"><BuyerRatingsPage /></MainLayout> },
+    // Seller reviews — vendor views all customer ratings left for their store
+    {
+      path: "/seller/reviews",
+      roles: ["seller"],
+      element: (
+        <MainLayout role="seller">
+          <SellerRatingsPage />
+        </MainLayout>
+      ),
+    },
+    // Seller orders list — vendor views all incoming and historical orders
     {
       path: "/seller/orders",
       roles: ["seller"],
@@ -474,7 +449,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
-    
+    // Order detail — vendor views full details and status of a specific order
     {
       path: "/seller/orders/:id",
       roles: ["seller"],
@@ -484,6 +459,7 @@ export const routeConfig: {
         </MainLayout>
       ),
     },
+    // Checkout — buyer enters delivery details and completes payment
     {
       path: "/buyer/checkout",
       roles: ["buyer"],
@@ -491,14 +467,21 @@ export const routeConfig: {
         <MainLayout role="buyer">
           <CheckoutPage />
         </MainLayout>
-      )
-    }
-
-
+      ),
+    },
+    {
+      path: "/notifications",
+      roles: ["buyer", "seller", "admin"],
+      element: (
+        <NotificationsRoute />
+      ),
+    } 
   ],
-  //fallback: <Navigate to="/" replace />,
 
+  // Rendered when no route matches — 404 not found page
   fallback: <NotFoundPage />,
+  // Rendered when an unexpected server or runtime error occurs
   error: <ServerErrorPage />,
+  // Rendered when a user tries to access a route their role isn't permitted for
   unauthorized: <UnauthorizedPage />,
 };

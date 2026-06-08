@@ -38,9 +38,6 @@ const gridColors = [
 ];
 const PER_PALLET_WEIGHT = 1800;
 
-// ---------------------------------------------------------------------------
-// Helpers for localStorage
-// ---------------------------------------------------------------------------
 function readFleet(): Truck[] {
   try {
     const raw = localStorage.getItem("fleet");
@@ -55,24 +52,17 @@ function writeFleet(fleet: Truck[]) {
   try {
     localStorage.setItem("fleet", JSON.stringify(fleet));
   } catch {
-    // ignore storage errors
+    
   }
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 const TruckCapacityPage = () => {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"side" | "top">("side");
 
-  // userFleet is the sole source-of-truth — no hardcoded data.
   const [userFleet, setUserFleet] = useState<Truck[]>([]);
 
-  // -------------------------------------------------------------------------
-  // Boot: load persisted fleet + selected id
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const stored = readFleet();
     setUserFleet(stored);
@@ -108,7 +98,6 @@ const TruckCapacityPage = () => {
     };
   }, []);
 
-  // Persist selected id
   useEffect(() => {
     try {
       if (selectedId) localStorage.setItem("fleet_selected", selectedId);
@@ -117,9 +106,6 @@ const TruckCapacityPage = () => {
     }
   }, [selectedId]);
 
-  // -------------------------------------------------------------------------
-  // Fleet with derived metrics
-  // -------------------------------------------------------------------------
   const fleet: TruckMetrics[] = useMemo(() => {
     return userFleet.map((truck) => {
       const loadedLbs = Math.min(
@@ -137,9 +123,6 @@ const TruckCapacityPage = () => {
   const selectedTruck: TruckMetrics | null =
     fleet.find((t) => t.id === selectedId) ?? fleet[0] ?? null;
 
-  // -------------------------------------------------------------------------
-  // Pallet adjustment — mutates palletsLoaded directly in localStorage
-  // -------------------------------------------------------------------------
   const handleAdjustPallets = useCallback(
     (delta: number) => {
       if (!selectedTruck) return;
@@ -159,9 +142,6 @@ const TruckCapacityPage = () => {
     [selectedTruck]
   );
 
-  // -------------------------------------------------------------------------
-  // Delete truck from manifest
-  // -------------------------------------------------------------------------
   const handleDeleteTruck = useCallback(
     (id: string) => {
       if (!confirm("Delete this truck from the manifest? This cannot be undone."))
@@ -179,9 +159,6 @@ const TruckCapacityPage = () => {
     [selectedId, userFleet]
   );
 
-  // -------------------------------------------------------------------------
-  // Derived UI data
-  // -------------------------------------------------------------------------
   const summary = useMemo(() => {
     if (!selectedTruck) return [];
     return [
@@ -219,9 +196,6 @@ const TruckCapacityPage = () => {
     }));
   }, [selectedTruck]);
 
-  // -------------------------------------------------------------------------
-  // Empty state (no trucks added yet)
-  // -------------------------------------------------------------------------
   if (fleet.length === 0) {
     return (
       <div className="space-y-8 text-slate-100">
@@ -265,9 +239,6 @@ const TruckCapacityPage = () => {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Main render
-  // -------------------------------------------------------------------------
   return (
     <div className="space-y-8 text-slate-100">
       <header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
@@ -295,9 +266,7 @@ const TruckCapacityPage = () => {
 
       {selectedTruck && (
         <section className="grid gap-6 lg:grid-cols-[1.7fr,1fr]">
-          {/* -------------------------------------------------------------- */}
-          {/* Left panel                                                       */}
-          {/* -------------------------------------------------------------- */}
+          
           <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
@@ -550,9 +519,6 @@ const TruckCapacityPage = () => {
             </div>
           </div>
 
-          {/* -------------------------------------------------------------- */}
-          {/* Right panel — manifest & alerts                                  */}
-          {/* -------------------------------------------------------------- */}
           <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
             <h3 className="text-base font-semibold text-white">
               Manifest & alerts

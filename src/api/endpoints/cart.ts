@@ -1,4 +1,4 @@
-import apiClient from '../client'
+import apiClient from '../../store/api/client'
 
 export interface CartItem {
   id: string
@@ -35,7 +35,7 @@ export interface CartResponse {
 export const getCart = async (): Promise<CartResponse> => {
   try {
     console.log('🔄 Fetching cart from backend...')
-    const response = await apiClient.get('/api/v1/cart')
+    const response = await apiClient.get('/cart')
     console.log('✅ Cart fetched:', response.data)
     return response.data
   } catch (error) {
@@ -54,7 +54,7 @@ export const addItemToCart = async (
 ): Promise<CartItem> => {
   try {
     console.log(`🔄 Adding ${quantity}x product ${productId} to cart...`)
-    const response = await apiClient.post('/api/v1/cart/add', {
+    const response = await apiClient.post('/cart/add', {
       productId,
       quantity,
       sellerId,
@@ -112,7 +112,7 @@ export const updateCartItemQuantity = async (
 export const clearCart = async (): Promise<void> => {
   try {
     console.log('🔄 Clearing cart...')
-    await apiClient.post('/api/v1/cart/clear')
+    await apiClient.post('/cart/clear')
     console.log('✅ Cart cleared')
   } catch (error) {
     console.error('❌ Failed to clear cart:', error)
@@ -126,7 +126,7 @@ export const clearCart = async (): Promise<void> => {
 export const applyPromoCode = async (code: string): Promise<CartResponse> => {
   try {
     console.log(`🔄 Applying promo code ${code}...`)
-    const response = await apiClient.post('/api/v1/cart/apply-promo', {
+    const response = await apiClient.post('/cart/apply-promo', {
       code,
     })
     console.log('✅ Promo code applied:', response.data)

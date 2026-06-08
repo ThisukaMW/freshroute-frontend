@@ -1,4 +1,4 @@
-import apiClient from '../client'
+import apiClient from '../../store/api/client'
 
 // ============= TYPES =============
 
@@ -74,13 +74,13 @@ export interface SellerOrdersResponse {
 // ============= SELLER ORDERS ENDPOINTS =============
 
 /**
- * GET /api/v1/orders/seller/list
+ * GET /orders/seller/list
  * Get all orders containing seller's products
  */
 export const getSellerOrders = async (): Promise<Order[]> => {
   try {
     console.log('🔄 Fetching seller orders...')
-    const response = await apiClient.get('/api/v1/orders/seller/list')
+    const response = await apiClient.get('/orders/seller/list')
     console.log('✅ Seller orders fetched:', response.data)
     return response.data?.data || []
   } catch (error) {
@@ -90,13 +90,13 @@ export const getSellerOrders = async (): Promise<Order[]> => {
 }
 
 /**
- * GET /api/v1/orders/seller/stats
+ * GET /orders/seller/stats
  * Get seller dashboard statistics
  */
 export const getSellerStats = async (): Promise<SellerStats> => {
   try {
     console.log('🔄 Fetching seller stats...')
-    const response = await apiClient.get('/api/v1/orders/seller/stats')
+    const response = await apiClient.get('/orders/seller/stats')
     console.log('✅ Seller stats fetched:', response.data)
     return response.data?.data
   } catch (error) {
@@ -106,13 +106,13 @@ export const getSellerStats = async (): Promise<SellerStats> => {
 }
 
 /**
- * GET /api/v1/orders/seller/:id
+ * GET /orders/seller/:id
  * Get a specific order for seller verification
  */
 export const getSellerOrderById = async (orderId: string): Promise<Order> => {
   try {
     console.log(`🔄 Fetching seller order ${orderId}...`)
-    const response = await apiClient.get(`/api/v1/orders/seller/${orderId}`)
+    const response = await apiClient.get(`/orders/seller/${orderId}`)
     console.log('✅ Seller order fetched:', response.data)
     return response.data?.data
   } catch (error) {
@@ -124,13 +124,13 @@ export const getSellerOrderById = async (orderId: string): Promise<Order> => {
 // ============= BUYER ORDERS ENDPOINTS =============
 
 /**
- * GET /api/v1/orders
+ * GET /orders
  * Get buyer's orders
  */
 export const getBuyerOrders = async (): Promise<Order[]> => {
   try {
     console.log('🔄 Fetching buyer orders...')
-    const response = await apiClient.get('/api/v1/orders')
+    const response = await apiClient.get('/orders')
     console.log('✅ Buyer orders fetched:', response.data)
     return response.data?.data || response.data || []
   } catch (error) {
@@ -140,13 +140,13 @@ export const getBuyerOrders = async (): Promise<Order[]> => {
 }
 
 /**
- * GET /api/v1/orders/:id
+ * GET /orders/:id
  * Get a specific buyer order
  */
 export const getBuyerOrderById = async (orderId: string): Promise<Order> => {
   try {
     console.log(`🔄 Fetching buyer order ${orderId}...`)
-    const response = await apiClient.get(`/api/v1/orders/${orderId}`)
+    const response = await apiClient.get(`/orders/${orderId}`)
     console.log('✅ Buyer order fetched:', response.data)
     return response.data?.data || response.data
   } catch (error) {
@@ -172,7 +172,7 @@ export const getBuyerAddresses = async (): Promise<any> => {
 }
 
 /**
- * POST /api/v1/orders
+ * POST /orders
  * Create a new order (buyer)
  */
 export const createOrder = async (
@@ -185,7 +185,7 @@ export const createOrder = async (
 ): Promise<Order> => {
   try {
     console.log('🔄 Creating order...', items)
-    const response = await apiClient.post('/api/v1/orders', {
+    const response = await apiClient.post('/orders', {
       items,
       deliveryAddress,
       deliveryLat,
