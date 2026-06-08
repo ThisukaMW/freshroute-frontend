@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar'
 import type { JSX } from 'react'
 import { useEffect, useRef, useState } from 'react'
 
+
 // Counts a number up from 0 to a target value, but only starts when trigger becomes true.(increasing no section)
 function useCountUp(target: number, duration = 2000, trigger: boolean = false) {
   const [count, setCount] = useState(0)
@@ -67,7 +68,7 @@ const slides = [
     sub: 'Over 30 verified local sellers — no middlemen, transparent pricing.',
   },
   {
-    url: 'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=1600&q=80',
+    url: 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=1600&q=80',
     tag: 'Fast Delivery',
     headline: '32-minute average\ndelivery city-wide',
     sub: 'Real-time tracking from dispatch to doorstep, every single order.',

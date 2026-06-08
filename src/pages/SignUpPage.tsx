@@ -199,6 +199,7 @@ const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: 
     if (!fullName.trim())             { onError('Full name is required');              return }
     if (!email.trim())                { onError('Email is required');                  return }
     if (!isValidEmail(email))         { onError('Please enter a valid email address'); return }
+    if (!address.trim())              { onError('Address is required');                return }  
     if (passwordErrors.length > 0)    { onError('Please fix password requirements'); setShowPasswordHints(true); return }
     if (password !== confirmPassword) { onError('Passwords do not match');             return }
 
@@ -232,8 +233,8 @@ const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: 
       </div>
       <CitySelect value={city} onChange={setCity} />
       <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Address</label>
-        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="No. 12, Flower Road" />
+        <label className="block text-xs font-medium text-slate-200">Address<span className="text-red-400">*</span></label>
+        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required className={inputClass} placeholder="No. 12, Flower Road" />
       </div>
       <PasswordField value={password} onChange={setPassword} showHints={showPasswordHints} setShowHints={setShowPasswordHints} />
       <ConfirmPasswordField value={confirmPassword} onChange={setConfirmPassword} password={password} />
@@ -322,6 +323,7 @@ const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (m
         <input type="text" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} required className={inputClass} placeholder="No. 45, Market Street, Colombo" />
       </div>
       <CitySelect value={city} onChange={setCity} />
+      <div /> {/* empty spacer to push city to left col only */}
       <PasswordField value={password} onChange={setPassword} showHints={showPasswordHints} setShowHints={setShowPasswordHints} />
       <ConfirmPasswordField value={confirmPassword} onChange={setConfirmPassword} password={password} />
       <div className="mt-2 flex items-start gap-2 md:col-span-2">
