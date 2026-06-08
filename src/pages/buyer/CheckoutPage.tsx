@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { clearCart } from "../../store/slices/cartSlice";
 import { getCart } from "../../api/endpoints/cart";
+import { useAuth } from "../../hooks/useAuth";
+import { getBuyerAddresses, createOrder as createOrderApi } from "../../api/endpoints/orders";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
@@ -75,25 +77,18 @@ const CheckoutPage: React.FC = () => {
     }
   }, [items]);
 
-  // Fetch buyer's current address
+  // Fetch buyer's current address using API
   useEffect(() => {
     const fetchAddress = async () => {
       try {
-        const token = localStorage.getItem("fr_token");
-        const res = await fetch("/api/v1/orders/addresses", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.primary) {
-            setState((prev) => ({
-              ...prev,
-              deliveryAddress: data.primary,
-            }));
-          }
+        console.log("📍 Fetching buyer addresses...");
+        const addresses = await getBuyerAddresses();
+        if (addresses?.primary) {
+          setState((prev) => ({
+            ...prev,
+            deliveryAddress: addresses.primary,
+          }));
+          console.log("✅ Address loaded:", addresses.primary);
         }
       } catch (err) {
         console.error("Failed to fetch addresses:", err);
@@ -178,58 +173,30 @@ const CheckoutPage: React.FC = () => {
         }
       }
 
-      const token = localStorage.getItem("fr_token");
+      // ✅ Use API endpoint (token auto-injected by interceptor)
+      console.log("📦 Creating order via API...");
+      const orderResponse = await createOrderApi(
+        items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          sellerId: item.sellerId,
+        })),
+        state.deliveryAddress.address,
+        state.deliveryAddress.latitude,
+        state.deliveryAddress.longitude,
+        state.deliveryTimeSlot!,
+        state.specialInstructions
+      );
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
+      console.log("✅ Order created:", orderResponse);
 
-      // Create the order with all delivery information
-      const orderRes = await fetch("/api/v1/orders", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          items: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            sellerId: item.sellerId, // ✅ Include seller ID
-          })),
-          deliveryAddress: state.deliveryAddress.address,
-          deliveryLat: state.deliveryAddress.latitude,
-          deliveryLng: state.deliveryAddress.longitude,
-          deliveryTimeSlot: state.deliveryTimeSlot,
-          specialInstructions: state.specialInstructions,
-        }),
-      });
+      // ✅ Order created successfully
+      // TODO: Implement payment processing if needed
+      // For now, clear cart and redirect to order confirmation
 
-      if (!orderRes.ok) {
-        const err = await orderRes.json();
-        throw new Error(err.message || "Failed to create order");
-      }
-
-      const order = await orderRes.json();
-
-      // Create Stripe checkout session
-      const paymentRes = await fetch("/api/v1/payments", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          orderId: order.id,
-          currency: "lkr",
-        }),
-      });
-
-      if (!paymentRes.ok) {
-        const err = await paymentRes.json();
-        throw new Error(err.message || "Failed to initiate payment");
-      }
-
-      const { checkoutUrl } = await paymentRes.json();
-
-      // Clear cart and redirect to Stripe
+      // Clear cart and redirect to order confirmation
       dispatch(clearCart());
-      window.location.href = checkoutUrl;
+      navigate("/buyer/order-confirmation", { state: { orderId: orderResponse.id } });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";

@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux"
 import { getCart, removeItemFromCart, clearCart as clearCartApi, updateCartItemQuantity } from "../../api/endpoints/cart"
 import { validateCartStock } from "../../api/endpoints/inventory"
 import { setCartItems, removeItemLocal, updateQuantityLocal, clearCart } from "../../store/slices/cartSlice"
-import { LocalStorageService } from "../../services/storage/LocalStorageService"
+import { useAuth } from "../../hooks/useAuth"
 import { getReservationStatus, isReservationExpiring } from "../../utils/reservationUtils"
 import { showWarningToast, showErrorToast } from "../../utils/toastNotification"
 import PromoCodeInput from "../../components/checkout/PromoCodeInput"
@@ -34,16 +34,18 @@ const CartPage: React.FC = () => {
   const [stockModal, setStockModal] = useState<{ issues: StockIssue[] } | null>(null)
   const [expiryRefresh, setExpiryRefresh] = useState(0) // Force re-render for expiry timer
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
 
-  // TEMPORARY: Inject test token from Postman
+  // ✅ Check authentication and sync cart when auth is ready
   useEffect(() => {
-    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5NDFlYWFiMS01YTk1LTQ5MWEtOGNjNS00ZTZhZTgwYjliOTMiLCJidXllcklkIjoiMTZmMGQ0ZDktMTNjYy00ZTQ1LTk0YzMtMDIzNzAwNGJmMDUyIiwicm9sZSI6IkJVWUVSIiwiaWF0IjoxNzc3NTczMTcxLCJleHAiOjE3NzgxNzc5NzF9.MMfECGmt0AqYc86WAfdrPROmmV95hqWkjpUA5xi52Kw')
-  }, [])
-
-  // Sync Redux with DB on component mount
-  useEffect(() => {
-    syncCartFromDB()
-  }, [])
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        navigate('/login')
+      } else {
+        syncCartFromDB()
+      }
+    }
+  }, [authLoading, isAuthenticated, navigate])
 
   // Refetch from DB when page becomes visible
   useEffect(() => {
@@ -57,7 +59,7 @@ const CartPage: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
-  // ✅ NEW: Refresh expiry timer every second
+  //  Refresh expiry timer every second
   useEffect(() => {
     const interval = setInterval(() => {
       setExpiryRefresh(prev => prev + 1)
@@ -65,7 +67,7 @@ const CartPage: React.FC = () => {
     return () => clearInterval(interval)
   }, [])
 
-  // ✅ NEW: Monitor for expired reservations and notify user
+  // Monitor for expired reservations and notify user
   useEffect(() => {
     const expiredItemsLastNotified = new Set<string>()
 

@@ -49,7 +49,7 @@ const SelectSellerPage = () => {
           stock: item.stock, // ✅ NOW INCLUDED - Available quantity from this seller
           rating: 4.5,
           deliveriesPerWeek: 5,
-          etaLabel: 'Within 24 hours',
+          etaLabel: '',
         }))
 
         setSellers(formattedSellers)

@@ -2,15 +2,28 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getSellerDashboardMetrics, getLowStockAlerts } from '../../api/endpoints/dashboard'
 import type { SellerDashboardMetrics, LowStockAlertsData } from '../../api/endpoints/dashboard'
-import { LocalStorageService } from '../../services/storage/LocalStorageService'
+import { useAuth } from '../../hooks/useAuth'
 
 const VendorDashboardPage = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [metrics, setMetrics] = useState<SellerDashboardMetrics | null>(null)
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlertsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // ✅ Check authentication before loading
   useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setError("You must be logged in as a seller to view this dashboard")
+    }
+  }, [authLoading, isAuthenticated])
+
+  useEffect(() => {
+    // Skip fetch if not authenticated or auth is still loading
+    if (!isAuthenticated || authLoading) {
+      return
+    }
+
     const fetchDashboardMetrics = async () => {
       try {
         setLoading(true)
@@ -30,12 +43,15 @@ const VendorDashboardPage = () => {
     }
 
     fetchDashboardMetrics()
-  }, [])
+  }, [isAuthenticated, authLoading])
 
-  // ⚡ QUICK TESTING: Inject seller token
-  useEffect(() => {
-    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjk1YTYxOS0wOWRhLTRlMTEtYjJkMy1jYTdkMmNiOGI0OTQiLCJzZWxsZXJJZCI6Ijc4NTYwMDg4LWU4NzAtNDEzYy1hMTU2LTBiZWYxZGJhOTU1NiIsInJvbGUiOiJTRUxMRVIiLCJpYXQiOjE3Nzc1Mzg5NjYsImV4cCI6MTc3ODE0Mzc2Nn0.wbp3T2e6gk2E-h2Nt5Nwfy-bp_XLwEKw8uxw-37C7Mw')
-  }, [])
+  if (authLoading || loading) {
+    return <div className="text-center text-slate-300">Loading...</div>
+  }
+
+  if (!isAuthenticated) {
+    return <div className="text-center text-red-300">Please login as a seller to view this page</div>
+  }
 
   return (
     <div className="space-y-8 text-slate-100">

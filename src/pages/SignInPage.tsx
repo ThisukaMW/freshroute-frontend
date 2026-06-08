@@ -122,6 +122,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import type { JSX } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { buyerLogin } from '../api/endpoints/auth'
 import Navbar from '../components/Navbar'
 
 const SignInPage = (): JSX.Element => {
@@ -135,32 +136,57 @@ const SignInPage = (): JSX.Element => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validation
+    if (!email.trim()) {
+      setError('Email is required')
+      return
+    }
+    if (!password) {
+      setError('Password is required')
+      return
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    
     setError(null)
     setLoading(true)
 
     try {
-      const res = await fetch('/api/v1/auth/buyer/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      console.log('🔐 Attempting to login...')
+      const data = await buyerLogin(email, password)
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed')
+      console.log('✅ Login successful, storing token...', data)
+      
+      if (!data.buyer) {
+        throw new Error('Invalid response from server')
       }
-
+      
       login(data.token, {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role.toLowerCase(),
+        id: data.buyer.id,
+        name: data.buyer.name,
+        email: data.buyer.email,
+        role: 'buyer',
       })
 
       navigate('/products')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed'
+      console.error('❌ Login error:', err)
+      
+      let message = 'Login failed. Please check your credentials.'
+      
+      if (err instanceof Error) {
+        message = err.message
+        // Parse axios error messages
+        if (message.includes('401')) {
+          message = 'Invalid email or password'
+        } else if (message.includes('Network')) {
+          message = 'Network error. Please check your connection.'
+        }
+      }
+      
       setError(message)
     } finally {
       setLoading(false)
@@ -208,6 +234,12 @@ const SignInPage = (): JSX.Element => {
               </div>
 
               <form className="space-y-4" onSubmit={handleSubmit}>
+                {error && (
+                  <div className="rounded-lg bg-red-500/20 border border-red-500/50 p-3">
+                    <p className="text-xs text-red-300">❌ {error}</p>
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-slate-200">Email</label>
                   <input
@@ -254,10 +286,6 @@ const SignInPage = (): JSX.Element => {
                 >
                   {loading ? 'Signing in…' : 'Sign In'}
                 </button>
-
-                {error && (
-                  <p className="text-center text-xs text-red-400">{error}</p>
-                )}
               </form>
 
               <p className="mt-4 text-center text-xs text-slate-500">
@@ -266,6 +294,14 @@ const SignInPage = (): JSX.Element => {
                   Sign up
                 </Link>
               </p>
+
+              <div className="mt-6 rounded-lg border border-slate-700/50 bg-slate-900/30 p-3">
+                <p className="text-xs font-medium text-slate-300 mb-2">📝 Demo Credentials:</p>
+                <div className="space-y-1 text-xs text-slate-400">
+                  <p>Email: <code className="bg-slate-800/50 px-1 rounded">john.doe@example.com</code></p>
+                  <p>Password: <code className="bg-slate-800/50 px-1 rounded">buyer123</code></p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

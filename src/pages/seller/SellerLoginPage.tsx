@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import type { JSX } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { sellerLogin } from '../../api/endpoints/auth'
 import Navbar from '../../components/Navbar'
 
 const SellerLoginPage = (): JSX.Element => {
@@ -9,16 +10,68 @@ const SellerLoginPage = (): JSX.Element => {
 	const { login } = useAuth()
 	const [email, setEmail] = useState<string>('')
 	const [password, setPassword] = useState<string>('')
+	const [error, setError] = useState<string | null>(null)
+	const [loading, setLoading] = useState(false)
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-		login('demo-token', {
-			id: 'seller-demo',
-			name: 'Demo Vendor',
-			email,
+
+		// Validation
+		if (!email.trim()) {
+			setError('Business email is required')
+			return
+		}
+		if (!password) {
+			setError('Password is required')
+			return
+		}
+		if (password.length < 6) {
+			setError('Password must be at least 6 characters')
+			return
+		}
+
+		setError(null)
+		setLoading(true)
+
+		try {
+			console.log('🔐 Attempting seller login...')
+			const data = await sellerLogin(email, password)
+
+			console.log('✅ Seller login successful', data)
+
+		if (!data.seller) {
+			throw new Error('Invalid response from server')
+		}
+
+		login(data.token, {
+			id: data.seller.id,
+			name: data.seller.name,
+			email: data.seller.email,
 			role: 'seller',
 		})
+
 		navigate('/seller')
+		} catch (err: unknown) {
+			console.error('❌ Login error:', err)
+
+			let message = 'Login failed. Please check your credentials.'
+
+			if (err instanceof Error) {
+				message = err.message
+				// Parse axios error messages
+				if (message.includes('401')) {
+					message = 'Invalid email or password'
+				} else if (message.includes('Network')) {
+					message = 'Network error. Please check your connection.'
+				} else if (message.includes('not found')) {
+					message = 'Seller account not found'
+				}
+			}
+
+			setError(message)
+		} finally {
+			setLoading(false)
+		}
 	}
 
 	return (
@@ -36,7 +89,13 @@ const SellerLoginPage = (): JSX.Element => {
 					</div>
 
 					<form className="space-y-4" onSubmit={handleSubmit}>
-						<div className="space-y-1">
+					{error && (
+						<div className="rounded-lg bg-red-500/20 border border-red-500/50 p-3">
+							<p className="text-xs text-red-300">❌ {error}</p>
+						</div>
+					)}
+
+					<div className="space-y-1">
 							<label className="block text-xs font-medium text-slate-200">Business email</label>
 							<input
 								type="email"
@@ -59,9 +118,10 @@ const SellerLoginPage = (): JSX.Element => {
 
 						<button
 							type="submit"
-							className="mt-2 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+							disabled={loading}
+							className="mt-2 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
 						>
-							Sign in as vendor
+							{loading ? 'Signing in…' : 'Sign in as vendor'}
 						</button>
 					</form>
 
@@ -71,7 +131,13 @@ const SellerLoginPage = (): JSX.Element => {
 							Register as vendor
 						</Link>
 					</p>
-				</div>
+				<div className="mt-6 rounded-lg border border-slate-700/50 bg-slate-900/30 p-3">
+					<p className="text-xs font-medium text-slate-300 mb-2">📝 Demo Credentials:</p>
+					<div className="space-y-1 text-xs text-slate-400">
+						<p>Email: <code className="bg-slate-800/50 px-1 rounded">freshfarm@freshroute.com</code></p>
+						<p>Password: <code className="bg-slate-800/50 px-1 rounded">driver123</code></p>
+					</div>
+				</div>				</div>
 			</main>
 		</div>
 	)

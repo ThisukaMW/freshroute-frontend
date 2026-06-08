@@ -137,19 +137,3 @@ export const applyPromoCode = async (code: string): Promise<CartResponse> => {
   }
 }
 
-/**
- * Save item for later
- */
-export const saveItemForLater = async (productId: string): Promise<CartItem> => {
-  try {
-    console.log(`🔄 Saving product ${productId} for later...`)
-    const response = await apiClient.post('/api/v1/cart/save-for-later', {
-      productId,
-    })
-    console.log('✅ Item saved for later:', response.data)
-    return response.data
-  } catch (error) {
-    console.error('❌ Failed to save item for later:', error)
-    throw error
-  }
-}

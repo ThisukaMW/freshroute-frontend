@@ -80,7 +80,7 @@ const ProductBrowsePage = () => {
     }
   }
 
-  // ✅ UPDATED: Filter with category, price, AND search
+  // Filter with category, price, AND search
   const filteredProducts = products.filter((p: any) => {
     // Filter by status
     if (p.status !== 'active') return false
@@ -91,7 +91,7 @@ const ProductBrowsePage = () => {
     // Filter by price range
     if (p.pricePerUnit < priceRange.min || p.pricePerUnit > priceRange.max) return false
     
-    // ✅ NEW: Filter by search query
+    // filter by search query
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase()
       const productName = String(p.name || '').toLowerCase()

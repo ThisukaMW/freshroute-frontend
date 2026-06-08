@@ -1,12 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { getSellerInventory, getInventoryStats, getLowStockProducts, getRestockSuggestions, restockProduct, type ProductInventory } from "../../api/endpoints/inventory";
-import { LocalStorageService } from "../../services/storage/LocalStorageService";
-
-interface Stat {
-  label: string;
-  value: string;
-  helper: string;
-}
+import React, { useEffect, useState } from "react";
+import { getSellerInventory, getInventoryStats, getLowStockProducts, getRestockSuggestions, type ProductInventory } from "../../api/endpoints/inventory";
+import { useAuth } from "../../hooks/useAuth";
 
 interface RestockEntry {
   id: string;
@@ -18,6 +12,7 @@ interface RestockEntry {
 }
 
 const InventoryPage: React.FC = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [products, setProducts] = useState<ProductInventory[]>([]);
   const [stats, setStats] = useState({
     totalSkus: 0,
@@ -29,23 +24,23 @@ const InventoryPage: React.FC = () => {
   const [restockSuggestions, setRestockSuggestions] = useState<RestockEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [restockingProductId, setRestockingProductId] = useState<string | null>(null);
 
-  // TEMPORARY: Inject test token for development
+  // ✅ Check authentication before loading inventory
   useEffect(() => {
-    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjk1YTYxOS0wOWRhLTRlMTEtYjJkMy1jYTdkMmNiOGI0OTQiLCJzZWxsZXJJZCI6Ijc4NTYwMDg4LWU4NzAtNDEzYy1hMTU2LTBiZWYxZGJhOTU1NiIsInJvbGUiOiJTRUxMRVIiLCJpYXQiOjE3Nzc1Mzg5NjYsImV4cCI6MTc3ODE0Mzc2Nn0.wbp3T2e6gk2E-h2Nt5Nwfy-bp_XLwEKw8uxw-37C7Mw')
-  }, [])
+    if (!authLoading && !isAuthenticated) {
+      setError("You must be logged in as a seller to view inventory")
+    }
+  }, [authLoading, isAuthenticated])
 
   // Load all inventory data
   useEffect(() => {
+    if (!isAuthenticated || authLoading) {
+      return
+    }
+
     const loadInventoryData = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        console.log("📊 Loading inventory data from API...");
-
-        // Fetch all data in parallel
         const [productsData, statsData, lowStockData, suggestionsData] = await Promise.all([
           getSellerInventory(),
           getInventoryStats(),
@@ -78,35 +73,7 @@ const InventoryPage: React.FC = () => {
     };
 
     loadInventoryData();
-  }, []);
-
-  // Handle restock action
-  const handleRestock = async (productId: string, qty: number) => {
-    try {
-      setRestockingProductId(productId);
-      console.log(`📦 Restocking ${productId} with ${qty} units...`);
-
-      await restockProduct(productId, qty);
-
-      // Reload inventory data after successful restock
-      const [productsData, statsData, lowStockData] = await Promise.all([
-        getSellerInventory(),
-        getInventoryStats(),
-        getLowStockProducts(),
-      ]);
-
-      setProducts(productsData);
-      setStats(statsData);
-      setLowStockItems(lowStockData);
-
-      console.log("✅ Restock successful!");
-    } catch (err: any) {
-      console.error("❌ Restock failed:", err);
-      alert(`Failed to restock: ${err.message}`);
-    } finally {
-      setRestockingProductId(null);
-    }
-  };
+  }, [isAuthenticated, authLoading]);
 
   if (loading) {
     return (

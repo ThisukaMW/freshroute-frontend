@@ -96,6 +96,7 @@ const VendorProductsPage = () => {
                     <th className="px-3 py-2 font-medium">Stock</th>
                     <th className="px-3 py-2 font-medium">Status</th>
                     <th className="px-3 py-2 font-medium">Actions</th>
+                    <th className="px-3 py-2 font-medium">Test</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -146,6 +147,7 @@ const VendorProductsPage = () => {
                           </button>
                         </div>
                       </td>
+                      <td>test</td>
                     </tr>
                   )) : (
                     // ✅ Empty state when no results
@@ -154,6 +156,7 @@ const VendorProductsPage = () => {
                         No products match your search
                       </td>
                     </tr>
+                    
                   )}
                 </tbody>
               </table>

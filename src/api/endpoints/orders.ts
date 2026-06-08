@@ -156,15 +156,42 @@ export const getBuyerOrderById = async (orderId: string): Promise<Order> => {
 }
 
 /**
+ * GET /api/v1/orders/addresses
+ * Get buyer's saved addresses
+ */
+export const getBuyerAddresses = async (): Promise<any> => {
+  try {
+    console.log('🔄 Fetching buyer addresses...')
+    const response = await apiClient.get('/api/v1/orders/addresses')
+    console.log('✅ Buyer addresses fetched:', response.data)
+    return response.data?.data || response.data || []
+  } catch (error) {
+    console.error('❌ Failed to fetch buyer addresses:', error)
+    throw error
+  }
+}
+
+/**
  * POST /api/v1/orders
  * Create a new order (buyer)
  */
-export const createOrder = async (items: any[], deliveryNotes?: string): Promise<Order> => {
+export const createOrder = async (
+  items: Array<{ productId: string; quantity: number; sellerId: string }>,
+  deliveryAddress: string,
+  deliveryLat: number,
+  deliveryLng: number,
+  deliveryTimeSlot: "MORNING" | "AFTERNOON" | "EVENING",
+  specialInstructions?: string
+): Promise<Order> => {
   try {
     console.log('🔄 Creating order...', items)
     const response = await apiClient.post('/api/v1/orders', {
       items,
-      deliveryNotes,
+      deliveryAddress,
+      deliveryLat,
+      deliveryLng,
+      deliveryTimeSlot,
+      specialInstructions,
     })
     console.log('✅ Order created:', response.data)
     return response.data?.data || response.data
