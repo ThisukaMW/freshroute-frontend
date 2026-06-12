@@ -281,117 +281,39 @@ const LandingPage = (): JSX.Element => {
               </div>
 
               {/* Right side: why freshroute */}
-              {/* Right side: who are you matcher */}
-<div
-  className="flex-1 flex justify-center items-center"
-  style={{ animation: 'freshRouteSlideIn 1.1s cubic-bezier(0.22,1,0.36,1) both' }}
->
-  {(() => {
-    const [selected, setSelected] = useState<'buyer' | 'seller' | null>(null)
-    return (
-      <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl">
-
-        {/* header */}
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3">
-          Find your fit
-        </p>
-        <p className="text-xl font-bold text-slate-50 leading-snug mb-6">
-          Who are you on FreshRoute?
-        </p>
-
-        {/* options */}
-        <div className="flex flex-col gap-3 mb-5">
-          {[
-            {
-              type: 'buyer' as const,
-              emoji: '🛒',
-              title: 'I want to order fresh produce',
-              sub: 'Browse vendors, compare prices, get delivery',
-            },
-            {
-              type: 'seller' as const,
-              emoji: '🏪',
-              title: 'I want to sell my products',
-              sub: 'List produce, manage orders, grow sales',
-            },
-          ].map((o) => (
-            <button
-              key={o.type}
-              onClick={() => setSelected(o.type)}
-              className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 ${
-                selected === o.type
-                  ? 'border-supply-teal/50 bg-supply-teal/10'
-                  : 'border-white/10 bg-white/4 hover:border-supply-teal/30 hover:bg-supply-teal/5'
-              }`}
-            >
-              <span className="text-3xl">{o.emoji}</span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-slate-50">{o.title}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{o.sub}</p>
+              <div
+                className="flex-1"
+                style={{ animation: 'freshRouteSlideIn 1.1s cubic-bezier(0.22,1,0.36,1) both' }}
+              >
+                <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-[11px] font-medium text-supply-peach">Today&apos;s picks</p>
+                      <p className="mt-1 text-lg font-semibold text-supply-paper">Fresh veggies</p>
+                      <p className="mt-2 text-[11px] text-slate-300">Handpicked from local markets each morning.</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <div className="rounded-2xl border border-supply-teal/40 bg-supply-teal/30 p-3">
+                        <p className="text-[11px] font-medium text-white">Average delivery</p>
+                        <p className="text-lg font-semibold text-slate-50">32 min</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-supply-deep/70 p-3 text-slate-50">
+                        <p className="text-[11px] font-medium text-supply-peach">On-time rate</p>
+                        <p className="text-lg font-semibold text-supply-peach">96%</p>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Trust badge pills */}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {['30+ verified vendors', '96% on-time delivery', '12,000+ customers', 'Same-day delivery'].map(t => (
+                      <span key={t} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-slate-300 backdrop-blur-sm">{t}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition-all ${
-                selected === o.type
-                  ? 'border-supply-teal bg-supply-teal text-white'
-                  : 'border-white/15'
-              }`}>
-                {selected === o.type && '✓'}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* buyer result */}
-        {selected === 'buyer' && (
-          <div className="mb-4 rounded-2xl border border-supply-teal/20 bg-supply-teal/8 p-4">
-            <p className="text-sm font-bold text-slate-50 mb-1">FreshRoute is perfect for you!</p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Get fresh vegetables, fruits and herbs delivered from verified local vendors — faster and cheaper than any supermarket.
-            </p>
-          </div>
-        )}
-
-        {/* seller result */}
-        {selected === 'seller' && (
-          <div className="mb-4 rounded-2xl border border-orange-500/20 bg-orange-500/8 p-4">
-            <p className="text-sm font-bold text-slate-50 mb-1">FreshRoute is perfect for you!</p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Reach thousands of buyers across Sri Lanka. List your produce, manage orders, and grow your business — all in one place.
-            </p>
-          </div>
-        )}
-
-        {/* CTA button */}
-        {selected === 'buyer' && (
-          <Link
-            to="/signup/customer"
-            className="block w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-supply-teal py-3 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            Start ordering now →
-          </Link>
-        )}
-        {selected === 'seller' && (
-          <Link
-            to="/signup/vendor"
-            className="block w-full rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 py-3 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            Become a vendor →
-          </Link>
-        )}
-
-        {/* placeholder when nothing selected */}
-        {!selected && (
-          <div className="rounded-2xl border border-white/6 bg-white/3 py-3 text-center text-xs text-slate-600">
-            Select an option above to get started
-          </div>
-        )}
-
-      </div>
-    )
-  })()}
-</div>
-
             </div>
           </section>
+
 
           {/* ── CAROUSEL SECTION — full-screen image slideshow ── */}
           <section style={{ height: `calc(100dvh - ${NAVBAR_HEIGHT}px)` }}>
