@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 interface Address {
   address: string;
@@ -72,7 +72,8 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
         <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 space-y-2">
           <p className="text-sm text-slate-100">{currentAddress.address}</p>
           <p className="text-xs text-slate-500">
-            📍 {currentAddress.latitude.toFixed(4)}, {currentAddress.longitude.toFixed(4)}
+            📍 {currentAddress.latitude.toFixed(4)},{" "}
+            {currentAddress.longitude.toFixed(4)}
           </p>
           <button
             type="button"
@@ -126,9 +127,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
             </div>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-400">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex gap-2">
             <button

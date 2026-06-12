@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { getBuyerOrders, type Order, type OrderItem } from "../../api/endpoints/orders";
+import {
+  getBuyerOrders,
+  type Order,
+  type OrderItem,
+} from "../../api/endpoints/orders";
 import { useAuth } from "../../hooks/useAuth";
 
 interface HighlightedItem extends OrderItem {
@@ -12,23 +16,34 @@ interface StatCard {
   helper: string;
 }
 
-
 // Helper function to format date
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
-  
+
   if (isToday) {
     return `Today · ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
   }
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " + 
-         date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return (
+    date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+    " · " +
+    date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  );
 };
 
 // Helper function to get order timeline and current stage
-const getOrderTimeline = (status: string): { timeline: string[]; stage: number } => {
-  const timeline = ["Order placed", "Confirmed", "Packing", "Ready pickup", "On the way", "Delivered"];
+const getOrderTimeline = (
+  status: string,
+): { timeline: string[]; stage: number } => {
+  const timeline = [
+    "Order placed",
+    "Confirmed",
+    "Packing",
+    "Ready pickup",
+    "On the way",
+    "Delivered",
+  ];
   const statusMap: Record<string, number> = {
     PENDING: 0,
     CONFIRMED: 1,
@@ -38,7 +53,7 @@ const getOrderTimeline = (status: string): { timeline: string[]; stage: number }
     DELIVERED: 5,
     CANCELLED: 0,
   };
-  
+
   const stage = statusMap[status] || 0;
   return { timeline, stage };
 };
@@ -71,13 +86,21 @@ const OrderHistoryPage: React.FC = () => {
 
     // Check if user is authenticated and has a token
     if (!isAuthenticated || !token) {
-      console.log("🔴 Not authenticated. isAuthenticated:", isAuthenticated, "token:", token);
+      console.log(
+        "🔴 Not authenticated. isAuthenticated:",
+        isAuthenticated,
+        "token:",
+        token,
+      );
       setError("You must be logged in to view orders");
       setLoading(false);
       return;
     }
 
-    console.log("🟢 Authenticated with token:", token?.substring(0, 20) + "...");
+    console.log(
+      "🟢 Authenticated with token:",
+      token?.substring(0, 20) + "...",
+    );
 
     const fetchOrders = async () => {
       try {
@@ -90,7 +113,10 @@ const OrderHistoryPage: React.FC = () => {
         // 2. Finding buyer profile from userId
         // 3. Filtering orders by buyerId
         const buyerOrders = await getBuyerOrders();
-        console.log("✅ Orders fetched (only this buyer's orders):", buyerOrders);
+        console.log(
+          "✅ Orders fetched (only this buyer's orders):",
+          buyerOrders,
+        );
         setOrders(buyerOrders);
       } catch (err) {
         console.error("Failed to fetch orders:", err);
@@ -107,11 +133,11 @@ const OrderHistoryPage: React.FC = () => {
   // Calculate statistics from actual orders
   const calculateStats = (): StatCard[] => {
     const liveDeliveries = orders.filter(
-      (order: { status: string; }) => order.status === "ON_THE_WAY"
+      (order: { status: string }) => order.status === "ON_THE_WAY",
     ).length;
 
     const delivered7d = orders.filter(
-      (order) => order.status === "DELIVERED"
+      (order) => order.status === "DELIVERED",
     ).length;
 
     return [
@@ -134,7 +160,7 @@ const OrderHistoryPage: React.FC = () => {
   };
 
   const highlightedItems: HighlightedItem[] = orders.flatMap((order) =>
-    order.items.map((item) => ({ ...item, orderId: order.id }))
+    order.items.map((item) => ({ ...item, orderId: order.id })),
   );
 
   if (loading || authLoading) {
@@ -146,7 +172,8 @@ const OrderHistoryPage: React.FC = () => {
           </p>
           <h1 className="mt-2 text-2xl font-semibold">Tracking & history</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Stay on top of every delivery with live telemetry, product details, and rider contact info.
+            Stay on top of every delivery with live telemetry, product details,
+            and rider contact info.
           </p>
         </header>
         <div className="flex items-center justify-center py-12">
@@ -165,13 +192,19 @@ const OrderHistoryPage: React.FC = () => {
           </p>
           <h1 className="mt-2 text-2xl font-semibold">Tracking & history</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Stay on top of every delivery with live telemetry, product details, and rider contact info.
+            Stay on top of every delivery with live telemetry, product details,
+            and rider contact info.
           </p>
         </header>
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <p className="text-red-400 mb-4">You must be logged in to view your orders</p>
-            <a href="/login" className="text-primary-light hover:text-primary underline">
+            <p className="text-red-400 mb-4">
+              You must be logged in to view your orders
+            </p>
+            <a
+              href="/login"
+              className="text-primary-light hover:text-primary underline"
+            >
               Go to login
             </a>
           </div>
@@ -188,7 +221,8 @@ const OrderHistoryPage: React.FC = () => {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Tracking & history</h1>
         <p className="mt-1 text-sm text-slate-400">
-          View all orders you've purchased. Each order is personalized to your account and delivery preferences.
+          View all orders you've purchased. Each order is personalized to your
+          account and delivery preferences.
         </p>
       </header>
 
@@ -198,7 +232,9 @@ const OrderHistoryPage: React.FC = () => {
             key={card.label}
             className="rounded-2xl border border-white/10 bg-white/5 p-4 text-slate-100"
           >
-            <p className="text-xs uppercase tracking-wide text-slate-400">{card.label}</p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              {card.label}
+            </p>
             <p className="mt-2 text-2xl font-semibold">{card.value}</p>
             <p className="text-xs text-slate-500">{card.helper}</p>
           </div>
@@ -220,14 +256,14 @@ const OrderHistoryPage: React.FC = () => {
           <div className="space-y-4 rounded-3xl border border-white/10 bg-supply-teal/50 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-white">Live tracking details</h2>
+                <h2 className="text-base font-semibold text-white">
+                  Live tracking details
+                </h2>
               </div>
             </div>
             <div className="space-y-4">
               {orders.map((order) => {
                 const { timeline, stage } = getOrderTimeline(order.status);
-                const vendorName = order.items[0]?.product?.name || "Your Order";
-
                 return (
                   <div
                     key={order.id}
@@ -255,7 +291,8 @@ const OrderHistoryPage: React.FC = () => {
                           key={`${order.id}-${item.productId}`}
                           className="rounded-full border border-white/10 px-2 py-0.5 text-slate-300"
                         >
-                          {item.product?.name || "Product"} · {item.quantity} {item.product?.unit || ""}
+                          {item.product?.name || "Product"} · {item.quantity}{" "}
+                          {item.product?.unit || ""}
                         </span>
                       ))}
                     </div>
@@ -283,9 +320,15 @@ const OrderHistoryPage: React.FC = () => {
 
                     {order.driver && (
                       <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
-                        <p className="font-semibold text-slate-100">Rider contact</p>
+                        <p className="font-semibold text-slate-100">
+                          Rider contact
+                        </p>
                         <p>{order.driver.user?.name || "Pending"}</p>
-                        {order.driver.user?.phone ? <p>{order.driver.user.phone}</p> : <p>Pending assignment</p>}
+                        {order.driver.user?.phone ? (
+                          <p>{order.driver.user.phone}</p>
+                        ) : (
+                          <p>Pending assignment</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -293,8 +336,6 @@ const OrderHistoryPage: React.FC = () => {
               })}
             </div>
           </div>
-
-          
         </section>
       )}
 
@@ -302,7 +343,9 @@ const OrderHistoryPage: React.FC = () => {
         <section className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-white">Order line items</h2>
+              <h2 className="text-base font-semibold text-white">
+                Order line items
+              </h2>
             </div>
           </div>
           <div className="mt-4 overflow-x-auto text-sm text-slate-100">
@@ -320,12 +363,18 @@ const OrderHistoryPage: React.FC = () => {
                 {highlightedItems.map((item) => (
                   <tr key={`${item.orderId}-${item.productId}`}>
                     <td className="px-3 py-2 text-white">{item.orderId}</td>
-                    <td className="px-3 py-2">{item.product?.name || "Product"}</td>
+                    <td className="px-3 py-2">
+                      {item.product?.name || "Product"}
+                    </td>
                     <td className="px-3 py-2">
                       {item.quantity} {item.product?.unit || ""}
                     </td>
-                    <td className="px-3 py-2">Rs. {item.unitPrice?.toFixed(2) || "0.00"}</td>
-                    <td className="px-3 py-2 font-medium">Rs. {item.totalPrice?.toFixed(2) || "0.00"}</td>
+                    <td className="px-3 py-2">
+                      Rs. {item.unitPrice?.toFixed(2) || "0.00"}
+                    </td>
+                    <td className="px-3 py-2 font-medium">
+                      Rs. {item.totalPrice?.toFixed(2) || "0.00"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

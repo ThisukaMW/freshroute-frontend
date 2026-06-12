@@ -3,8 +3,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { clearCart } from "../../store/slices/cartSlice";
 import { getCart } from "../../api/endpoints/cart";
-import { useAuth } from "../../hooks/useAuth";
-import { getBuyerAddresses, createOrder as createOrderApi } from "../../api/endpoints/orders";
+import {
+  getBuyerAddresses,
+  createOrder as createOrderApi,
+} from "../../api/endpoints/orders";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
@@ -157,7 +159,7 @@ const CheckoutPage: React.FC = () => {
       // If any items have expired, show error
       if (expiredItems.length > 0) {
         throw new Error(
-          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`
+          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`,
         );
       }
 
@@ -165,8 +167,8 @@ const CheckoutPage: React.FC = () => {
       if (expiringItems.length > 0) {
         const proceed = window.confirm(
           `⚠️ The following items are running out of reservation time:\n${expiringItems.join(
-            "\n"
-          )}\n\nDo you want to continue?`
+            "\n",
+          )}\n\nDo you want to continue?`,
         );
         if (!proceed) {
           throw new Error("Checkout cancelled. Please hurry!");
@@ -185,7 +187,7 @@ const CheckoutPage: React.FC = () => {
         state.deliveryAddress.latitude,
         state.deliveryAddress.longitude,
         state.deliveryTimeSlot!,
-        state.specialInstructions
+        state.specialInstructions,
       );
 
       console.log("✅ Order created:", orderResponse);
@@ -196,7 +198,9 @@ const CheckoutPage: React.FC = () => {
 
       // Clear cart and redirect to order confirmation
       dispatch(clearCart());
-      navigate("/buyer/order-confirmation", { state: { orderId: orderResponse.id } });
+      navigate("/buyer/order-confirmation", {
+        state: { orderId: orderResponse.id },
+      });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -217,7 +221,9 @@ const CheckoutPage: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-6 pb-10">
       <div>
         <h1 className="text-2xl font-semibold text-slate-50">Checkout</h1>
-        <p className="text-xs text-slate-400 mt-1">Step {state.currentStep} of 5</p>
+        <p className="text-xs text-slate-400 mt-1">
+          Step {state.currentStep} of 5
+        </p>
       </div>
 
       {/* Step Progress Indicator */}
@@ -254,7 +260,8 @@ const CheckoutPage: React.FC = () => {
               <div>
                 <p className="font-medium">{item.name}</p>
                 <p className="text-xs text-slate-400">
-                  {item.vendor && `🏪 ${item.vendor} · `}{item.price} / {item.unit} · Qty {item.quantity}
+                  {item.vendor && `🏪 ${item.vendor} · `}
+                  {item.price} / {item.unit} · Qty {item.quantity}
                 </p>
               </div>
               <p className="text-sm font-medium">
@@ -307,7 +314,10 @@ const CheckoutPage: React.FC = () => {
           <SpecialInstructions
             instructions={state.specialInstructions}
             onInstructionsChange={(instructions) =>
-              setState((prev) => ({ ...prev, specialInstructions: instructions }))
+              setState((prev) => ({
+                ...prev,
+                specialInstructions: instructions,
+              }))
             }
           />
         </div>
@@ -316,7 +326,9 @@ const CheckoutPage: React.FC = () => {
       {/* Step 5: Final Review */}
       {state.currentStep === 5 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl space-y-4">
-          <h2 className="text-sm font-medium text-slate-300">Review Your Order</h2>
+          <h2 className="text-sm font-medium text-slate-300">
+            Review Your Order
+          </h2>
 
           {/* Order Items */}
           <div className="space-y-2">
@@ -329,8 +341,12 @@ const CheckoutPage: React.FC = () => {
                 className="flex justify-between text-sm text-slate-300"
               >
                 <div>
-                  <span>{item.name} × {item.quantity}</span>
-                  {item.vendor && <p className="text-xs text-slate-400">🏪 {item.vendor}</p>}
+                  <span>
+                    {item.name} × {item.quantity}
+                  </span>
+                  {item.vendor && (
+                    <p className="text-xs text-slate-400">🏪 {item.vendor}</p>
+                  )}
                 </div>
                 <span>
                   Rs.{" "}

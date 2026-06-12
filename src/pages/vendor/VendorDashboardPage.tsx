@@ -1,68 +1,86 @@
-import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { getSellerDashboardMetrics, getLowStockAlerts } from '../../api/endpoints/dashboard'
-import type { SellerDashboardMetrics, LowStockAlertsData } from '../../api/endpoints/dashboard'
-import { useAuth } from '../../hooks/useAuth'
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  getSellerDashboardMetrics,
+  getLowStockAlerts,
+} from "../../api/endpoints/dashboard";
+import type {
+  SellerDashboardMetrics,
+  LowStockAlertsData,
+} from "../../api/endpoints/dashboard";
+import { useAuth } from "../../hooks/useAuth";
 
 const VendorDashboardPage = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [metrics, setMetrics] = useState<SellerDashboardMetrics | null>(null)
-  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlertsData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [metrics, setMetrics] = useState<SellerDashboardMetrics | null>(null);
+  const [lowStockAlerts, setLowStockAlerts] =
+    useState<LowStockAlertsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // ✅ Check authentication before loading
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      setError("You must be logged in as a seller to view this dashboard")
+      setError("You must be logged in as a seller to view this dashboard");
     }
-  }, [authLoading, isAuthenticated])
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     // Skip fetch if not authenticated or auth is still loading
     if (!isAuthenticated || authLoading) {
-      return
+      return;
     }
 
     const fetchDashboardMetrics = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
         const [metricsData, alertsData] = await Promise.all([
           getSellerDashboardMetrics(),
           getLowStockAlerts(),
-        ])
-        setMetrics(metricsData)
-        setLowStockAlerts(alertsData)
+        ]);
+        setMetrics(metricsData);
+        setLowStockAlerts(alertsData);
       } catch (err) {
-        console.error('Error fetching dashboard metrics:', err)
-        setError('Failed to load dashboard metrics')
+        console.error("Error fetching dashboard metrics:", err);
+        setError("Failed to load dashboard metrics");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchDashboardMetrics()
-  }, [isAuthenticated, authLoading])
+    };
+    fetchDashboardMetrics();
+  }, [isAuthenticated, authLoading]);
+
+  const urgentCount =
+    lowStockAlerts?.alerts.filter((alert) => alert.stock <= alert.lowStock / 2)
+      .length ?? 0;
 
   if (authLoading || loading) {
-    return <div className="text-center text-slate-300">Loading...</div>
+    return <div className="text-center text-slate-300">Loading...</div>;
   }
 
   if (!isAuthenticated) {
-    return <div className="text-center text-red-300">Please login as a seller to view this page</div>
+    return (
+      <div className="text-center text-red-300">
+        Please login as a seller to view this page
+      </div>
+    );
   }
 
   return (
     <div className="space-y-8 text-slate-100">
-
       {/* ── Page header ───────────────────────────────────────────────────── */}
       <header className="flex flex-col justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6 md:flex-row md:items-center">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-supply-peach">Vendor dashboard</p>
+          <p className="text-xs font-medium uppercase tracking-[0.25em] text-supply-peach">
+            Vendor dashboard
+          </p>
           <h1 className="mt-2 text-2xl font-semibold text-supply-paper">
             {metrics?.sellerName ?? "Loading..."}
           </h1>
-          <p className="mt-1 text-sm text-slate-300">Monitor product health, live deliveries and margin in a single view.</p>
+          <p className="mt-1 text-sm text-slate-300">
+            Monitor product health, live deliveries and margin in a single view.
+          </p>
         </div>
         <div className="flex gap-3">
           <Link
@@ -93,7 +111,8 @@ const VendorDashboardPage = () => {
           <div className="flex items-center gap-3">
             <span className="text-lg">🚨</span>
             <p className="text-sm font-medium text-red-300">
-              {urgentCount} product{urgentCount !== 1 ? 's are' : ' is'} critically low on stock — reorder now!
+              {urgentCount} product{urgentCount !== 1 ? "s are" : " is"}{" "}
+              critically low on stock — reorder now!
             </p>
           </div>
           <Link
@@ -109,7 +128,10 @@ const VendorDashboardPage = () => {
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+            <div
+              key={i}
+              className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
+            >
               <div className="h-4 w-20 animate-pulse rounded bg-white/20" />
               <div className="mt-2 h-8 w-32 animate-pulse rounded bg-white/20" />
               <div className="mt-2 h-3 w-24 animate-pulse rounded bg-white/20" />
@@ -124,9 +146,14 @@ const VendorDashboardPage = () => {
             metrics.activeProducts,
             metrics.fulfillmentSLA,
           ].map((metric) => (
-            <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+            <div
+              key={metric.label}
+              className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
+            >
               <p className="text-xs text-slate-300">{metric.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-supply-paper">{metric.value}</p>
+              <p className="mt-2 text-2xl font-semibold text-supply-paper">
+                {metric.value}
+              </p>
               <p className="text-xs text-slate-400">{metric.helper}</p>
             </div>
           ))}
@@ -135,31 +162,42 @@ const VendorDashboardPage = () => {
 
       {/* ── Telemetry + Low stock ──────────────────────────────────────────── */}
       <section className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-
         {/* Live delivery telemetry */}
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-white">Live delivery telemetry</h2>
-              <p className="text-xs text-slate-400">Track every rider and cold-chain checkpoint</p>
+              <h2 className="text-base font-semibold text-white">
+                Live delivery telemetry
+              </h2>
+              <p className="text-xs text-slate-400">
+                Track every rider and cold-chain checkpoint
+              </p>
             </div>
-            <Link to="/seller/tracking" className="text-xs font-medium text-primary hover:text-primary-light">
+            <Link
+              to="/seller/tracking"
+              className="text-xs font-medium text-primary hover:text-primary-light"
+            >
               Open map view
             </Link>
           </div>
           <div className="mt-5 rounded-2xl border border-white/5 bg-white/5 px-4 py-8">
-            <p className="text-center text-sm text-slate-400">Live tracking data coming soon...</p>
+            <p className="text-center text-sm text-slate-400">
+              Live tracking data coming soon...
+            </p>
           </div>
         </div>
 
         {/* Low stock alerts */}
         <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">Low stock alerts</h2>
+            <h2 className="text-base font-semibold text-white">
+              Low stock alerts
+            </h2>
             {/* badge showing count */}
             {!loading && lowStockAlerts && lowStockAlerts.alerts.length > 0 && (
               <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
-                {lowStockAlerts.alerts.length} item{lowStockAlerts.alerts.length !== 1 ? 's' : ''}
+                {lowStockAlerts.alerts.length} item
+                {lowStockAlerts.alerts.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -167,39 +205,50 @@ const VendorDashboardPage = () => {
           <ul className="space-y-3 text-sm text-slate-300">
             {loading ? (
               [1, 2, 3].map((i) => (
-                <li key={i} className="h-16 animate-pulse rounded-2xl border border-white/5 bg-white/5" />
+                <li
+                  key={i}
+                  className="h-16 animate-pulse rounded-2xl border border-white/5 bg-white/5"
+                />
               ))
             ) : lowStockAlerts && lowStockAlerts.alerts.length > 0 ? (
               lowStockAlerts.alerts.map((alert) => {
-                const isUrgent = alert.stock <= alert.lowStock / 2
-                const isOutOfStock = alert.stock === 0
+                const isUrgent = alert.stock <= alert.lowStock / 2;
+                const isOutOfStock = alert.stock === 0;
                 return (
                   <li
                     key={alert.id}
                     className={`flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors ${
                       isOutOfStock
-                        ? 'border-red-500/30 bg-red-500/10'
+                        ? "border-red-500/30 bg-red-500/10"
                         : isUrgent
-                        ? 'border-red-500/20 bg-red-500/5'
-                        : 'border-amber-500/20 bg-amber-500/5'
+                          ? "border-red-500/20 bg-red-500/5"
+                          : "border-amber-500/20 bg-amber-500/5"
                     }`}
                   >
                     <div>
                       <p className="font-semibold text-white">{alert.name}</p>
                       <p className="text-xs text-slate-400">
                         {isOutOfStock
-                          ? 'Out of stock'
-                          : `Only ${alert.stock} ${alert.unit} left`}{' '}
+                          ? "Out of stock"
+                          : `Only ${alert.stock} ${alert.unit} left`}{" "}
                         · Reorder at {alert.lowStock}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span
                         className={`text-xs font-semibold ${
-                          isOutOfStock ? 'text-red-400' : isUrgent ? 'text-red-300' : 'text-amber-300'
+                          isOutOfStock
+                            ? "text-red-400"
+                            : isUrgent
+                              ? "text-red-300"
+                              : "text-amber-300"
                         }`}
                       >
-                        {isOutOfStock ? 'Out of stock' : isUrgent ? 'Urgent' : 'Plan restock'}
+                        {isOutOfStock
+                          ? "Out of stock"
+                          : isUrgent
+                            ? "Urgent"
+                            : "Plan restock"}
                       </span>
                       <Link
                         to="/seller/inventory"
@@ -209,12 +258,14 @@ const VendorDashboardPage = () => {
                       </Link>
                     </div>
                   </li>
-                )
+                );
               })
             ) : (
               <li className="rounded-2xl border border-white/5 bg-white/5 px-4 py-6 text-center">
                 <p className="text-2xl mb-1">✅</p>
-                <p className="text-sm text-slate-400">All products are well stocked</p>
+                <p className="text-sm text-slate-400">
+                  All products are well stocked
+                </p>
               </li>
             )}
           </ul>
@@ -229,8 +280,13 @@ const VendorDashboardPage = () => {
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">Recent catalog updates</h2>
-            <Link to="/seller/products" className="text-xs font-medium text-primary hover:text-primary-light">
+            <h2 className="text-base font-semibold text-white">
+              Recent catalog updates
+            </h2>
+            <Link
+              to="/seller/products"
+              className="text-xs font-medium text-primary hover:text-primary-light"
+            >
               View catalog
             </Link>
           </div>
@@ -238,7 +294,10 @@ const VendorDashboardPage = () => {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />
+                  <div
+                    key={i}
+                    className="h-16 animate-pulse rounded-2xl bg-white/5"
+                  />
                 ))}
               </div>
             ) : metrics?.recentProducts && metrics.recentProducts.length > 0 ? (
@@ -266,17 +325,23 @@ const VendorDashboardPage = () => {
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-          <h2 className="text-base font-semibold text-white">Operational notes</h2>
+          <h2 className="text-base font-semibold text-white">
+            Operational notes
+          </h2>
           <div className="space-y-3 text-sm text-slate-300">
             <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Team briefing</p>
-              <p className="font-semibold text-white">Push leafy greens by noon to hit freshness SLA.</p>
+              <p className="text-xs uppercase tracking-wide text-slate-400">
+                Team briefing
+              </p>
+              <p className="font-semibold text-white">
+                Push leafy greens by noon to hit freshness SLA.
+              </p>
             </div>
           </div>
         </div>
       </section>
     </div>
-  )
-}
+  );
+};
 
-export default VendorDashboardPage
+export default VendorDashboardPage;
