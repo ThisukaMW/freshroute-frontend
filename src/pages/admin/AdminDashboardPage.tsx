@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux'
 import { useEffect, useState } from 'react'
-import { updateProduct } from '../../store/slices/sellerProductsSlice'
+import { setProductStatus } from '../../store/slices/sellerProductsSlice'
 import { updateOrderStatus } from '../../store/slices/ordersSlice'
 
 type Truck = {
@@ -133,13 +133,13 @@ const AdminDashboardPage = () => {
                 <div className="flex gap-2 text-xs">
                   <button
                     className="rounded-full bg-emerald-500/15 px-3 py-1 font-medium text-emerald-300 hover:bg-emerald-500/25"
-                    onClick={() => dispatch(updateProduct({ id: p.id, changes: { status: 'active' } }))}
+                    onClick={() => dispatch(setProductStatus({ id: p.id, status: 'active' }))}
                   >
                     Approve
                   </button>
                   <button
                     className="rounded-full bg-red-500/10 px-3 py-1 font-medium text-red-300 hover:bg-red-500/20"
-                    onClick={() => dispatch(updateProduct({ id: p.id, changes: { status: 'rejected' } }))}
+                    onClick={() => dispatch(setProductStatus({ id: p.id, status: 'rejected' }))}
                   >
                     Reject
                   </button>

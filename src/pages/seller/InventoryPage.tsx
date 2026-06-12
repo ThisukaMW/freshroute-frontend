@@ -1,101 +1,125 @@
-import React, { useMemo, useState } from "react";
-import { useSelector } from "react-redux";
-
-// Type definitions
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  stock: number;
-  status: "active" | "pending" | "inactive" | "rejected";
-}
-
-interface RootState {
-  sellerProducts: {
-    products: Product[];
-  };
-}
-
-interface Stat {
-  label: string;
-  value: string;
-  helper: string;
-}
+import React, { useEffect, useState } from "react";
+import { getSellerInventory, getInventoryStats, getLowStockProducts, getRestockSuggestions, type ProductInventory } from "../../api/endpoints/inventory";
+import { useAuth } from "../../hooks/useAuth";
 
 interface RestockEntry {
   id: string;
+  productId: string;
   product: string;
-  qty: number;
-  eta: string;
-  supplier: string;
+  currentStock: number;
+  recommendedQuantity: number;
+  priority: "critical" | "high" | "medium";
 }
 
 const InventoryPage: React.FC = () => {
-  const products = useSelector((state: RootState) => state.sellerProducts.products);
-  // const [searchQuery, setSearchQuery] = useState("");
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const [products, setProducts] = useState<ProductInventory[]>([]);
+  const [stats, setStats] = useState({
+    totalSkus: 0,
+    totalUnits: 0,
+    lowStockItems: 0,
+    outOfStockItems: 0,
+  });
+  const [lowStockItems, setLowStockItems] = useState<ProductInventory[]>([]);
+  const [restockSuggestions, setRestockSuggestions] = useState<RestockEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // // Filter products based on search query (search by name, category, or SKU)
-  // const filteredProducts = useMemo(() => {
-  //   if (!searchQuery.trim()) return products;
+  // ✅ Check authentication before loading inventory
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setError("You must be logged in as a seller to view inventory")
+    }
+  }, [authLoading, isAuthenticated])
 
-  //   const query = searchQuery.toLowerCase();
-  //   return products.filter((product) => {
-  //     const nameMatch = product.name.toLowerCase().includes(query);
-  //     const categoryMatch = product.category.toLowerCase().includes(query);
-  //     const skuMatch = product.id.toLowerCase().includes(query);
-  //     return nameMatch || categoryMatch || skuMatch;
-  //   });
-  // }, [products, searchQuery]);
+  // Load all inventory data
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) {
+      return
+    }
 
-  const stats = useMemo<Stat[]>(() => {
-    const totalSkus = products.length;
-    const totalUnits = products.reduce((sum, item) => sum + (item.stock ?? 0), 0);
-    const lowStock = products.filter((item) => item.stock <= 8);
-    const inactive = products.filter((item) => item.status !== "active");
+    const loadInventoryData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, statsData, lowStockData, suggestionsData] = await Promise.all([
+          getSellerInventory(),
+          getInventoryStats(),
+          getLowStockProducts(),
+          getRestockSuggestions(),
+        ]);
 
-    return [
-      { label: "Active SKUs", value: `${totalSkus}`, helper: "Published in marketplace" },
-      { label: "Units on hand", value: `${totalUnits} kg / units`, helper: "Approximate" },
-      { label: "Low stock alerts", value: `${lowStock.length}`, helper: "≤ 8 units remaining" },
-      { label: "Paused items", value: `${inactive.length}`, helper: "Needs action" },
-    ];
-  }, [products]);
+        console.log("✅ Inventory data loaded successfully");
 
-  const lowStockItems = useMemo<Product[]>(
-    () => products.filter((item) => item.stock <= 8).sort((a, b) => a.stock - b.stock),
-    [products]
-  );
+        setProducts(productsData);
+        setStats(statsData);
+        setLowStockItems(lowStockData);
 
-  const restockPlan = useMemo<RestockEntry[]>(() => {
-    if (!products.length) return [];
-    return products.slice(0, 4).map((item, idx) => ({
-      id: item.id,
-      product: item.name,
-      qty: Math.max(10, 30 - item.stock) + idx * 2,
-      eta: idx % 2 === 0 ? "Tomorrow 9:00 AM" : "Friday 2:00 PM",
-      supplier: idx % 2 === 0 ? "FreshRoute central" : "Regional grower",
-    }));
-  }, [products]);
+        // Format restock suggestions
+        const formattedSuggestions = suggestionsData.map((s: any) => ({
+          id: s.productId,
+          productId: s.productId,
+          product: s.productName,
+          currentStock: s.currentSellerStock,
+          recommendedQuantity: s.recommendedQuantity,
+          priority: s.priority,
+        }));
+        setRestockSuggestions(formattedSuggestions);
+      } catch (err: any) {
+        console.error("❌ Error loading inventory:", err);
+        setError(err.message || "Failed to load inventory data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInventoryData();
+  }, [isAuthenticated, authLoading]);
+
+  if (loading) {
+    return (
+      <div className="space-y-8 text-slate-100">
+        <div className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6 animate-pulse">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-supply-peach">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 text-slate-100">
       <header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-supply-peach">Vendor Ops</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-50">Inventory health</h1>
-        {/* <p className="mt-1 text-sm text-slate-400">
-          Walk stakeholders through real-time stock, restock planning, and low-stock signals sourced
-          directly from the demo product catalog.
-        </p> */}
       </header>
 
+      {error && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+          <p className="text-red-400">⚠️ {error}</p>
+        </div>
+      )}
+
+      {/* Stats Section */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-slate-400">{stat.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-white">{stat.value}</p>
-            <p className="text-xs text-slate-500">{stat.helper}</p>
-          </div>
-        ))}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Active SKUs</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{stats.totalSkus}</p>
+          <p className="text-xs text-slate-500">Published in marketplace</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Units on hand</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{stats.totalUnits}</p>
+          <p className="text-xs text-slate-500">kg / units total</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Low stock alerts</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{stats.lowStockItems}</p>
+          <p className="text-xs text-slate-500">Below threshold</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Out of stock</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{stats.outOfStockItems}</p>
+          <p className="text-xs text-slate-500">Need immediate action</p>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.6fr,1fr]">
@@ -103,7 +127,7 @@ const InventoryPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-white">Inventory ledger</h2>
-              <p className="text-xs text-slate-400">Pulls directly from the seller product slice.</p>
+              
             </div>
             <span className="text-xs text-slate-500">Updated {new Date().toLocaleTimeString()}</span>
           </div>
@@ -129,8 +153,8 @@ const InventoryPage: React.FC = () => {
               <thead className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-2 font-medium">Product</th>
-                  <th className="px-3 py-2 font-medium">Category</th>
-                  <th className="px-3 py-2 font-medium">Stock</th>
+                  <th className="px-3 py-2 font-medium">Seller Stock</th>
+                  <th className="px-3 py-2 font-medium">Total Stock</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                 </tr>
               </thead>
@@ -139,24 +163,24 @@ const InventoryPage: React.FC = () => {
                   <tr key={item.id}>
                     <td className="px-3 py-2">
                       <p className="text-xs font-semibold text-white">{item.name}</p>
-                      <p className="text-[11px] text-slate-500">SKU: {item.id}</p>
+                      
                     </td>
-                    <td className="px-3 py-2 text-slate-300">{item.category}</td>
                     <td className="px-3 py-2 text-slate-100">
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
                           <div className="h-1 rounded-full bg-white/10">
                             <div
                               className={`h-1 rounded-full ${
-                                item.stock <= 6 ? "bg-red-400" : "bg-emerald-400"
+                                item.sellerStock <= item.lowStockThreshold ? "bg-red-400" : "bg-emerald-400"
                               }`}
-                              style={{ width: `${Math.min(100, (item.stock / 40) * 100)}%` }}
+                              style={{ width: `${Math.min(100, (item.sellerStock / 40) * 100)}%` }}
                             />
                           </div>
                         </div>
-                        <span>{item.stock} in stock</span>
+                        <span>{item.sellerStock} in stock</span>
                       </div>
                     </td>
+                    <td className="px-3 py-2 text-slate-100">{item.aggregateStock}</td>
                     <td className="px-3 py-2">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] ${
@@ -190,13 +214,11 @@ const InventoryPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-white">{item.name}</p>
-                      <p className="text-xs text-slate-400">{item.category}</p>
+                      <p className="text-xs text-slate-400">Threshold: {item.lowStockThreshold}</p>
                     </div>
-                    <span className="text-xs text-amber-300">{item.stock} units left</span>
+                    <span className="text-xs text-amber-300">{item.sellerStock} units left</span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-400">
-                    Tip: talk through how you would trigger supplier notifications once this hits 5 units.
-                  </p>
+                 
                 </div>
               ))}
             </div>
@@ -208,17 +230,24 @@ const InventoryPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-white">Restock plan</h2>
-            <p className="text-xs text-slate-400">Shows how you would brief ops on incoming loads.</p>
+           
           </div>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {restockPlan.map((entry) => (
-            <div key={entry.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-              <p className="text-xs uppercase tracking-wide text-slate-400">{entry.eta}</p>
-              <p className="mt-1 text-white">{entry.product}</p>
-              <p className="text-xs text-slate-400">{entry.qty} units en route · {entry.supplier}</p>
-            </div>
-          ))}
+          {restockSuggestions.map((entry) => (
+  <div
+    key={entry.id}
+    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200"
+  >
+    <p className="text-xs uppercase tracking-wide text-slate-400">
+      {entry.priority} priority
+    </p>
+    <p className="mt-1 text-white">{entry.product}</p>
+    <p className="text-xs text-slate-400">
+      Current: {entry.currentStock} · Recommended: {entry.recommendedQuantity}
+    </p>
+  </div>
+))}
         </div>
       </section>
     </div>

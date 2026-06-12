@@ -38,7 +38,9 @@ const inputBase = (hasError: boolean) =>
 
 const selectBase = (hasError: boolean) =>
   `w-full rounded-xl border ${
-    hasError ? "border-red-500/60 bg-red-900/20" : "border-white/10 bg-slate-900"
+    hasError
+      ? "border-red-500/60 bg-red-900/20"
+      : "border-white/10 bg-slate-900"
   } px-4 py-3 text-sm text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-primary/20 hover:border-white/20 cursor-pointer`;
 
 const Label = ({ children }: { children: React.ReactNode }) => (
@@ -67,7 +69,13 @@ const Field = ({
   </div>
 );
 
-const SectionHeading = ({ title, subtitle }: { title: string; subtitle: string }) => (
+const SectionHeading = ({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) => (
   <div className="mb-5 border-l-2 border-primary/50 pl-3">
     <p className="text-sm font-semibold text-white">{title}</p>
     <p className="text-xs text-slate-500">{subtitle}</p>
@@ -103,7 +111,9 @@ const AddTruckPage = () => {
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value, type } = e.target;
     const numericValue = type === "number" ? Number(value) : value;
 
@@ -225,7 +235,8 @@ const AddTruckPage = () => {
             <span className="mt-0.5 shrink-0 text-base">⚠</span>
             <div>
               <p className="font-semibold text-red-200">
-                {errorCount} field{errorCount > 1 ? "s" : ""} need{errorCount === 1 ? "s" : ""} to be filled in
+                {errorCount} field{errorCount > 1 ? "s" : ""} need
+                {errorCount === 1 ? "s" : ""} to be filled in
               </p>
               <p className="mt-0.5 text-xs text-red-400">
                 Please complete all required fields before saving.
@@ -252,7 +263,9 @@ const AddTruckPage = () => {
               <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-supply-peach">
                 Fleet control
               </p>
-              <h1 className="mt-0.5 text-xl font-semibold text-white">Register new truck</h1>
+              <h1 className="mt-0.5 text-xl font-semibold text-white">
+                Register new truck
+              </h1>
             </div>
             <div className="hidden text-xs text-slate-500 sm:block">
               All fields are required
@@ -261,13 +274,14 @@ const AddTruckPage = () => {
         </header>
 
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
-
           {/* ── Left column: form ── */}
           <div className="space-y-5">
-
             {/* Identity & Classification */}
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading title="Identity & classification" subtitle="Operator and vehicle type" />
+              <SectionHeading
+                title="Identity & classification"
+                subtitle="Operator and vehicle type"
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Truck ID" error={errors.id}>
                   <input
@@ -288,13 +302,27 @@ const AddTruckPage = () => {
                   />
                 </Field>
                 <Field label="Truck type" error={errors.type}>
-                  <select name="type" value={form.type} onChange={handleChange} className={selectBase(!!errors.type)}>
-                    {TRUCK_TYPES.map((t) => <option key={t}>{t}</option>)}
+                  <select
+                    name="type"
+                    value={form.type}
+                    onChange={handleChange}
+                    className={selectBase(!!errors.type)}
+                  >
+                    {TRUCK_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Temperature setting" error={errors.temperature}>
-                  <select name="temperature" value={form.temperature} onChange={handleChange} className={selectBase(!!errors.temperature)}>
-                    {TEMPERATURE_OPTIONS.map((t) => <option key={t}>{t}</option>)}
+                  <select
+                    name="temperature"
+                    value={form.temperature}
+                    onChange={handleChange}
+                    className={selectBase(!!errors.temperature)}
+                  >
+                    {TEMPERATURE_OPTIONS.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
                   </select>
                 </Field>
               </div>
@@ -302,7 +330,10 @@ const AddTruckPage = () => {
 
             {/* Schedule & Route */}
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading title="Schedule & route" subtitle="Origin–destination and fuel" />
+              <SectionHeading
+                title="Schedule & route"
+                subtitle="Origin–destination and fuel"
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Route" error={errors.route}>
                   <input
@@ -396,7 +427,10 @@ const AddTruckPage = () => {
 
             {/* Performance */}
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading title="Performance metrics" subtitle="Efficiency targets and delay estimates" />
+              <SectionHeading
+                title="Performance metrics"
+                subtitle="Efficiency targets and delay estimates"
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Delivery efficiency %" error={errors.efficiency}>
                   <input
@@ -449,7 +483,9 @@ const AddTruckPage = () => {
                       className="flex items-center justify-between rounded-xl border border-white/5 bg-white/3 px-3 py-2"
                     >
                       <span className="text-slate-500">{label}</span>
-                      <span className={`font-semibold ${value === "—" ? "text-slate-600" : "text-white"}`}>
+                      <span
+                        className={`font-semibold ${value === "—" ? "text-slate-600" : "text-white"}`}
+                      >
                         {value}
                       </span>
                     </div>

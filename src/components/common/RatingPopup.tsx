@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+/*import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { JSX } from 'react'
 
@@ -59,21 +59,21 @@ const RatingPopup = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
       <div className="w-full max-w-md overflow-hidden rounded-3xl shadow-[0_30px_90px_rgba(0,0,0,0.9)]">
         
-        {/* green accent top border */}
+        {/* green accent top border *//*
         <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-supply-teal to-emerald-400" />
 
         <div className="border border-white/10 bg-cyan-950 p-8">
 
-          {/* Header */}
-          <div className="mb-6 text-center">
-            <span className="inline-block rounded-full border  border-supply-teal/30 bg-supply-teal/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white mb-3">
+          {/* Header */
+          /*<div className="mb-6 text-center">
+            <span className="inline-block rounded-full border  border-supply-teal/30 bg-slate-800/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white mb-3">
               Order Delivered ✓
             </span>
             <h2 className="text-xl font-semibold text-white">Rate your experience</h2>
             <p className="mt-1 text-sm text-slate-400">How was your order from this seller?</p>
           </div>
 
-          {/* Seller info */}
+          {/* Seller info *//*
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-800/80 px-4 py-3">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-supply-teal to-primary-dark text-lg font-bold text-white">
               {sellerName.charAt(0)}
@@ -84,7 +84,7 @@ const RatingPopup = ({
             </div>
           </div>
 
-          {/* Star ratings */}
+          /*{/* Star ratings *//*
           <form onSubmit={handleSubmit}>
             <div className="mb-5 divide-y divide-white/5">
               {categories.map((cat) => (
@@ -115,7 +115,7 @@ const RatingPopup = ({
               ))}
             </div>
 
-            {/* Comment */}
+            {/* Comment *//*
             <div className="mb-5">
               <label className="mb-2 block text-xs font-medium text-white">
                 Comments (optional)
@@ -129,7 +129,7 @@ const RatingPopup = ({
               />
             </div>
 
-            {/* Buttons */}
+            {/* Buttons *//*
             <button
               type="submit"
               className="w-full rounded-xl bg-primary-dark px-4 py-2.5 text-sm font-semibold text-supply-paper hover:bg-primary-dark/80 mb-2"
@@ -150,4 +150,4 @@ const RatingPopup = ({
   )
 }
 
-export default RatingPopup
+export default RatingPopup*/
