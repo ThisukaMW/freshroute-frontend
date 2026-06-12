@@ -243,6 +243,7 @@ const UserManagementPage: React.FC = () => {
                     <th className="px-3 py-2">City</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">Test</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -323,6 +324,7 @@ const UserManagementPage: React.FC = () => {
                           </div>
                         )}
                       </td>
+                      <td>Test</td>
                     </tr>
                   ))}
                 </tbody>

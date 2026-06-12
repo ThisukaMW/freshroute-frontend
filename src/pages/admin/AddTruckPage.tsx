@@ -9,7 +9,7 @@ type Truck = {
   route: string;
   type: string;
   capacityLbs: number;
-  loadedLbs: number;       // actual weight currently loaded
+  loadedLbs: number;
   palletsLoaded: number;
   palletsCap: number;
   cratesLoaded: number;
@@ -27,7 +27,6 @@ type FormErrors = Partial<Record<string, string>>;
 const TRUCK_TYPES = ["Refrigerated van", "Dry cargo", "Reefer"];
 const TEMPERATURE_OPTIONS = ["Ambient", "2°C", "4°C", "6°C", "-10°C", "-18°C"];
 
-// Must match TruckCapacityPage so +/- pallet buttons stay in sync
 const PER_PALLET_WEIGHT = 1800;
 
 const inputBase = (hasError: boolean) =>
@@ -86,7 +85,7 @@ const AddTruckPage = () => {
     route: "",
     type: TRUCK_TYPES[0],
     capacityLbs: 0,
-    loadedLbs: 0,       // actual weight loaded — entered by user
+    loadedLbs: 0,
     palletsLoaded: 0,
     palletsCap: 0,
     cratesLoaded: 0,
@@ -101,6 +100,8 @@ const AddTruckPage = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [showErrorBanner, setShowErrorBanner] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -109,18 +110,14 @@ const AddTruckPage = () => {
     setForm((prev) => {
       const next = { ...prev, [name]: numericValue };
 
-      // When capacity changes, auto-calculate max pallets and clamp related fields
       if (name === "capacityLbs") {
         const cap = Number(value);
         const maxPallets = cap > 0 ? Math.floor(cap / PER_PALLET_WEIGHT) : 0;
         next.palletsCap = maxPallets;
-        // Clamp palletsLoaded to the new max
         next.palletsLoaded = Math.min(prev.palletsLoaded, maxPallets);
-        // Clamp loadedLbs to the new capacity
         next.loadedLbs = Math.min(prev.loadedLbs, cap);
       }
 
-      // When palletsLoaded changes, clamp to palletsCap and sync loadedLbs
       if (name === "palletsLoaded") {
         const loaded = Math.min(Number(value), next.palletsCap);
         next.palletsLoaded = loaded;
@@ -134,9 +131,9 @@ const AddTruckPage = () => {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
       setShowErrorBanner(false);
     }
+    setApiError(null);
   };
 
-  // Derived: max pallets based on current capacityLbs
   const maxPallets = form.capacityLbs > 0
     ? Math.floor(form.capacityLbs / PER_PALLET_WEIGHT)
     : 0;
@@ -153,7 +150,6 @@ const AddTruckPage = () => {
                                  e.loadedLbs   = "Loaded weight cannot be negative";
     if (form.loadedLbs > form.capacityLbs && form.capacityLbs > 0)
                                  e.loadedLbs   = "Loaded weight exceeds capacity";
-    // palletsCap is auto-calculated — no manual validation needed
     if (form.palletsLoaded > form.palletsCap && form.palletsCap > 0)
                                  e.palletsLoaded = "Pallets loaded exceeds pallet capacity";
     if (!form.efficiency || form.efficiency <= 0)
@@ -162,7 +158,7 @@ const AddTruckPage = () => {
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -170,9 +166,29 @@ const AddTruckPage = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    const existing = JSON.parse(localStorage.getItem("fleet") || "[]");
-    localStorage.setItem("fleet", JSON.stringify([...existing, form]));
-    navigate("/admin/trucks", { replace: true });
+
+    setSaving(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch("/api/v1/trucks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error ${res.status}`);
+      }
+
+      navigate("/admin/trucks", { replace: true });
+    } catch (err: any) {
+      setApiError(err.message ?? "Failed to save truck. Please try again.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const errorCount = Object.keys(errors).filter((k) => errors[k]).length;
@@ -186,6 +202,24 @@ const AddTruckPage = () => {
 
       <div className="relative mx-auto max-w-4xl space-y-6 p-6 lg:p-10">
 
+        {/* API error banner */}
+        {apiError && (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
+            <span className="mt-0.5 shrink-0 text-base">✕</span>
+            <div>
+              <p className="font-semibold text-red-200">Could not save truck</p>
+              <p className="mt-0.5 text-xs text-red-400">{apiError}</p>
+            </div>
+            <button
+              onClick={() => setApiError(null)}
+              className="ml-auto shrink-0 text-red-400 hover:text-red-200"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Validation error banner */}
         {showErrorBanner && errorCount > 0 && (
           <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
             <span className="mt-0.5 shrink-0 text-base">⚠</span>
@@ -306,11 +340,6 @@ const AddTruckPage = () => {
                     className={inputBase(!!errors.capacityLbs)}
                   />
                 </Field>
-                {/*
-                  loadedLbs — actual weight currently on the truck.
-                  This drives the Weight utilization bar.
-                  It is stored directly and never recalculated from pallets.
-                */}
                 <Field label="Loaded weight (lbs)" error={errors.loadedLbs}>
                   <input
                     name="loadedLbs"
@@ -322,10 +351,6 @@ const AddTruckPage = () => {
                     className={inputBase(!!errors.loadedLbs)}
                   />
                 </Field>
-                {/*
-                  palletsCap is auto-calculated from capacityLbs / PER_PALLET_WEIGHT.
-                  Shown as read-only so the operator sees the physical limit.
-                */}
                 <div>
                   <Label>Max pallets (auto)</Label>
                   <div className="relative">
@@ -348,11 +373,6 @@ const AddTruckPage = () => {
                     Calculated from weight capacity — cannot exceed this
                   </p>
                 </div>
-                {/*
-                  palletsLoaded — number of pallet slots currently occupied.
-                  Capped to maxPallets. Drives the visual grid, reefer utilization,
-                  and free space % in the manifest list.
-                */}
                 <Field label="Pallets loaded" error={errors.palletsLoaded}>
                   <input
                     name="palletsLoaded"
@@ -436,7 +456,6 @@ const AddTruckPage = () => {
                   ))}
                 </div>
 
-                {/* Weight fill preview */}
                 {form.capacityLbs > 0 && form.loadedLbs > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/5">
                     <p className="text-[11px] text-slate-500 mb-1.5">Weight utilization preview</p>
@@ -454,7 +473,6 @@ const AddTruckPage = () => {
                   </div>
                 )}
 
-                {/* Pallet fill preview */}
                 {form.palletsCap > 0 && form.palletsLoaded > 0 && (
                   <div className="mt-3">
                     <p className="text-[11px] text-slate-500 mb-1.5">Reefer utilization preview</p>
@@ -477,13 +495,15 @@ const AddTruckPage = () => {
               <div className="space-y-2">
                 <button
                   onClick={handleSubmit}
-                  className="w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark active:scale-[0.98]"
+                  disabled={saving}
+                  className="w-full rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Save truck
+                  {saving ? "Saving…" : "Save truck"}
                 </button>
                 <button
                   onClick={() => navigate(-1)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white active:scale-[0.98]"
+                  disabled={saving}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white active:scale-[0.98] disabled:opacity-60"
                 >
                   Cancel
                 </button>

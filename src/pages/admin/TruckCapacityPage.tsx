@@ -12,7 +12,7 @@ type Truck = {
   route: string;
   type: string;
   capacityLbs: number;
-  loadedLbs: number;       
+  loadedLbs: number;
   palletsLoaded: number;
   palletsCap: number;
   cratesLoaded: number;
@@ -26,9 +26,9 @@ type Truck = {
 };
 
 type TruckMetrics = Truck & {
-  freeSpacePercent: number; // pallet-slot based
-  fillPercent: number;      // weight based
-  palletFillPercent: number; // pallet count based
+  freeSpacePercent: number;
+  fillPercent: number;
+  palletFillPercent: number;
 };
 
 const gridColors = [
@@ -38,25 +38,12 @@ const gridColors = [
   "bg-supply-teal/70",
 ];
 
-
 const PER_PALLET_WEIGHT = 1800;
 
-function readFleet(): Truck[] {
-  try {
-    const raw = localStorage.getItem("fleet");
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeFleet(fleet: Truck[]) {
-  try {
-    localStorage.setItem("fleet", JSON.stringify(fleet));
-  } catch {
-    // ignore
-  }
+async function fetchFleet(): Promise<Truck[]> {
+  const res = await fetch("/api/v1/trucks");
+  if (!res.ok) throw new Error(`Failed to fetch fleet (${res.status})`);
+  return res.json();
 }
 
 const TruckCapacityPage = () => {
@@ -64,67 +51,41 @@ const TruckCapacityPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"side" | "top">("side");
   const [userFleet, setUserFleet] = useState<Truck[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = readFleet();
-    setUserFleet(stored);
-
+  // ── Load fleet from API ──────────────────────────────────────────────────────
+  const loadFleet = useCallback(async () => {
     try {
-      const savedSelected = localStorage.getItem("fleet_selected");
-      if (savedSelected && stored.some((t) => t.id === savedSelected)) {
-        setSelectedId(savedSelected);
-      } else if (stored[0]?.id) {
-        setSelectedId(stored[0].id);
-      }
-    } catch {
-      if (stored[0]?.id) setSelectedId(stored[0].id);
+      setFetchError(null);
+      const trucks = await fetchFleet();
+      setUserFleet(trucks);
+      setSelectedId((prev) => {
+        if (prev && trucks.some((t) => t.id === prev)) return prev;
+        return trucks[0]?.id ?? null;
+      });
+    } catch (err: any) {
+      setFetchError(err.message ?? "Could not load fleet.");
+    } finally {
+      setLoading(false);
     }
-
-    const onStorage = (ev: StorageEvent) => {
-      if (ev.key === "fleet") {
-        const updated = readFleet();
-        setUserFleet(updated);
-      }
-    };
-
-    const onFocus = () => {
-      const updated = readFleet();
-      setUserFleet(updated);
-    };
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", onFocus);
-    };
   }, []);
 
   useEffect(() => {
-    try {
-      if (selectedId) localStorage.setItem("fleet_selected", selectedId);
-    } catch {
-      // ignore
-    }
-  }, [selectedId]);
+    loadFleet();
+  }, [loadFleet]);
 
+  // ── Derived metrics ──────────────────────────────────────────────────────────
   const fleet: TruckMetrics[] = useMemo(() => {
     return userFleet.map((truck) => {
-      // Use the actual stored loadedLbs — clamped to capacity as a safety guard
       const loadedLbs = Math.min(truck.capacityLbs, truck.loadedLbs ?? 0);
-
-      // Weight fill % — how much of the weight capacity is used
       const fillPercent = truck.capacityLbs
         ? Math.round((loadedLbs / truck.capacityLbs) * 100)
         : 0;
-
-      // Pallet fill % — how many pallet slots are occupied
       const palletFillPercent =
         truck.palletsCap > 0
           ? Math.round((truck.palletsLoaded / truck.palletsCap) * 100)
           : 0;
-
-      // Free space % — pallet slots remaining (not weight based)
       const freeSpacePercent =
         truck.palletsCap > 0
           ? Math.max(
@@ -134,7 +95,6 @@ const TruckCapacityPage = () => {
               )
             )
           : 0;
-
       return { ...truck, loadedLbs, freeSpacePercent, fillPercent, palletFillPercent };
     });
   }, [userFleet]);
@@ -142,45 +102,48 @@ const TruckCapacityPage = () => {
   const selectedTruck: TruckMetrics | null =
     fleet.find((t) => t.id === selectedId) ?? fleet[0] ?? null;
 
+  // ── Pallet adjustment — calls PATCH /api/v1/trucks/:id/pallets ──────────────
   const handleAdjustPallets = useCallback(
-    (delta: number) => {
+    async (delta: number) => {
       if (!selectedTruck) return;
-      setUserFleet((prev) => {
-        const updated = prev.map((t) => {
-          if (t.id !== selectedTruck.id) return t;
-          const nextPallets = Math.min(
-            t.palletsCap,
-            Math.max(0, t.palletsLoaded + delta)
-          );
-          // Each pallet weighs PER_PALLET_WEIGHT lbs — keep loadedLbs in sync
-          const nextLoadedLbs = Math.min(
-            t.capacityLbs,
-            nextPallets * PER_PALLET_WEIGHT
-          );
-          return { ...t, palletsLoaded: nextPallets, loadedLbs: nextLoadedLbs };
+      try {
+        const res = await fetch(`/api/v1/trucks/${selectedTruck.id}/pallets`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ delta }),
         });
-        writeFleet(updated);
-        return updated;
-      });
+        if (!res.ok) throw new Error(`Pallet update failed (${res.status})`);
+        const updated: Truck = await res.json();
+        setUserFleet((prev) =>
+          prev.map((t) => (t.id === updated.id ? updated : t))
+        );
+      } catch (err: any) {
+        console.error(err.message);
+      }
     },
     [selectedTruck]
   );
 
+  // ── Delete truck — calls DELETE /api/v1/trucks/:id ──────────────────────────
   const handleDeleteTruck = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!confirm("Delete this truck from the manifest? This cannot be undone."))
         return;
-      setUserFleet((prev) => {
-        const remaining = prev.filter((t) => t.id !== id);
-        writeFleet(remaining);
-        return remaining;
-      });
-      if (selectedId === id) {
-        const fallback = userFleet.find((t) => t.id !== id);
-        setSelectedId(fallback?.id ?? null);
+      try {
+        const res = await fetch(`/api/v1/trucks/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+        setUserFleet((prev) => {
+          const remaining = prev.filter((t) => t.id !== id);
+          if (selectedId === id) {
+            setSelectedId(remaining[0]?.id ?? null);
+          }
+          return remaining;
+        });
+      } catch (err: any) {
+        console.error(err.message);
       }
     },
-    [selectedId, userFleet]
+    [selectedId]
   );
 
   const summary = useMemo(() => {
@@ -192,7 +155,6 @@ const TruckCapacityPage = () => {
         helper: "Automate pallet limits",
       },
       {
-        // Free space is pallet-slot based — how many slots are still open
         label: "Free space remaining",
         value: `${selectedTruck.freeSpacePercent}%`,
         helper: `${selectedTruck.palletsCap - selectedTruck.palletsLoaded} pallet slots open`,
@@ -221,6 +183,32 @@ const TruckCapacityPage = () => {
     }));
   }, [selectedTruck]);
 
+  // ── Loading state ────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32 text-slate-400 text-sm">
+        Loading fleet…
+      </div>
+    );
+  }
+
+  // ── Error state ──────────────────────────────────────────────────────────────
+  if (fetchError) {
+    return (
+      <div className="rounded-3xl border border-red-500/20 bg-red-500/10 px-6 py-10 text-center text-red-300">
+        <p className="text-sm font-medium text-red-200">Failed to load fleet</p>
+        <p className="mt-1 text-xs">{fetchError}</p>
+        <button
+          onClick={loadFleet}
+          className="mt-4 rounded-xl bg-red-500/20 px-4 py-2 text-xs font-semibold hover:bg-red-500/30"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
   if (fleet.length === 0) {
     return (
       <div className="space-y-8 text-slate-100">
@@ -247,9 +235,7 @@ const TruckCapacityPage = () => {
           </div>
         </header>
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 px-6 py-16 text-center text-slate-400">
-          <p className="mb-4 text-lg font-medium text-white">
-            No trucks in manifest
-          </p>
+          <p className="mb-4 text-lg font-medium text-white">No trucks in manifest</p>
           <p className="mb-6 text-sm">
             Get started by adding your first truck to begin tracking capacity.
           </p>
@@ -339,9 +325,7 @@ const TruckCapacityPage = () => {
                     ].map((view) => (
                       <button
                         key={view.id}
-                        onClick={() =>
-                          setViewMode(view.id as "side" | "top")
-                        }
+                        onClick={() => setViewMode(view.id as "side" | "top")}
                         className={`rounded-xl border px-3 py-1.5 font-medium ${
                           viewMode === view.id
                             ? "border-primary/50 bg-primary/10 text-white"
@@ -445,12 +429,6 @@ const TruckCapacityPage = () => {
                     </p>
                   </div>
 
-                  {/*
-                    Reefer utilization — shows pallet slot usage (palletFillPercent).
-                    This tells the operator how much of the refrigerated space
-                    (measured in pallet slots) is currently occupied.
-                    Temperature is shown as a label alongside.
-                  */}
                   <div>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500">
                       Reefer utilization
@@ -479,10 +457,6 @@ const TruckCapacityPage = () => {
                     </p>
                   </div>
 
-                  {/*
-                    Weight utilization — shows actual loaded lbs vs capacity.
-                    fillPercent = loadedLbs / capacityLbs × 100
-                  */}
                   <div>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500">
                       Weight utilization
@@ -582,7 +556,6 @@ const TruckCapacityPage = () => {
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
                     <span>{truck.palletsLoaded} pallets</span>
-                    {/* freeSpacePercent = pallet slots remaining */}
                     <span>{truck.freeSpacePercent}% slots free</span>
                   </div>
                 </div>
