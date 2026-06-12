@@ -1,7 +1,7 @@
 import React, { useEffect,useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSellerProduct } from "../../api/endpoints/products";
-import { LocalStorageService } from "../../services/storage/LocalStorageService";
+import { useAuth } from "../../hooks/useAuth";
 interface Variant {
   id: number;
   label: string;
@@ -11,6 +11,15 @@ interface Variant {
 
 const AddProductPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+
+  // ✅ Check authentication before loading
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      alert("You must be logged in as a seller to add products")
+      navigate("/login")
+    }
+  }, [authLoading, isAuthenticated, navigate])
 
   /* ---------- BASIC PRODUCT ---------- */
   const [name, setName] = useState("");
@@ -112,11 +121,6 @@ const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     alert(error?.response?.data?.message || "Failed to create product");
   }
 };
-
-// TEMPORARY: Inject test token for development
-  /*useEffect(() => {
-    LocalStorageService.set('fr_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjk1YTYxOS0wOWRhLTRlMTEtYjJkMy1jYTdkMmNiOGI0OTQiLCJzZWxsZXJJZCI6Ijc4NTYwMDg4LWU4NzAtNDEzYy1hMTU2LTBiZWYxZGJhOTU1NiIsInJvbGUiOiJTRUxMRVIiLCJpYXQiOjE3Nzc1MjAwNjUsImV4cCI6MTc3ODEyNDg2NX0.qr-SpLzrwxISWWtCfP2Y0_gREDiEBK1ERKzBsxYBJZk')
-  }, [])*/
 
   const inputClass =
     "mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/60";

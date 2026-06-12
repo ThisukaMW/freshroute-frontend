@@ -1,54 +1,73 @@
-import type { ReactElement } from "react";
-import LandingPage from "../pages/LandingPage";
-import AdminLoginPage from "../pages/admin/AdminLoginPage";
-import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
-import UserManagementPage from "../pages/admin/UserManagementPage";
-import SellerManagementPage from "../pages/admin/SellerManagementPage";
-import BuyerManagementPage from "../pages/admin/BuyerManagementPage";
-import DriverManagementPage from "../pages/admin/DriverManagementPage";
-import OrderManagementPage from "../pages/admin/OrderManagementPage";
-import RouteManagementPage from "../pages/admin/RouteManagementPage";
-import AnalyticsPage from "../pages/admin/AnalyticsPage";
-import PaymentsPage from "../pages/admin/PaymentsPage";
-import TransactionHistoryPage from "../pages/admin/TransactionHistoryPage";
-import SystemSettingsPage from "../pages/admin/SystemSettingsPage";
-import TruckCapacityPage from "../pages/admin/TruckCapacityPage";
-import AddTruckPage from "../pages/admin/AddTruckPage";
-import PaymentSuccessPage from "../pages/buyer/PaymentSuccessPage";
-import PaymentCancelPage from "../pages/buyer/PaymentCancelPage";
-import SignUpPage from "../pages/SignUpPage.tsx";
-import SignInPage from "../pages/SignInPage";
-import RoleSelectPage from "../pages/RoleSelectPage";
-import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+import type { ComponentType, ReactElement } from "react";
+import { lazy } from "react";
 import { MainLayout } from "../components/layout/MainLayout/MainLayout.jsx";
-import ProductBrowsePage from "../pages/buyer/ProductBrowsePage";
-import SelectSellerPage from "../pages/buyer/SelectSellerPage.tsx";
-import CartPage from "../pages/buyer/CartPage.tsx";
-import DashboardPage from "../pages/seller/DashboardPage.tsx";
-import ProductsPage from "../pages/seller/ProductsPage.tsx";
-import AddProductPage from "../pages/seller/AddProductPage.tsx";
-import EditProductPage from "../pages/seller/EditProductPage.tsx";
-import InventoryPage from "../pages/seller/InventoryPage";
-import SellerRatingsPage from '../pages/seller/SellerRatingsPage';
-import DefaultBrowsePage from "../pages/customer/DefaultBrowsePage.tsx";
-import UnauthorizedPage from "../pages/common/UnauthorizedPage.tsx";
-import ServerErrorPage from "../pages/common/ServerErrorPage.tsx";
-import NotFoundPage from "../pages/common/NotFoundPage.tsx";
-import ResetPasswordPage from "../pages/auth/ResetPasswordPage.tsx";
-import BuyerRatingsPage from '../pages/buyer/BuyerRatingsPage';
-import OrderDetailPage from "../pages/seller/OrderDetailPage.tsx";
-import OrdersPage from "../pages/seller/OrdersPage.tsx";
-import HomePage from "../pages/buyer/HomePage.tsx";
-import OrderHistoryPage from "../pages/buyer/OrderHistoryPage.tsx";
-import ProfilePage from "../pages/ProfilePage.tsx";
-import SecureAccountPage from "../pages/auth/SecureAccountPage";
-import RateOrderPage from '../pages/buyer/RateOrderPage';
-import CheckoutPage from "../pages/buyer/CheckoutPage.tsx";
-import { Route } from "react-router-dom";
-import NotificationsPage from "../pages/NotificationPage.tsx";
-import PendingApprovalsPage from "../pages/admin/PendingApprovalsPage.tsx";
-import PendingApprovalPage from "../pages/PendingApprovalPage";
 import { useAuth } from "../hooks/useAuth";
+
+const pageModules = import.meta.glob("../pages/**/*.{ts,tsx,jsx}");
+
+const lazyPage = (pathBase: string) => {
+  const loader =
+    pageModules[`${pathBase}.tsx`] ??
+    pageModules[`${pathBase}.ts`] ??
+    pageModules[`${pathBase}.jsx`] ??
+    pageModules[pathBase];
+
+  if (!loader) {
+    throw new Error(`Missing page module: ${pathBase}`);
+  }
+
+  return lazy(loader as () => Promise<{ default: ComponentType<unknown> }>);
+};
+
+const LandingPage = lazyPage("../pages/LandingPage");
+const AdminLoginPage = lazyPage("../pages/admin/AdminLoginPage");
+const AdminDashboardPage = lazyPage("../pages/admin/AdminDashboardPage");
+const UserManagementPage = lazyPage("../pages/admin/UserManagementPage");
+const SellerManagementPage = lazyPage("../pages/admin/SellerManagementPage");
+const BuyerManagementPage = lazyPage("../pages/admin/BuyerManagementPage");
+const DriverManagementPage = lazyPage("../pages/admin/DriverManagementPage");
+const OrderManagementPage = lazyPage("../pages/admin/OrderManagementPage");
+const RouteManagementPage = lazyPage("../pages/admin/RouteManagementPage");
+const AnalyticsPage = lazyPage("../pages/admin/AnalyticsPage");
+const PaymentsPage = lazyPage("../pages/admin/PaymentsPage");
+const TransactionHistoryPage = lazyPage(
+  "../pages/admin/TransactionHistoryPage",
+);
+const SystemSettingsPage = lazyPage("../pages/admin/SystemSettingsPage");
+const TruckCapacityPage = lazyPage("../pages/admin/TruckCapacityPage");
+const AddTruckPage = lazyPage("../pages/admin/AddTruckPage");
+const PaymentSuccessPage = lazyPage("../pages/buyer/PaymentSuccessPage");
+const PaymentCancelPage = lazyPage("../pages/buyer/PaymentCancelPage");
+const SignUpPage = lazyPage("../pages/SignUpPage");
+const SignInPage = lazyPage("../pages/SignInPage");
+const RoleSelectPage = lazyPage("../pages/RoleSelectPage");
+const ForgotPasswordPage = lazyPage("../pages/auth/ForgotPasswordPage");
+const ProductBrowsePage = lazyPage("../pages/buyer/ProductBrowsePage");
+const SelectSellerPage = lazyPage("../pages/buyer/SelectSellerPage");
+const CartPage = lazyPage("../pages/buyer/CartPage");
+const DashboardPage = lazyPage("../pages/seller/DashboardPage");
+const ProductsPage = lazyPage("../pages/seller/ProductsPage");
+const AddProductPage = lazyPage("../pages/seller/AddProductPage");
+const EditProductPage = lazyPage("../pages/seller/EditProductPage");
+const InventoryPage = lazyPage("../pages/seller/InventoryPage");
+const SellerRatingsPage = lazyPage("../pages/seller/SellerRatingsPage");
+const DefaultBrowsePage = lazyPage("../pages/customer/DefaultBrowsePage");
+const UnauthorizedPage = lazyPage("../pages/common/UnauthorizedPage");
+const ServerErrorPage = lazyPage("../pages/common/ServerErrorPage");
+const NotFoundPage = lazyPage("../pages/common/NotFoundPage");
+const ResetPasswordPage = lazyPage("../pages/auth/ResetPasswordPage");
+const BuyerRatingsPage = lazyPage("../pages/buyer/BuyerRatingsPage");
+const OrderDetailPage = lazyPage("../pages/seller/OrderDetailPage");
+const OrdersPage = lazyPage("../pages/seller/OrdersPage");
+const HomePage = lazyPage("../pages/buyer/HomePage");
+const OrderHistoryPage = lazyPage("../pages/buyer/OrderHistoryPage");
+const ProfilePage = lazyPage("../pages/ProfilePage");
+const SecureAccountPage = lazyPage("../pages/auth/SecureAccountPage");
+const RateOrderPage = lazyPage("../pages/buyer/RateOrderPage");
+const CheckoutPage = lazyPage("../pages/buyer/CheckoutPage");
+const NotificationsPage = lazyPage("../pages/NotificationPage");
+const PendingApprovalsPage = lazyPage("../pages/admin/PendingApprovalsPage");
+const PendingApprovalPage = lazyPage("../pages/PendingApprovalPage");
 
 // Shape of a basic public route — path and the element to render
 interface RouteConfig {
@@ -62,14 +81,17 @@ interface ProtectedRouteConfig extends RouteConfig {
 }
 
 const NotificationsRoute = () => {
-  const { user } = useAuth()
-  const role = (user?.role?.toLowerCase() ?? "buyer") as "buyer" | "seller" | "admin"
+  const { user } = useAuth();
+  const role = (user?.role?.toLowerCase() ?? "buyer") as
+    | "buyer"
+    | "seller"
+    | "admin";
   return (
     <MainLayout role={role}>
       <NotificationsPage />
     </MainLayout>
-  )
-}
+  );
+};
 
 // Central route registry — consumed by the router to register all public and protected routes
 export const routeConfig: {
@@ -79,7 +101,6 @@ export const routeConfig: {
   error?: ReactElement;
   unauthorized?: ReactElement;
 } = {
-
   // ─── Public Routes ────────────────────────────────────────────────────────
   // Accessible by anyone regardless of authentication state
   public: [
@@ -113,7 +134,6 @@ export const routeConfig: {
   // ─── Protected Routes ─────────────────────────────────────────────────────
   // Require authentication; roles array limits access to specific user types
   protected: [
-
     // ── Admin routes ────────────────────────────────────────────────────────
 
     // Admin overview dashboard — entry point after admin login
@@ -261,7 +281,7 @@ export const routeConfig: {
       roles: ["admin"],
       element: (
         <MainLayout role="admin">
-          <PendingApprovalsPage />  
+          <PendingApprovalsPage />
         </MainLayout>
       ),
     },
@@ -428,7 +448,14 @@ export const routeConfig: {
       ),
     },
     // Buyer ratings — buyer can view and submit ratings for completed orders
-    { path: "/buyer/ratings", element: <MainLayout role="buyer"><BuyerRatingsPage /></MainLayout> },
+    {
+      path: "/buyer/ratings",
+      element: (
+        <MainLayout role="buyer">
+          <BuyerRatingsPage />
+        </MainLayout>
+      ),
+    },
     // Seller reviews — vendor views all customer ratings left for their store
     {
       path: "/seller/reviews",
@@ -472,10 +499,8 @@ export const routeConfig: {
     {
       path: "/notifications",
       roles: ["buyer", "seller", "admin"],
-      element: (
-        <NotificationsRoute />
-      ),
-    } 
+      element: <NotificationsRoute />,
+    },
   ],
 
   // Rendered when no route matches — 404 not found page

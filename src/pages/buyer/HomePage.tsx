@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 interface QuickStat {
   label: string;
@@ -82,12 +83,15 @@ const planner: PlannerSlot[] = [
 ];
 
 const HomePage: React.FC = () => {
+  const { user } = useAuth()
+  const buyerName = user?.name || "Guest"
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6 text-slate-100 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary-light">Buyer workspace</p>
-          <h1 className="mt-2 text-2xl font-semibold">Morning, Neo Nerm</h1>
+          <h1 className="mt-2 text-2xl font-semibold">Morning, {buyerName}</h1>
           <p className="mt-1 text-sm text-slate-400">
             Track live deliveries, review the freshest arrivals and jump back into recent carts.
           </p>

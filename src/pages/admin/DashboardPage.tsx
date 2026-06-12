@@ -1,4 +1,3 @@
-import React from "react";
 import AdminDashboardPage from "./AdminDashboardPage.tsx";
 
 const DashboardPage = () => {
@@ -6,5 +5,3 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
-
-

@@ -2,9 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { clearCart } from "../../store/slices/cartSlice";
+import { getCart } from "../../api/endpoints/cart";
+import {
+  getBuyerAddresses,
+  createOrder as createOrderApi,
+} from "../../api/endpoints/orders";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
+import { getReservationStatus } from "../../utils/reservationUtils";
 import type { RootState, AppDispatch } from "../../store";
 
 interface Address {
@@ -39,30 +45,52 @@ const CheckoutPage: React.FC = () => {
     error: null,
   });
 
+  // ✅ NEW: Track cart totals with applied discount
+  const [cartTotals, setCartTotals] = useState({
+    subtotal: 0,
+    tax: 0,
+    discount: 0,
+    total: 0,
+  });
+
   // Guard: redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) navigate("/buyer/cart");
   }, [items, navigate]);
 
-  // Fetch buyer's current address
+  // ✅ NEW: Fetch cart totals with applied discount
+  useEffect(() => {
+    const fetchCartTotals = async () => {
+      try {
+        const cartData = await getCart();
+        setCartTotals({
+          subtotal: cartData.subtotal || 0,
+          tax: cartData.tax || 0,
+          discount: cartData.discount || 0,
+          total: cartData.total || 0,
+        });
+      } catch (err) {
+        console.error("Failed to fetch cart totals:", err);
+      }
+    };
+
+    if (items.length > 0) {
+      fetchCartTotals();
+    }
+  }, [items]);
+
+  // Fetch buyer's current address using API
   useEffect(() => {
     const fetchAddress = async () => {
       try {
-        const token = localStorage.getItem("fr_token");
-        const res = await fetch("/api/v1/orders/addresses", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.primary) {
-            setState((prev) => ({
-              ...prev,
-              deliveryAddress: data.primary,
-            }));
-          }
+        console.log("📍 Fetching buyer addresses...");
+        const addresses = await getBuyerAddresses();
+        if (addresses?.primary) {
+          setState((prev) => ({
+            ...prev,
+            deliveryAddress: addresses.primary,
+          }));
+          console.log("✅ Address loaded:", addresses.primary);
         }
       } catch (err) {
         console.error("Failed to fetch addresses:", err);
@@ -71,11 +99,6 @@ const CheckoutPage: React.FC = () => {
 
     fetchAddress();
   }, []);
-
-  const total = items.reduce((sum, item) => {
-    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
-    return sum + numeric * item.quantity;
-  }, 0);
 
   const handleNextStep = () => {
     // Validate current step before moving to next
@@ -118,58 +141,66 @@ const CheckoutPage: React.FC = () => {
         throw new Error("Please select a delivery time slot");
       }
 
-      const token = localStorage.getItem("fr_token");
+      // ✅ NEW: Validate all reservations are still ACTIVE
+      const expiredItems: string[] = [];
+      const expiringItems: string[] = [];
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
-      // Create the order with all delivery information
-      const orderRes = await fetch("/api/v1/orders", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          items: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            sellerId: item.sellerId, // ✅ Include seller ID
-          })),
-          deliveryAddress: state.deliveryAddress.address,
-          deliveryLat: state.deliveryAddress.latitude,
-          deliveryLng: state.deliveryAddress.longitude,
-          deliveryTimeSlot: state.deliveryTimeSlot,
-          specialInstructions: state.specialInstructions,
-        }),
+      items.forEach((item: any) => {
+        if (item.reservation && item.reservation.expiresAt) {
+          const status = getReservationStatus(item.reservation.expiresAt);
+          if (status.isExpired) {
+            expiredItems.push(item.name);
+          } else if (status.percentageRemaining < 10) {
+            expiringItems.push(`${item.name} (${status.timeRemaining})`);
+          }
+        }
       });
 
-      if (!orderRes.ok) {
-        const err = await orderRes.json();
-        throw new Error(err.message || "Failed to create order");
+      // If any items have expired, show error
+      if (expiredItems.length > 0) {
+        throw new Error(
+          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`,
+        );
       }
 
-      const order = await orderRes.json();
-
-      // Create Stripe checkout session
-      const paymentRes = await fetch("/api/v1/payments", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          orderId: order.id,
-          currency: "lkr",
-        }),
-      });
-
-      if (!paymentRes.ok) {
-        const err = await paymentRes.json();
-        throw new Error(err.message || "Failed to initiate payment");
+      // Warn if items are running out
+      if (expiringItems.length > 0) {
+        const proceed = window.confirm(
+          `⚠️ The following items are running out of reservation time:\n${expiringItems.join(
+            "\n",
+          )}\n\nDo you want to continue?`,
+        );
+        if (!proceed) {
+          throw new Error("Checkout cancelled. Please hurry!");
+        }
       }
 
-      const { checkoutUrl } = await paymentRes.json();
+      // ✅ Use API endpoint (token auto-injected by interceptor)
+      console.log("📦 Creating order via API...");
+      const orderResponse = await createOrderApi(
+        items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          sellerId: item.sellerId,
+        })),
+        state.deliveryAddress.address,
+        state.deliveryAddress.latitude,
+        state.deliveryAddress.longitude,
+        state.deliveryTimeSlot!,
+        state.specialInstructions,
+      );
 
-      // Clear cart and redirect to Stripe
+      console.log("✅ Order created:", orderResponse);
+
+      // ✅ Order created successfully
+      // TODO: Implement payment processing if needed
+      // For now, clear cart and redirect to order confirmation
+
+      // Clear cart and redirect to order confirmation
       dispatch(clearCart());
-      window.location.href = checkoutUrl;
+      navigate("/buyer/order-confirmation", {
+        state: { orderId: orderResponse.id },
+      });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -190,7 +221,9 @@ const CheckoutPage: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-6 pb-10">
       <div>
         <h1 className="text-2xl font-semibold text-slate-50">Checkout</h1>
-        <p className="text-xs text-slate-400 mt-1">Step {state.currentStep} of 5</p>
+        <p className="text-xs text-slate-400 mt-1">
+          Step {state.currentStep} of 5
+        </p>
       </div>
 
       {/* Step Progress Indicator */}
@@ -227,7 +260,8 @@ const CheckoutPage: React.FC = () => {
               <div>
                 <p className="font-medium">{item.name}</p>
                 <p className="text-xs text-slate-400">
-                  {item.vendor && `🏪 ${item.vendor} · `}{item.price} / {item.unit} · Qty {item.quantity}
+                  {item.vendor && `🏪 ${item.vendor} · `}
+                  {item.price} / {item.unit} · Qty {item.quantity}
                 </p>
               </div>
               <p className="text-sm font-medium">
@@ -244,7 +278,7 @@ const CheckoutPage: React.FC = () => {
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Subtotal</p>
             <p className="text-lg font-semibold text-supply-teal">
-              Rs. {total.toLocaleString("en-LK")}
+              Rs. {cartTotals.subtotal.toLocaleString("en-LK")}
             </p>
           </div>
         </div>
@@ -280,7 +314,10 @@ const CheckoutPage: React.FC = () => {
           <SpecialInstructions
             instructions={state.specialInstructions}
             onInstructionsChange={(instructions) =>
-              setState((prev) => ({ ...prev, specialInstructions: instructions }))
+              setState((prev) => ({
+                ...prev,
+                specialInstructions: instructions,
+              }))
             }
           />
         </div>
@@ -289,7 +326,9 @@ const CheckoutPage: React.FC = () => {
       {/* Step 5: Final Review */}
       {state.currentStep === 5 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl space-y-4">
-          <h2 className="text-sm font-medium text-slate-300">Review Your Order</h2>
+          <h2 className="text-sm font-medium text-slate-300">
+            Review Your Order
+          </h2>
 
           {/* Order Items */}
           <div className="space-y-2">
@@ -302,8 +341,12 @@ const CheckoutPage: React.FC = () => {
                 className="flex justify-between text-sm text-slate-300"
               >
                 <div>
-                  <span>{item.name} × {item.quantity}</span>
-                  {item.vendor && <p className="text-xs text-slate-400">🏪 {item.vendor}</p>}
+                  <span>
+                    {item.name} × {item.quantity}
+                  </span>
+                  {item.vendor && (
+                    <p className="text-xs text-slate-400">🏪 {item.vendor}</p>
+                  )}
                 </div>
                 <span>
                   Rs.{" "}
@@ -334,11 +377,29 @@ const CheckoutPage: React.FC = () => {
             )}
           </div>
 
+          {/* Price Breakdown */}
+          <div className="border-t border-white/10 pt-4 space-y-2">
+            <div className="flex justify-between text-sm text-slate-300">
+              <span>Subtotal:</span>
+              <span>Rs. {cartTotals.subtotal.toLocaleString("en-LK")}</span>
+            </div>
+            <div className="flex justify-between text-sm text-slate-300">
+              <span>Tax (10%):</span>
+              <span>Rs. {cartTotals.tax.toLocaleString("en-LK")}</span>
+            </div>
+            {cartTotals.discount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-400">
+                <span>Discount:</span>
+                <span>-Rs. {cartTotals.discount.toLocaleString("en-LK")}</span>
+              </div>
+            )}
+          </div>
+
           {/* Total */}
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Total Amount</p>
             <p className="text-lg font-semibold text-supply-teal">
-              Rs. {total.toLocaleString("en-LK")}
+              Rs. {cartTotals.total.toLocaleString("en-LK")}
             </p>
           </div>
         </div>
