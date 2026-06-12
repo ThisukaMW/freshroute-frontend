@@ -10,6 +10,8 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { Button } from "../../common/Button/Button";
 import NotificationBell from "../../NotificationBell";
+import { useNotificationContext } from "../../../context/NotificationContext";
+import { usePendingApprovalsContext } from "../../../context/PendingApprovalsContext";
 
 /* role must be one of these three */
 type Role = "buyer" | "seller" | "admin";
@@ -86,6 +88,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
   /* nav and profile links for the current role */
   const navItems = navByRole[role] ?? [];
+  const { notifications } = useNotificationContext();
+  const { pendingCount: pendingApprovalsCount } = usePendingApprovalsContext();
   const profileNavItems = profileNavByRole[role] ?? [];
 
   /* true when mobile drawer is open */
@@ -122,22 +126,31 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
       {/* role-based nav links — highlights the active page */}
       <nav className="space-y-1 text-sm">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === `/${role}`} /* stops dashboard staying active on sub-routes */
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              [
-                "flex items-center justify-between rounded-xl px-3 py-2 transition",
-                isActive ? "bg-primary/15 text-primary-light" : "text-slate-300 hover:bg-slate-900/60",
-              ].join(" ")
-            }
-          >
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const isApprovals = item.to === "/admin/approvals";
+          const showBadge = isApprovals && pendingApprovalsCount > 0;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === `/${role}`}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  "flex items-center justify-between rounded-xl px-3 py-2 transition",
+                  isActive ? "bg-primary/15 text-primary-light" : "text-slate-300 hover:bg-slate-900/60",
+                ].join(" ")
+              }
+            >
+              <span>{item.label}</span>
+              {showBadge && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/20 border border-red-500/30 px-1.5 text-[10px] font-bold text-red-400">
+                  {pendingApprovalsCount}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
     </>
   );

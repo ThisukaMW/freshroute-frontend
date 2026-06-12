@@ -8,6 +8,7 @@ import type { JSX } from 'react'
 import Navbar from '../components/Navbar'
 import { registerCustomer, registerVendor } from '../services/authService'
 import { useToast } from '../context/ToastContext'
+import { useRef, useEffect } from 'react'
 
 // Returns true if the email looks valid (has an @ and a dot after it).
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -164,7 +165,7 @@ const ConfirmPasswordField = ({ value, onChange, password }: { value: string; on
 }
 
 // A simple dropdown for picking a city. Only shows the four cities FreshRoute operates in.
-const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+/*const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
   <div className="space-y-1">
     <label className="block text-xs font-medium text-slate-200">City</label>
     <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
@@ -174,7 +175,89 @@ const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) 
       <option>Jaffna</option>
     </select>
   </div>
-)
+)*/
+
+const SRI_LANKA_CITIES = [
+  "Colombo", "Kandy", "Galle", "Jaffna", "Negombo", "Trincomalee", "Batticaloa",
+  "Anuradhapura", "Polonnaruwa", "Ratnapura", "Badulla", "Matara", "Kurunegala",
+  "Puttalam", "Mannar", "Vavuniya", "Mullaitivu", "Kilinochchi", "Hambantota",
+  "Matale", "Nuwara Eliya", "Kegalle", "Kalutara", "Gampaha", "Ampara",
+  "Monaragala", "Bandarawela", "Dambulla", "Chilaw", "Wennappuwa", "Panadura",
+  "Moratuwa", "Dehiwala", "Kotte", "Avissawella", "Horana", "Balangoda",
+  "Embilipitiya", "Tangalle", "Weligama", "Beruwala", "Aluthgama", "Hikkaduwa",
+  "Kadugannawa", "Nawalapitiya", "Hatton", "Talawakele", "Haputale", "Ella",
+  "Welimada", "Mahiyanganaya", "Medirigiriya", "Minneriya", "Sigiriya",
+]
+
+const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+  const [search, setSearch] = useState("")
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const filtered = SRI_LANKA_CITIES.filter((c) =>
+    c.toLowerCase().includes(search.toLowerCase())
+  )
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  return (
+    <div className="space-y-1" ref={ref}>
+      <label className="block text-xs font-medium text-slate-200">City</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setOpen((p) => !p); setSearch("") }}
+          className={`${inputClass} flex items-center justify-between`}
+        >
+          <span>{value || "Select city"}</span>
+          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {open && (
+          <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-slate-800 shadow-2xl overflow-hidden">
+            <div className="p-2 border-b border-white/10">
+              <input
+                autoFocus
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search city..."
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-50 outline-none placeholder:text-slate-500 focus:border-white/30"
+              />
+            </div>
+            <ul className="max-h-48 overflow-y-auto scrollbar-none py-1">
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2 text-xs text-slate-500">No cities found</li>
+              ) : (
+                filtered.map((city) => (
+                  <li
+                    key={city}
+                    onClick={() => { onChange(city); setOpen(false) }}
+                    className={`px-3 py-2 text-xs cursor-pointer transition-colors ${
+                      value === city
+                        ? "bg-teal-500/15 text-teal-300"
+                        : "text-slate-300 hover:bg-white/10"
+                    }`}
+                  >
+                    {city}
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // The sign-up form for a new customer. Validates all fields before calling the API.
 // onSuccess = called when registration works (navigates to pending-approval).

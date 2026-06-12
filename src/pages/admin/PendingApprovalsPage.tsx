@@ -1,6 +1,7 @@
 // Admin page where admins can approve or reject users waiting to join the platform
 
 import { useEffect, useState } from "react";
+import { usePendingApprovalsContext } from "../../context/PendingApprovalsContext";
 import { LocalStorageService } from "../../services/storage/LocalStorageService";
 
 // The 3 possible roles a user can have on the platform
@@ -179,6 +180,7 @@ const PendingApprovalsPage = () => {
 
   // Get the admin's auth token from local storage to attach to API requests
   const token = LocalStorageService.get("fr_token");
+  const { refreshPendingCount } = usePendingApprovalsContext();
 
   // Fetches all users waiting for approval from the backend API
   const fetchPending = async () => {
@@ -214,6 +216,7 @@ const PendingApprovalsPage = () => {
 
       // Add to approvedIds so their card turns green with "Approved!" badge
       setApprovedIds((prev) => new Set(prev).add(userId));
+      refreshPendingCount();
 
       // After 1.5 seconds, remove the user from the list entirely (they're done)
       setTimeout(() => {
@@ -248,7 +251,8 @@ const PendingApprovalsPage = () => {
 
       // Add to rejectedIds so their card turns red with "Rejected" badge
       setRejectedIds((prev) => new Set(prev).add(rejectTarget.id));
-
+      refreshPendingCount();
+      
       // After 1.5 seconds, remove the user from the list entirely
       setTimeout(() => {
         setUsers((prev) => prev.filter((u) => u.id !== rejectTarget.id));

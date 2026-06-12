@@ -7,6 +7,7 @@ import { AppRoutes } from "./routes";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { PendingApprovalsProvider } from "./context/PendingApprovalsContext";
 import { ToastProvider } from './context/ToastContext';
 import { useFcm } from "./hooks/useFcm";
 import { useAuth } from "./hooks/useAuth";
@@ -23,9 +24,11 @@ const AppInner: React.FC = () => {
   // Wraps pages in notification and toast (popup message) helpers, then renders all routes.
   return (
     <NotificationProvider>
-      <ToastProvider>
-        <AppRoutes />
-      </ToastProvider>
+      <PendingApprovalsProvider>
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
+      </PendingApprovalsProvider>
     </NotificationProvider>
   );
 };
