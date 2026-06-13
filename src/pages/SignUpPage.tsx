@@ -9,6 +9,11 @@ import Navbar from '../components/Navbar'
 import { registerCustomer, registerVendor } from '../services/authService'
 import { useToast } from '../context/ToastContext'
 import { useRef, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
+import { useDispatch } from 'react-redux'
+import { setBuyerProfile } from '../store/slices/userSlice'
+import { setCredentials } from '../store/slices/authSlice'
+
 
 // Returns true if the email looks valid (has an @ and a dot after it).
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -262,7 +267,10 @@ const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) 
 // The sign-up form for a new customer. Validates all fields before calling the API.
 // onSuccess = called when registration works (navigates to pending-approval).
 // onError   = called when something goes wrong (shows a toast + inline error).
-const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (msg: string) => void }) => {
+const CustomerForm = ({ onSuccess, onError }: {
+  onSuccess: (data: { token: string; user: any; redirectTo: string }) => void;
+  onError: (msg: string) => void
+}) => {
   const [fullName, setFullName]                   = useState('')
   const [email, setEmail]                         = useState('')
   const [phone, setPhone]                         = useState('')
@@ -288,8 +296,8 @@ const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: 
 
     setLoading(true)
     try {
-      await registerCustomer({ name: fullName, email, password, phone, city, address })
-      onSuccess() // Registration worked — go to the pending approval page.
+      const data = await registerCustomer({ name: fullName, email, password, phone, city, address })
+      onSuccess(data)
     } catch (err: any) {
       onError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
     } finally {
@@ -432,6 +440,8 @@ const SignUpPage = (): JSX.Element => {
   const { role }      = useParams<{ role: string }>()  // "customer" or "vendor" from the URL.
   const navigate      = useNavigate()
   const { showToast } = useToast()
+  const dispatch      = useDispatch()
+  const { login }     = useAuth()
   const isVendor      = role === 'vendor'
   const [error, setError] = useState('')
 
@@ -439,7 +449,17 @@ const SignUpPage = (): JSX.Element => {
   const handleError = (msg: string) => { setError(msg); showToast(msg, 'error') }
 
   // On success, go to the pending-approval waiting page.
-  const handleSuccess = () => { navigate('/pending-approval') }
+  // For vendors: still go to pending approval
+  const handleVendorSuccess = () => { navigate('/pending-approval') }
+
+  // For buyers: auto-login using the token returned by the API
+  const handleBuyerSuccess = (data: { token: string; user: any; redirectTo: string }) => {
+    dispatch(setCredentials({ user: { id: data.user.id, email: data.user.email, name: data.user.name }, token: data.token }))
+    dispatch(setBuyerProfile({ name: data.user.name, email: data.user.email, phone: '', city: 'Colombo', address: '' }))
+    login(data.token, { id: data.user.id, name: data.user.name, email: data.user.email, role: 'buyer' })
+    showToast(`Welcome to FreshRoute, ${data.user.name}! 🎉`)
+    navigate(data.redirectTo)
+  }
 
   // If someone visits /signup/something-random, send them back to /signup to pick a valid role.
   if (role !== 'customer' && role !== 'vendor') {
@@ -462,10 +482,12 @@ const SignUpPage = (): JSX.Element => {
                 : 'Create an account to order from local vendors through FreshRoute.'}
             </p>
           </div>
-          {/* Warning banner reminding the user that admin approval is needed before they can log in. */}
-          <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-            ⏳ All new accounts require admin approval before you can log in.
-          </div>
+          {/* Vendors still need admin approval — buyers do not */}
+          {isVendor && (
+            <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+              ⏳ Vendor accounts require admin approval before you can log in.
+            </div>
+          )}
           {/* Extra info banner shown only on the vendor form. */}
           {isVendor && (
             <div className="mb-5 rounded-2xl border border-supply-teal/40 bg-gradient-to-r from-supply-teal/20 via-supply-peach/20 to-supply-orange/20 p-3 text-[11px] text-supply-paper/80 backdrop-blur-xl">
@@ -480,8 +502,8 @@ const SignUpPage = (): JSX.Element => {
           )}
           {/* Shows the vendor form or customer form based on the URL param. */}
           {isVendor
-            ? <VendorForm   onSuccess={handleSuccess} onError={handleError} />
-            : <CustomerForm onSuccess={handleSuccess} onError={handleError} />
+            ? <VendorForm   onSuccess={handleVendorSuccess} onError={handleError} />
+            : <CustomerForm onSuccess={handleBuyerSuccess} onError={handleError} />
           }
           {/* Links to switch between the customer and vendor forms. */}
           <p className="mt-4 text-center text-xs text-slate-400">
