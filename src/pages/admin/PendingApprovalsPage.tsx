@@ -5,7 +5,7 @@ import { usePendingApprovalsContext } from "../../context/PendingApprovalsContex
 import { LocalStorageService } from "../../services/storage/LocalStorageService";
 
 // The 3 possible roles a user can have on the platform
-type UserRole = "BUYER" | "SELLER" | "DRIVER";
+type UserRole = "SELLER" | "DRIVER";
 
 // Shape of a single pending user object coming from the API
 interface PendingUser {
@@ -40,7 +40,6 @@ function relativeTime(iso: string): string {
 
 // Lookup table — given a role, get its emoji, display label, text color, and background color
 const roleConfig: Record<UserRole, { emoji: string; label: string; color: string; bg: string }> = {
-  BUYER:  { emoji: "🛒", label: "Buyer",  color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/20" },
   SELLER: { emoji: "🏪", label: "Seller", color: "text-sky-400",     bg: "bg-sky-500/15 border-sky-500/20"         },
   DRIVER: { emoji: "🚚", label: "Driver", color: "text-violet-400",  bg: "bg-violet-500/15 border-violet-500/20"   },
 };
@@ -280,7 +279,6 @@ const PendingApprovalsPage = () => {
   // Data for each filter tab button — label includes the live count in brackets
   const filterTabs: { key: RoleFilter; label: string }[] = [
     { key: "ALL",    label: `All (${users.length})` },
-    { key: "BUYER",  label: `Buyers (${countByRole("BUYER")})` },
     { key: "SELLER", label: `Sellers (${countByRole("SELLER")})` },
     { key: "DRIVER", label: `Drivers (${countByRole("DRIVER")})` },
   ];
