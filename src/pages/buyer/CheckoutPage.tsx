@@ -7,6 +7,7 @@ import {
   getBuyerAddresses,
   createOrder as createOrderApi,
 } from "../../api/endpoints/orders";
+import api from "../../api/client"; // ← adjust this import to match your axios instance path
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
@@ -45,7 +46,6 @@ const CheckoutPage: React.FC = () => {
     error: null,
   });
 
-  // ✅ NEW: Track cart totals with applied discount
   const [cartTotals, setCartTotals] = useState({
     subtotal: 0,
     tax: 0,
@@ -53,18 +53,14 @@ const CheckoutPage: React.FC = () => {
     total: 0,
   });
 
+  const [orderCompleted, setOrderCompleted] = useState(false);
+
   // Guard: redirect if cart is empty
   useEffect(() => {
-    if (items.length === 0) navigate("/buyer/cart");
-  }, [items, navigate]);
+    if (items.length === 0 && !orderCompleted) navigate("/buyer/cart");
+  }, [items, navigate, orderCompleted]);
 
-<<<<<<< HEAD
-  const total = items.reduce((sum, item) => {
-    const numeric = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;    //first ensure prce is a string then remove non-numeric characters, parse to int. If parsing fails, default to 0
-    return sum + numeric * item.quantity;
-  }, 0);
-=======
-  // ✅ NEW: Fetch cart totals with applied discount
+  // Fetch cart totals with applied discount
   useEffect(() => {
     const fetchCartTotals = async () => {
       try {
@@ -107,7 +103,6 @@ const CheckoutPage: React.FC = () => {
   }, []);
 
   const handleNextStep = () => {
-    // Validate current step before moving to next
     if (state.currentStep === 2 && !state.deliveryAddress.address) {
       setState((prev) => ({
         ...prev,
@@ -138,105 +133,63 @@ const CheckoutPage: React.FC = () => {
       error: null,
     }));
   };
->>>>>>> 56330d75baaee6e69070ee46de624b118961751a
 
   const handlePay = async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+  setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    try {
-<<<<<<< HEAD
-      const token = localStorage.getItem("fr_token");
+  try {
+    if (!state.deliveryTimeSlot) {
+      throw new Error("Please select a delivery time slot");
+    }
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
+    // ... reservation checks unchanged ...
 
-      // Step 1: Create the order
-      const orderRes = await fetch("/api/v1/orders", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          items: items.map((item) => ({
-            productId: item.productId,       // item.id maps to productId in schema
-            quantity: item.quantity,
-          })),
-        }),
-      });
+    // STEP 1: Create the order
+    console.log("📦 Creating order via API...");
+    console.log("📦 Items being sent:", JSON.stringify(items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      sellerId: item.sellerId,
+    }))));
+    console.log("📦 Address:", state.deliveryAddress);
+    console.log("📦 Time slot:", state.deliveryTimeSlot);
 
-      if (!orderRes.ok) {
-        const err = await orderRes.json();
-        throw new Error(err.message || "Failed to create order");
-=======
-      if (!state.deliveryTimeSlot) {
-        throw new Error("Please select a delivery time slot");
->>>>>>> 56330d75baaee6e69070ee46de624b118961751a
+    const orderResponse = await createOrderApi(
+      items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        sellerId: item.sellerId,
+      })),
+      state.deliveryAddress.address,
+      state.deliveryAddress.latitude,
+      state.deliveryAddress.longitude,
+      state.deliveryTimeSlot!,
+      state.specialInstructions,
+    );
+
+    console.log("✅ Order created:", JSON.stringify(orderResponse));
+    console.log("✅ Order ID:", orderResponse?.id);
+
+    // STEP 2: Create Stripe checkout session
+    console.log("💳 Creating payment with orderId:", orderResponse?.id);
+    const paymentRes = await api.post("/payments", {
+      orderId: orderResponse?.id,
+      currency: "usd",
+    });
+
+      const { checkoutUrl } = paymentRes.data;
+
+      if (!checkoutUrl) {
+        throw new Error("Failed to get payment URL. Please try again.");
       }
 
-      // ✅ NEW: Validate all reservations are still ACTIVE
-      const expiredItems: string[] = [];
-      const expiringItems: string[] = [];
+      console.log("✅ Stripe session created, redirecting...");
 
-      items.forEach((item: any) => {
-        if (item.reservation && item.reservation.expiresAt) {
-          const status = getReservationStatus(item.reservation.expiresAt);
-          if (status.isExpired) {
-            expiredItems.push(item.name);
-          } else if (status.percentageRemaining < 10) {
-            expiringItems.push(`${item.name} (${status.timeRemaining})`);
-          }
-        }
-      });
-
-      // If any items have expired, show error
-      if (expiredItems.length > 0) {
-        throw new Error(
-          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`,
-        );
-      }
-
-      // Warn if items are running out
-      if (expiringItems.length > 0) {
-        const proceed = window.confirm(
-          `⚠️ The following items are running out of reservation time:\n${expiringItems.join(
-            "\n",
-          )}\n\nDo you want to continue?`,
-        );
-        if (!proceed) {
-          throw new Error("Checkout cancelled. Please hurry!");
-        }
-      }
-
-<<<<<<< HEAD
-      // Clear cart then redirect to Stripe
-=======
-      // ✅ Use API endpoint (token auto-injected by interceptor)
-      console.log("📦 Creating order via API...");
-      const orderResponse = await createOrderApi(
-        items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          sellerId: item.sellerId,
-        })),
-        state.deliveryAddress.address,
-        state.deliveryAddress.latitude,
-        state.deliveryAddress.longitude,
-        state.deliveryTimeSlot!,
-        state.specialInstructions,
-      );
-
-      console.log("✅ Order created:", orderResponse);
-
-      // ✅ Order created successfully
-      // TODO: Implement payment processing if needed
-      // For now, clear cart and redirect to order confirmation
-
-      // Clear cart and redirect to order confirmation
->>>>>>> 56330d75baaee6e69070ee46de624b118961751a
+      // STEP 3: Clear cart and redirect to Stripe
+      setOrderCompleted(true);
       dispatch(clearCart());
-      navigate("/buyer/order-confirmation", {
-        state: { orderId: orderResponse.id },
-      });
+      window.location.href = checkoutUrl; // hard redirect to Stripe hosted page
+
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
@@ -244,7 +197,6 @@ const CheckoutPage: React.FC = () => {
     }
   };
 
-  // Step indicators
   const steps = [
     { number: 1, title: "Order Summary" },
     { number: 2, title: "Address" },
@@ -470,7 +422,7 @@ const CheckoutPage: React.FC = () => {
             disabled={state.loading}
             className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {state.loading ? "Processing…" : "Proceed to Payment"}
+            {state.loading ? "Redirecting to payment…" : "Proceed to Payment"}
           </button>
         )}
       </div>
