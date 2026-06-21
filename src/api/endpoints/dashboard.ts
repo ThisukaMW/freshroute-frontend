@@ -171,7 +171,7 @@ export const getRecentCatalogUpdates = async (): Promise<RecentProduct[]> => {
  * Get all low-stock products for seller dashboard
  * Returns: { alerts: Array of low stock products, count: number }
  */
-export const getLowStockAlerts = async (): Promise<LowStockAlertsData> => {
+/*export const getLowStockAlerts = async (): Promise<LowStockAlertsData> => {
   try {
     console.log('🔄 Fetching low stock alerts...')
     const response = await apiClient.get('/inventory/low-stock')
@@ -182,6 +182,17 @@ export const getLowStockAlerts = async (): Promise<LowStockAlertsData> => {
       alerts: response.data.data || [],
       count: response.data.count || 0,
     }
+  } catch (error) {
+    console.error('❌ Failed to fetch low stock alerts:', error)
+    throw error
+  }
+}*/
+export const getLowStockAlerts = async (): Promise<LowStockAlertsData> => {
+  try {
+    console.log('🔄 Fetching low stock alerts...')
+    const response = await apiClient.get('/dashboard/seller/low-stock-alerts')
+    console.log('✅ Low stock alerts fetched:', response.data)
+    return response.data
   } catch (error) {
     console.error('❌ Failed to fetch low stock alerts:', error)
     throw error

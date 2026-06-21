@@ -59,7 +59,9 @@ function getIcon(type: string): { emoji: string; bg: string } {
   if (type === "NEW_ORDER")           return { emoji: "📦", bg: "bg-emerald-500/20" };
   if (type === "LOW_STOCK")           return { emoji: "⚠️", bg: "bg-amber-500/20"   };
   if (type === "SELLER_REGISTRATION") return { emoji: "🏪", bg: "bg-sky-500/20"     };
-  //if (type === "BUYER_REGISTRATION")  return { emoji: "👤", bg: "bg-violet-500/20"  };
+  if (type === "PRODUCT_SUBMITTED")   return { emoji: "📋", bg: "bg-violet-500/20"  };
+  if (type === "PRODUCT_REVIEWED")    return { emoji: "🏷️", bg: "bg-emerald-500/20" };
+  if (type === "CART_REMINDER")       return { emoji: "🛒", bg: "bg-amber-500/20" };
   return                                     { emoji: "🔔", bg: "bg-teal-500/20"    };
 }
 
@@ -68,16 +70,18 @@ function getBadge(type: string): { label: string; color: string } {
   if (type === "NEW_ORDER")           return { label: "New Order",     color: "text-emerald-300 bg-emerald-500/15" };
   if (type === "LOW_STOCK")           return { label: "Stock Alert",   color: "text-amber-300   bg-amber-500/15"   };
   if (type === "SELLER_REGISTRATION") return { label: "Seller Signup", color: "text-sky-300     bg-sky-500/15"     };
- // if (type === "BUYER_REGISTRATION")  return { label: "Buyer Signup",  color: "text-violet-300  bg-violet-500/15"  };
+  if (type === "PRODUCT_SUBMITTED")   return { label: "Product Review",  color: "text-violet-300  bg-violet-500/15"  };
+  if (type === "PRODUCT_REVIEWED")    return { label: "Product Update",  color: "text-emerald-300 bg-emerald-500/15" };
+  if (type === "CART_REMINDER")       return { label: "Ready to pay", color: "text-amber-300 bg-amber-500/15" };
   return                                     { label: "System",        color: "text-slate-300   bg-slate-500/15"   };
 }
 
 function filterByTab(notifications: Notification[], tab: FilterTab): Notification[] {
   switch (tab) {
     case "unread":        return notifications.filter((n) => !n.read);
-    case "orders":        return notifications.filter((n) => ["ORDER_PLACED", "NEW_ORDER"].includes(getType(n)));
+    case "orders": return notifications.filter((n) =>["ORDER_PLACED", "NEW_ORDER", "CART_REMINDER"].includes(getType(n)));
     case "stock":         return notifications.filter((n) => getType(n) === "LOW_STOCK");
-    case "registrations": return notifications.filter((n) => getType(n) === "SELLER_REGISTRATION");
+    case "registrations": return notifications.filter((n) => ["SELLER_REGISTRATION", "PRODUCT_SUBMITTED"].includes(getType(n)));
     default:              return notifications;
   }
 }
@@ -101,7 +105,7 @@ export default function NotificationsPage() {
     if (!allowedTabs.includes(activeTab)) setActiveTab("all");
   }, [role]);
 
-  useEffect(() => { fetchNotifications().then(() => markAllAsRead()); }, []);
+  useEffect(() => { fetchNotifications(); }, []);
 
   const filtered = filterByTab(notifications, activeTab);
 
@@ -212,8 +216,11 @@ export default function NotificationsPage() {
                   key={n.id}
                   onClick={() => {
                     if (!n.read) markAsRead(n.id);
-                    if (getType(n) === "SELLER_REGISTRATION") {
+                    if (["SELLER_REGISTRATION", "PRODUCT_SUBMITTED"].includes(getType(n))) {
                       navigate("/admin/approvals");
+                    }
+                    if (getType(n) === "CART_REMINDER") {
+                      navigate("/buyer/checkout");
                     }
                   }}
                   className={`flex gap-4 rounded-2xl border px-4 py-3 transition-all cursor-pointer ${
@@ -221,7 +228,7 @@ export default function NotificationsPage() {
                       ? "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/15"
                       : "border-teal-500/10 bg-teal-500/10 hover:bg-teal-500/15 hover:border-teal-500/25"
                   } ${
-                    getType(n) === "SELLER_REGISTRATION"
+                    ["SELLER_REGISTRATION", "PRODUCT_SUBMITTED"].includes(getType(n))
                       ? "hover:border-sky-500/30"
                       : ""
                   }`}
@@ -261,8 +268,11 @@ export default function NotificationsPage() {
                       </div>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{n.body}</p>
-                    {getType(n) === "SELLER_REGISTRATION" && (
+                    {["SELLER_REGISTRATION", "PRODUCT_SUBMITTED"].includes(getType(n)) && (
                       <p className="text-[10px] text-sky-400 mt-1">→ Click to review in Approvals</p>
+                    )}
+                    {getType(n) === "CART_REMINDER" && (
+                      <p className="text-[10px] text-amber-400 mt-1">→ Click to go to checkout</p>
                     )}
                   </div>
                 </div>

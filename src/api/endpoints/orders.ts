@@ -162,7 +162,7 @@ export const getBuyerOrderById = async (orderId: string): Promise<Order> => {
 export const getBuyerAddresses = async (): Promise<any> => {
   try {
     console.log('🔄 Fetching buyer addresses...')
-    const response = await apiClient.get('/api/v1/orders/addresses')
+    const response = await apiClient.get('orders/addresses')
     console.log('✅ Buyer addresses fetched:', response.data)
     return response.data?.data || response.data || []
   } catch (error) {

@@ -26,13 +26,19 @@ export const PendingApprovalsProvider = ({ children }: { children: React.ReactNo
     // only fetch if logged in and admin
     if (!token || user?.role?.toLowerCase() !== "admin") return;
     try {
-      const res = await fetch("/api/v1/admin/users/pending", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = data.data ?? [];
-      setPendingCount(list.length);
+        const [usersRes, productsRes] = await Promise.all([
+        fetch("/api/v1/admin/users/pending", {
+            headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/v1/products/pending", {
+            headers: { Authorization: `Bearer ${token}` },
+        }),
+        ]);
+        const usersData  = usersRes.ok  ? await usersRes.json()  : { data: [] };
+        const productsData = productsRes.ok ? await productsRes.json() : [];
+        const userCount    = (usersData.data ?? []).length;
+        const productCount = Array.isArray(productsData) ? productsData.length : 0;
+        setPendingCount(userCount + productCount);
     } catch {
       // silently fail
     }

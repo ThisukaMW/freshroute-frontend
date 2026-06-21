@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
   getCart,
@@ -24,6 +23,7 @@ import {
   showErrorToast,
 } from "../../utils/toastNotification";
 import PromoCodeInput from "../../components/checkout/PromoCodeInput";
+import { useNavigate, useLocation } from "react-router-dom";
 
 type RootState = any;
 
@@ -36,6 +36,7 @@ interface StockIssue {
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   const reduxCart = useSelector((state: RootState) => state.cart);
@@ -156,6 +157,13 @@ const CartPage: React.FC = () => {
     setTax(newTax);
     setTotal(newTotal);
   }, [items, discount]);
+
+  // Auto-proceed to checkout if navigated from notification
+  useEffect(() => {
+    if (location.state?.proceedToCheckout && items.length > 0 && !loading) {
+      navigate("/buyer/checkout");
+    }
+  }, [location.state, items, loading]);
 
   const handleRemoveItem = async (productId: string, sellerId: string) => {
     dispatch(removeItemLocal({ productId, sellerId }));

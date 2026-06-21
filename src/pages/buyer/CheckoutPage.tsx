@@ -12,6 +12,7 @@ import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
 import { getReservationStatus } from "../../utils/reservationUtils";
 import type { RootState, AppDispatch } from "../../store";
+import { useNotificationContext } from "../../context/NotificationContext";
 
 interface Address {
   address: string;
@@ -32,6 +33,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const items = useSelector((state: RootState) => state.cart.items);
+  const { addNotification } = useNotificationContext();
   const [state, setState] = useState<CheckoutState>({
     currentStep: 1,
     deliveryAddress: {
@@ -53,10 +55,19 @@ const CheckoutPage: React.FC = () => {
     total: 0,
   });
 
-  // Guard: redirect if cart is empty
+  // Guard: redirect if cart is empty — wait for cart to load first
+  const [cartChecked, setCartChecked] = useState(false);
+
   useEffect(() => {
-    if (items.length === 0) navigate("/buyer/cart");
-  }, [items, navigate]);
+    const timer = setTimeout(() => {
+      setCartChecked(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (cartChecked && items.length === 0) navigate("/buyer/cart");
+  }, [cartChecked, items, navigate]);
 
   // ✅ NEW: Fetch cart totals with applied discount
   useEffect(() => {
@@ -192,9 +203,19 @@ const CheckoutPage: React.FC = () => {
 
       console.log("✅ Order created:", orderResponse);
 
-      // ✅ Order created successfully
-      // TODO: Implement payment processing if needed
-      // For now, clear cart and redirect to order confirmation
+      // Build item summary string
+      const itemSummary = items
+        .map((item: any) => `${item.name} × ${item.quantity}`)
+        .join(", ");
+
+      addNotification({
+        id: `order-confirmed-${Date.now()}`,
+        title: "Order placed successfully! 🎉",
+        body: `Your order has been confirmed. Items: ${itemSummary}. Total: Rs. ${cartTotals.total.toLocaleString("en-LK")}. Delivery: ${state.deliveryTimeSlot?.toLowerCase()}.`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        data: { type: "ORDER_PLACED" },
+      });
 
       // Clear cart and redirect to order confirmation
       dispatch(clearCart());

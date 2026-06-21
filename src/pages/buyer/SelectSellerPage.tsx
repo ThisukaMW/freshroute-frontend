@@ -4,12 +4,14 @@ import { useDispatch, useSelector } from 'react-redux'
 import { addItemLocal, addItemAsync } from '../../store/slices/cartSlice.ts'
 import { getProductById, getProductBySellers } from '../../api/endpoints/products'
 import { showSuccessToast, showErrorToast } from '../../utils/toastNotification'
+import { useNotificationContext } from "../../context/NotificationContext";
 
 const SelectSellerPage = () => {
   const { id: productId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const cartItems = useSelector((state: any) => state.cart?.items ?? []) // ✅ Get cart items to calculate remaining stock
+  const { addNotification } = useNotificationContext()
 
   const [product, setProduct] = useState<any>(null)
   const [sellers, setSellers] = useState<any[]>([])
@@ -211,11 +213,19 @@ const SelectSellerPage = () => {
         addItemAsync({
           productId: product.id,
           quantity: safeQuantity,
-          sellerId: selectedSeller.sellerId, // ✅ NOW REQUIRED
+          sellerId: selectedSeller.sellerId,
         }) as any
       )
       console.log('✅ Item added to cart and saved to DB')
       showSuccessToast(`✓ ${product.name} added! Reserved for 20 mins.`)
+      addNotification({                                           // ← ADD
+        id: `cart-reminder-${Date.now()}`,                       // ← ADD
+        title: "You're almost there!",                           // ← ADD
+        body: `${product.name} is in your cart. Complete your order before your reservation expires.`, // ← ADD
+        read: false,                                             // ← ADD
+        createdAt: new Date().toISOString(),                     // ← ADD
+        data: { type: "CART_REMINDER" },                        // ← ADD
+      })                                                         // ← ADD
       navigate('/buyer/cart')
     } catch (error: any) {
       console.error('❌ Failed to sync with DB:', error)
