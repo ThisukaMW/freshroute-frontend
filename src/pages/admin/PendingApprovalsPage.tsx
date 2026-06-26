@@ -143,6 +143,45 @@ const RejectModal = ({
   );
 };
 
+// ─── Confirm Approve Modal (shared for both users and products) ───────────────
+
+const ConfirmApproveModal = ({
+  title, subtitle, onConfirm, onCancel, isSubmitting,
+}: {
+  title: string;
+  subtitle: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-gray-950 p-6 space-y-5 shadow-2xl">
+        <div>
+          <h2 className="text-base font-semibold text-slate-50">{title}</h2>
+          <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 transition-all disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            className="flex-1 rounded-xl bg-teal-500/20 border border-teal-500/30 px-4 py-2.5 text-sm font-medium text-teal-400 hover:bg-teal-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Approving..." : "Confirm Approve"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Accounts Section (existing user approval UI) ─────────────────────────────
 
 const AccountsSection = ({ token, onCountChange }: { token: string | null; onCountChange: (n: number) => void }) => {
@@ -153,6 +192,7 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
   const [approvedIds, setApprovedIds]   = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds]   = useState<Set<string>>(new Set());
   const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
+  const [approveTarget, setApproveTarget] = useState<PendingUser | null>(null);
   const [isRejecting, setIsRejecting]   = useState(false);
   const [roleFilter, setRoleFilter]     = useState<RoleFilter>("ALL");
   const { refreshPendingCount }         = usePendingApprovalsContext();
@@ -200,6 +240,13 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
     }
   };
 
+  const handleApproveConfirm = () => {
+    if (!approveTarget) return;
+    const target = approveTarget;
+    setApproveTarget(null);
+    handleApprove(target.id);
+  };
+
   const handleRejectConfirm = async (reason: string) => {
     if (!rejectTarget) return;
     setIsRejecting(true);
@@ -243,6 +290,16 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
           onConfirm={handleRejectConfirm}
           onCancel={() => setRejectTarget(null)}
           isSubmitting={isRejecting}
+        />
+      )}
+
+      {approveTarget && (
+        <ConfirmApproveModal
+          title="Approve Registration"
+          subtitle={`Are you sure you want to approve ${approveTarget.name} (${approveTarget.email})? This will grant them account access.`}
+          onConfirm={handleApproveConfirm}
+          onCancel={() => setApproveTarget(null)}
+          isSubmitting={approvingId === approveTarget.id}
         />
       )}
 
@@ -340,7 +397,7 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
                           <button onClick={() => setRejectTarget(user)} disabled={isApproving} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             Reject
                           </button>
-                          <button onClick={() => handleApprove(user.id)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+                          <button onClick={() => setApproveTarget(user)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             {isApproving ? "Approving..." : "Approve"}
                           </button>
                         </>
@@ -372,6 +429,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
   const [approvedIds, setApprovedIds]   = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds]   = useState<Set<string>>(new Set());
   const [rejectTarget, setRejectTarget] = useState<PendingProduct | null>(null);
+  const [approveTarget, setApproveTarget] = useState<PendingProduct | null>(null);
   const [isRejecting, setIsRejecting]   = useState(false);
   const { refreshPendingCount }         = usePendingApprovalsContext();
 
@@ -419,6 +477,13 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
     }
   };
 
+  const handleApproveConfirm = () => {
+    if (!approveTarget) return;
+    const target = approveTarget;
+    setApproveTarget(null);
+    handleApprove(target.id);
+  };
+
   const handleRejectConfirm = async (reason: string) => {
     if (!rejectTarget) return;
     setIsRejecting(true);
@@ -454,6 +519,16 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
           onConfirm={handleRejectConfirm}
           onCancel={() => setRejectTarget(null)}
           isSubmitting={isRejecting}
+        />
+      )}
+
+      {approveTarget && (
+        <ConfirmApproveModal
+          title="Approve Product"
+          subtitle={`Are you sure you want to approve "${approveTarget.name}" by ${approveTarget.seller.user.name}? It will become visible to buyers.`}
+          onConfirm={handleApproveConfirm}
+          onCancel={() => setApproveTarget(null)}
+          isSubmitting={approvingId === approveTarget.id}
         />
       )}
 
@@ -540,7 +615,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
                           <button onClick={() => setRejectTarget(product)} disabled={isApproving} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             Reject
                           </button>
-                          <button onClick={() => handleApprove(product.id)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+                          <button onClick={() => setApproveTarget(product)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             {isApproving ? "Approving..." : "Approve"}
                           </button>
                         </>
