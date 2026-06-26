@@ -57,7 +57,7 @@ const BuyerRatingsPage = (): JSX.Element => {
   const fetchRatings = async () => {
     try {
       const token = localStorage.getItem('fr_token')
-      const res = await fetch('http://localhost:5000/api/v1/rating/my', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/my`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
@@ -75,7 +75,7 @@ const BuyerRatingsPage = (): JSX.Element => {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('fr_token')
-      const res = await fetch(`http://localhost:5000/api/v1/rating/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/${id}`, {
         method:  'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -101,7 +101,7 @@ const BuyerRatingsPage = (): JSX.Element => {
   const handleEditSave = async (id: string) => {
     try {
       const token = localStorage.getItem('fr_token')
-      const res = await fetch(`http://localhost:5000/api/v1/rating/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/${id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

@@ -6,7 +6,6 @@ type Truck = {
   operator: string;
   departure: string;
   arrival: string;
-  route: string;
   type: string;
   capacityLbs: number;
   loadedLbs: number;
@@ -16,8 +15,6 @@ type Truck = {
   boxesLoaded: number;
   temperature: string;
   fuelNeeded: string;
-  efficiency: number;
-  avgDelay: string;
   loadBalance: { left: number; right: number };
   tiltRisk: string;
 };
@@ -28,6 +25,41 @@ const TRUCK_TYPES = ["Refrigerated van", "Dry cargo", "Reefer"];
 const TEMPERATURE_OPTIONS = ["Ambient", "2°C", "4°C", "6°C", "-10°C", "-18°C"];
 
 const PER_PALLET_WEIGHT = 1800;
+
+// ── Validation helpers ────────────────────────────────────────────────────────
+
+/** Auto-formats a raw string into "AA0000" truck-ID format.
+ *  - First 2 chars: letters only, auto-uppercased
+ *  - Next 4 chars:  digits only
+ *  - Hard cap of 6 characters total
+ */
+const formatTruckId = (raw: string): string => {
+  const cleaned = raw.replace(/[^a-zA-Z0-9]/g, "");
+  const letters = cleaned.slice(0, 2).replace(/[^a-zA-Z]/g, "").toUpperCase();
+  const remainingLetterSlots = Math.max(0, 2 - letters.length);
+  const digits = cleaned
+    .slice(letters.length + remainingLetterSlots)
+    .replace(/[^0-9]/g, "")
+    .slice(0, 4);
+  return letters + digits;
+};
+
+const isTruckIdValid = (id: string): boolean => /^[A-Z]{2}\d{4}$/.test(id);
+
+/** Sanitise a fuel value: digits + at most one decimal point, max 199.99 */
+const sanitiseFuel = (raw: string): string => {
+  let cleaned = raw.replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
+  const num = parseFloat(cleaned);
+  if (!isNaN(num) && num >= 200) return "199.99";
+  return cleaned;
+};
+
+/** Strip digits and special characters — letters and spaces only */
+const lettersOnly = (raw: string): string => raw.replace(/[^a-zA-Z\s\-]/g, "");
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const inputBase = (hasError: boolean) =>
   `w-full rounded-xl border ${
@@ -90,7 +122,6 @@ const AddTruckPage = () => {
     operator: "",
     departure: "",
     arrival: "",
-    route: "",
     type: TRUCK_TYPES[0],
     capacityLbs: 0,
     loadedLbs: 0,
@@ -100,8 +131,6 @@ const AddTruckPage = () => {
     boxesLoaded: 0,
     temperature: TEMPERATURE_OPTIONS[0],
     fuelNeeded: "",
-    efficiency: 0,
-    avgDelay: "",
     loadBalance: { left: 50, right: 50 },
     tiltRisk: "Low",
   });
@@ -115,25 +144,51 @@ const AddTruckPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value, type } = e.target;
-    const numericValue = type === "number" ? Number(value) : value;
 
     setForm((prev) => {
-      const next = { ...prev, [name]: numericValue };
+      let next = { ...prev };
 
+      // ── Truck ID ──────────────────────────────────────────────────────────
+      if (name === "id") {
+        next.id = formatTruckId(value);
+        return next;
+      }
+
+      // ── Departure / Arrival — letters only ────────────────────────────────
+      if (name === "departure" || name === "arrival") {
+        next = { ...next, [name]: lettersOnly(value) };
+        return next;
+      }
+
+      // ── Fuel Needed ───────────────────────────────────────────────────────
+      if (name === "fuelNeeded") {
+        next.fuelNeeded = sanitiseFuel(value);
+        return next;
+      }
+
+      // ── Capacity (lbs) ────────────────────────────────────────────────────
       if (name === "capacityLbs") {
-        const cap = Number(value);
+        const digitsOnly = value.replace(/[^0-9]/g, "");
+        const cap = Math.min(49999, digitsOnly === "" ? 0 : parseInt(digitsOnly, 10));
         const maxPallets = cap > 0 ? Math.floor(cap / PER_PALLET_WEIGHT) : 0;
+        next.capacityLbs = cap;
         next.palletsCap = maxPallets;
         next.palletsLoaded = Math.min(prev.palletsLoaded, maxPallets);
         next.loadedLbs = Math.min(prev.loadedLbs, cap);
+        return next;
       }
 
+      // ── Pallets Loaded ────────────────────────────────────────────────────
       if (name === "palletsLoaded") {
         const loaded = Math.min(Number(value), next.palletsCap);
         next.palletsLoaded = loaded;
         next.loadedLbs = Math.min(next.capacityLbs, loaded * PER_PALLET_WEIGHT);
+        return next;
       }
 
+      // ── Everything else ───────────────────────────────────────────────────
+      const numericValue = type === "number" ? Number(value) : value;
+      next = { ...next, [name]: numericValue };
       return next;
     });
 
@@ -150,21 +205,41 @@ const AddTruckPage = () => {
 
   const validate = (): FormErrors => {
     const e: FormErrors = {};
-    if (!form.id.trim())         e.id          = "Truck ID is required";
-    if (!form.operator.trim())   e.operator    = "Operator name is required";
-    if (!form.route.trim())      e.route       = "Route is required";
-    if (!form.fuelNeeded.trim()) e.fuelNeeded  = "Fuel needed is required";
-    if (!form.capacityLbs || form.capacityLbs <= 0)
-                                 e.capacityLbs = "Capacity must be greater than 0";
+
+    if (!form.id.trim()) {
+      e.id = "Truck ID is required";
+    } else if (!isTruckIdValid(form.id)) {
+      e.id = "Truck ID must be 2 letters followed by 4 digits (e.g. AB1234)";
+    }
+
+    if (!form.operator.trim())  e.operator  = "Operator name is required";
+    if (!form.departure.trim()) e.departure = "Departure location is required";
+    if (!form.arrival.trim())   e.arrival   = "Arrival location is required";
+
+    if (!form.fuelNeeded.trim()) {
+      e.fuelNeeded = "Fuel needed is required";
+    } else {
+      const fuel = parseFloat(form.fuelNeeded);
+      if (isNaN(fuel) || fuel <= 0) {
+        e.fuelNeeded = "Fuel must be a positive number";
+      } else if (fuel >= 200) {
+        e.fuelNeeded = "Fuel must be less than 200";
+      }
+    }
+
+    if (!form.capacityLbs || form.capacityLbs <= 0) {
+      e.capacityLbs = "Capacity must be greater than 0";
+    } else if (form.capacityLbs >= 50000) {
+      e.capacityLbs = "Capacity must be less than 50,000 lbs";
+    }
+
     if (form.loadedLbs < 0)
-                                 e.loadedLbs   = "Loaded weight cannot be negative";
+      e.loadedLbs = "Loaded weight cannot be negative";
     if (form.loadedLbs > form.capacityLbs && form.capacityLbs > 0)
-                                 e.loadedLbs   = "Loaded weight exceeds capacity";
+      e.loadedLbs = "Loaded weight exceeds capacity";
     if (form.palletsLoaded > form.palletsCap && form.palletsCap > 0)
-                                 e.palletsLoaded = "Pallets loaded exceeds pallet capacity";
-    if (!form.efficiency || form.efficiency <= 0)
-                                 e.efficiency  = "Efficiency is required";
-    if (!form.avgDelay.trim())   e.avgDelay    = "Avg. delay is required";
+      e.palletsLoaded = "Pallets loaded exceeds pallet capacity";
+
     return e;
   };
 
@@ -200,8 +275,12 @@ const AddTruckPage = () => {
       setSaving(false);
     }
   };
-
+  
   const errorCount = Object.keys(errors).filter((k) => errors[k]).length;
+
+  const truckIdLetters = form.id.replace(/[^A-Z]/g, "").length;
+  const truckIdDigits  = form.id.replace(/[^0-9]/g, "").length;
+  const truckIdComplete = isTruckIdValid(form.id);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -276,6 +355,7 @@ const AddTruckPage = () => {
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
           {/* ── Left column: form ── */}
           <div className="space-y-5">
+
             {/* Identity & Classification */}
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
               <SectionHeading
@@ -283,15 +363,52 @@ const AddTruckPage = () => {
                 subtitle="Operator and vehicle type"
               />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Truck ID" error={errors.id}>
+
+                {/* Truck ID */}
+                <Field label="Number Plate" error={errors.id}>
                   <input
                     name="id"
-                    placeholder="e.g. NP1234567"
+                    placeholder="e.g. AB1234"
                     value={form.id}
                     onChange={handleChange}
+                    maxLength={6}
                     className={inputBase(!!errors.id)}
                   />
+                  <div className="mt-2 flex items-center gap-2">
+                    {[0, 1].map((i) => (
+                      <div
+                        key={`l${i}`}
+                        className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold transition-all ${
+                          i < truckIdLetters
+                            ? "bg-primary/20 text-primary border border-primary/40"
+                            : "bg-white/5 text-slate-600 border border-white/10"
+                        }`}
+                      >
+                        {form.id[i] ?? "A"}
+                      </div>
+                    ))}
+                    <span className="text-[10px] text-slate-600">—</span>
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={`d${i}`}
+                        className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold transition-all ${
+                          i < truckIdDigits
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                            : "bg-white/5 text-slate-600 border border-white/10"
+                        }`}
+                      >
+                        {form.id[2 + i] ?? "0"}
+                      </div>
+                    ))}
+                    {truckIdComplete && (
+                      <span className="ml-1 text-[11px] text-emerald-400">✓</span>
+                    )}
+                  </div>
+                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
+                    2 capital letters + 4 digits · max 6 characters
+                  </p> */}
                 </Field>
+
                 <Field label="Operator / Company" error={errors.operator}>
                   <input
                     name="operator"
@@ -332,27 +449,58 @@ const AddTruckPage = () => {
             <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
               <SectionHeading
                 title="Schedule & route"
-                subtitle="Origin–destination and fuel"
+                subtitle="Origin, destination and fuel"
               />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Route" error={errors.route}>
+
+                <Field label="Departure" error={errors.departure}>
                   <input
-                    name="route"
-                    placeholder="e.g. Colombo ➝ Kandy"
-                    value={form.route}
+                    name="departure"
+                    placeholder="e.g. Colombo"
+                    value={form.departure}
                     onChange={handleChange}
-                    className={inputBase(!!errors.route)}
+                    className={inputBase(!!errors.departure)}
                   />
+                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
+                    Letters only · no numbers
+                  </p> */}
                 </Field>
-                <Field label="Fuel needed" error={errors.fuelNeeded}>
+
+                <Field label="Arrival" error={errors.arrival}>
                   <input
-                    name="fuelNeeded"
-                    placeholder="e.g. 43.3 gal"
-                    value={form.fuelNeeded}
+                    name="arrival"
+                    placeholder="e.g. Kandy"
+                    value={form.arrival}
                     onChange={handleChange}
-                    className={inputBase(!!errors.fuelNeeded)}
+                    className={inputBase(!!errors.arrival)}
                   />
+                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
+                    Letters only · no numbers
+                  </p> */}
                 </Field>
+
+                {/* Fuel spanning full width on larger screens */}
+                <div className="sm:col-span-2 sm:max-w-[calc(50%-8px)]">
+                  <Field label="Fuel needed (gal)" error={errors.fuelNeeded}>
+                    <div className="relative">
+                      <input
+                        name="fuelNeeded"
+                        inputMode="decimal"
+                        placeholder="e.g. 43.3"
+                        value={form.fuelNeeded}
+                        onChange={handleChange}
+                        className={`${inputBase(!!errors.fuelNeeded)} pr-10`}
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">
+                        gal
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      Max 199.99 gal
+                    </p>
+                  </Field>
+                </div>
+
               </div>
             </section>
 
@@ -363,13 +511,15 @@ const AddTruckPage = () => {
                 <Field label="Capacity (lbs)" error={errors.capacityLbs}>
                   <input
                     name="capacityLbs"
-                    type="number"
-                    min={0}
-                    placeholder="50000"
+                    inputMode="numeric"
+                    placeholder="e.g. 40000"
                     value={form.capacityLbs || ""}
                     onChange={handleChange}
                     className={inputBase(!!errors.capacityLbs)}
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Max 49,999 lbs
+                  </p>
                 </Field>
                 <Field label="Loaded weight (lbs)" error={errors.loadedLbs}>
                   <input
@@ -400,9 +550,9 @@ const AddTruckPage = () => {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-500">
+                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
                     Calculated from weight capacity — cannot exceed this
-                  </p>
+                  </p> */}
                 </div>
                 <Field label="Pallets loaded" error={errors.palletsLoaded}>
                   <input
@@ -425,36 +575,6 @@ const AddTruckPage = () => {
               </div>
             </section>
 
-            {/* Performance */}
-            <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading
-                title="Performance metrics"
-                subtitle="Efficiency targets and delay estimates"
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Delivery efficiency %" error={errors.efficiency}>
-                  <input
-                    name="efficiency"
-                    type="number"
-                    min={0}
-                    max={100}
-                    placeholder="90"
-                    value={form.efficiency || ""}
-                    onChange={handleChange}
-                    className={inputBase(!!errors.efficiency)}
-                  />
-                </Field>
-                <Field label="Avg. delay" error={errors.avgDelay}>
-                  <input
-                    name="avgDelay"
-                    placeholder="+0.0h"
-                    value={form.avgDelay}
-                    onChange={handleChange}
-                    className={inputBase(!!errors.avgDelay)}
-                  />
-                </Field>
-              </div>
-            </section>
           </div>
 
           {/* ── Right column: summary + actions ── */}
@@ -466,17 +586,16 @@ const AddTruckPage = () => {
                 </p>
                 <div className="space-y-3 text-xs">
                   {[
-                    ["Truck ID",       form.id || "—"],
+                    ["Number Plate",       form.id || "—"],
                     ["Operator",       form.operator || "—"],
                     ["Type",           form.type],
-                    ["Route",          form.route || "—"],
+                    ["Departure",      form.departure || "—"],
+                    ["Arrival",        form.arrival || "—"],
                     ["Temperature",    form.temperature],
                     ["Capacity",       form.capacityLbs ? `${form.capacityLbs.toLocaleString()} lbs` : "—"],
                     ["Loaded weight",  form.loadedLbs   ? `${form.loadedLbs.toLocaleString()} lbs`   : "—"],
                     ["Max pallets",    maxPallets > 0   ? `${maxPallets} pallets`                    : "—"],
                     ["Pallets loaded", form.palletsLoaded ? `${form.palletsLoaded}`                   : "—"],
-                    ["Efficiency",     form.efficiency   ? `${form.efficiency}%`                      : "—"],
-                    ["Avg. delay",     form.avgDelay || "—"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -492,9 +611,21 @@ const AddTruckPage = () => {
                   ))}
                 </div>
 
+                {/* Route preview pill */}
+                {form.departure && form.arrival && (
+                  <div className="mt-4 pt-4 border-t border-white/5">
+                    <p className="text-[11px] text-slate-500 mb-2">Route preview</p>
+                    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
+                      <span className="font-semibold text-white">{form.departure}</span>
+                      <span className="text-slate-500">→</span>
+                      <span className="font-semibold text-white">{form.arrival}</span>
+                    </div>
+                  </div>
+                )}
+
                 {form.capacityLbs > 0 && form.loadedLbs > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/5">
-                    <p className="text-[11px] text-slate-500 mb-1.5">Weight utilization preview</p>
+                    <p className="text-[11px] text-slate-500 mb-1.5">Weight utilization</p>
                     <div className="h-1.5 rounded-full bg-white/10">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-primary via-supply-peach to-supply-orange transition-all duration-500"
@@ -511,7 +642,7 @@ const AddTruckPage = () => {
 
                 {form.palletsCap > 0 && form.palletsLoaded > 0 && (
                   <div className="mt-3">
-                    <p className="text-[11px] text-slate-500 mb-1.5">Reefer utilization preview</p>
+                    <p className="text-[11px] text-slate-500 mb-1.5">Pallet utilization</p>
                     <div className="h-1.5 rounded-full bg-white/10">
                       <div
                         className="h-full rounded-full bg-emerald-400 transition-all duration-500"

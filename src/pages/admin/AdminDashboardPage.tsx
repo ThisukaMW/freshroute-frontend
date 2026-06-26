@@ -288,7 +288,7 @@ const AdminDashboardPage = () => {
                   ))}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                {/* <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3">
                     <p className="text-xs uppercase tracking-wide text-slate-400">Delivery efficiency</p>
                     <p className="text-2xl font-semibold text-white">{truck.efficiency}%</p>
@@ -314,7 +314,7 @@ const AdminDashboardPage = () => {
                     </div>
                     <p className="mt-2 text-[11px] text-slate-500">Tilt risk: {truck.tiltRisk}</p>
                   </div>
-                </div>
+                </div> */}
               </div>
             ))}
           </div>
