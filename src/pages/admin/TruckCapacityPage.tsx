@@ -18,11 +18,6 @@ type Truck = {
   cratesLoaded: number;
   boxesLoaded: number;
   temperature: string;
-  fuelNeeded: string;
-  efficiency: number;
-  avgDelay: string;
-  loadBalance: { left: number; right: number };
-  tiltRisk: string;
 };
 
 type TruckMetrics = Truck & {
@@ -38,13 +33,84 @@ const gridColors = [
   "bg-supply-teal/70",
 ];
 
-const PER_PALLET_WEIGHT = 1800;
-
 async function fetchFleet(): Promise<Truck[]> {
   const res = await fetch("/api/v1/trucks");
   if (!res.ok) throw new Error(`Failed to fetch fleet (${res.status})`);
   return res.json();
 }
+
+// ── Delete confirmation modal ───────────────────────────────────────────────
+const DeleteTruckModal = ({
+  truck,
+  onConfirm,
+  onCancel,
+}: {
+  truck: { id: string; operator: string } | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => (
+  <AnimatePresence>
+    {truck && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4"
+        onClick={onCancel}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 12, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.97 }}
+          transition={{ duration: 0.2 }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-lg">
+            ⚠
+          </div>
+          <h3 className="mt-4 text-base font-semibold text-white">
+            Remove truck from manifest?
+          </h3>
+          <p className="mt-1.5 text-sm text-slate-400">
+            <span className="font-medium text-slate-200">{truck.operator}</span>{" "}
+            ({truck.id}) will be permanently removed. This cannot be undone.
+          </p>
+          <div className="mt-6 flex gap-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600"
+            >
+              Delete truck
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+const Toast = ({ message }: { message: string | null }) => (
+  <AnimatePresence>
+    {message && (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16 }}
+        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-sm font-medium text-emerald-300 shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+      >
+        ✓ {message}
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
 
 const TruckCapacityPage = () => {
   const navigate = useNavigate();
@@ -53,6 +119,8 @@ const TruckCapacityPage = () => {
   const [userFleet, setUserFleet] = useState<Truck[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; operator: string } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   // ── Load fleet from API ──────────────────────────────────────────────────────
   const loadFleet = useCallback(async () => {
@@ -74,6 +142,13 @@ const TruckCapacityPage = () => {
   useEffect(() => {
     loadFleet();
   }, [loadFleet]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // ── Derived metrics ──────────────────────────────────────────────────────────
   const fleet: TruckMetrics[] = useMemo(() => {
@@ -125,26 +200,30 @@ const TruckCapacityPage = () => {
   );
 
   // ── Delete truck — calls DELETE /api/v1/trucks/:id ──────────────────────────
-  const handleDeleteTruck = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this truck from the manifest? This cannot be undone."))
-        return;
-      try {
-        const res = await fetch(`/api/v1/trucks/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error(`Delete failed (${res.status})`);
-        setUserFleet((prev) => {
-          const remaining = prev.filter((t) => t.id !== id);
-          if (selectedId === id) {
-            setSelectedId(remaining[0]?.id ?? null);
-          }
-          return remaining;
-        });
-      } catch (err: any) {
-        console.error(err.message);
-      }
-    },
-    [selectedId]
-  );
+  const requestDeleteTruck = useCallback((truck: { id: string; operator: string }) => {
+    setPendingDelete(truck);
+  }, []);
+
+  const confirmDeleteTruck = useCallback(async () => {
+    if (!pendingDelete) return;
+    const { id, operator } = pendingDelete;
+    setPendingDelete(null);
+    try {
+      const res = await fetch(`/api/v1/trucks/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      setUserFleet((prev) => {
+        const remaining = prev.filter((t) => t.id !== id);
+        if (selectedId === id) {
+          setSelectedId(remaining[0]?.id ?? null);
+        }
+        return remaining;
+      });
+      setToast(`${operator} was removed from the manifest`);
+    } catch (err: any) {
+      console.error(err.message);
+      setToast("Failed to delete truck. Please try again.");
+    }
+  }, [pendingDelete, selectedId]);
 
   const summary = useMemo(() => {
     if (!selectedTruck) return [];
@@ -158,16 +237,6 @@ const TruckCapacityPage = () => {
         label: "Free space remaining",
         value: `${selectedTruck.freeSpacePercent}%`,
         helper: `${selectedTruck.palletsCap - selectedTruck.palletsLoaded} pallet slots open`,
-      },
-      {
-        label: "Delivery efficiency",
-        value: `${selectedTruck.efficiency}%`,
-        helper: `Avg. delay ${selectedTruck.avgDelay}`,
-      },
-      {
-        label: "Load balance",
-        value: `${selectedTruck.loadBalance.left}% · ${selectedTruck.loadBalance.right}%`,
-        helper: `Tilt risk ${selectedTruck.tiltRisk}`,
       },
     ];
   }, [selectedTruck]);
@@ -252,6 +321,13 @@ const TruckCapacityPage = () => {
 
   return (
     <div className="space-y-8 text-slate-100">
+      <DeleteTruckModal
+        truck={pendingDelete}
+        onConfirm={confirmDeleteTruck}
+        onCancel={() => setPendingDelete(null)}
+      />
+      <Toast message={toast} />
+
       <header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -298,12 +374,6 @@ const TruckCapacityPage = () => {
                   <p className="text-lg font-semibold text-white">
                     {selectedTruck.loadedLbs.toLocaleString()} /{" "}
                     {selectedTruck.capacityLbs.toLocaleString()} lbs
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
-                  <p className="text-slate-400">Fuel needed</p>
-                  <p className="text-lg font-semibold text-white">
-                    {selectedTruck.fuelNeeded}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
@@ -494,7 +564,7 @@ const TruckCapacityPage = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               {summary.map((stat) => (
                 <div
                   key={stat.label}
@@ -545,7 +615,7 @@ const TruckCapacityPage = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteTruck(truck.id);
+                          requestDeleteTruck({ id: truck.id, operator: truck.operator });
                         }}
                         className="text-red-400 hover:text-red-300 text-xs font-medium"
                         title="Delete truck"

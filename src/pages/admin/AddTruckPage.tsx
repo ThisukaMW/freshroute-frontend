@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 type Truck = {
   id: string;
   operator: string;
-  departure: string;
-  arrival: string;
   type: string;
   capacityLbs: number;
   loadedLbs: number;
@@ -14,7 +12,6 @@ type Truck = {
   cratesLoaded: number;
   boxesLoaded: number;
   temperature: string;
-  fuelNeeded: string;
   loadBalance: { left: number; right: number };
   tiltRisk: string;
 };
@@ -45,19 +42,6 @@ const formatTruckId = (raw: string): string => {
 };
 
 const isTruckIdValid = (id: string): boolean => /^[A-Z]{2}\d{4}$/.test(id);
-
-/** Sanitise a fuel value: digits + at most one decimal point, max 199.99 */
-const sanitiseFuel = (raw: string): string => {
-  let cleaned = raw.replace(/[^0-9.]/g, "");
-  const parts = cleaned.split(".");
-  if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
-  const num = parseFloat(cleaned);
-  if (!isNaN(num) && num >= 200) return "199.99";
-  return cleaned;
-};
-
-/** Strip digits and special characters — letters and spaces only */
-const lettersOnly = (raw: string): string => raw.replace(/[^a-zA-Z\s\-]/g, "");
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -120,8 +104,6 @@ const AddTruckPage = () => {
   const [form, setForm] = useState<Truck>({
     id: "",
     operator: "",
-    departure: "",
-    arrival: "",
     type: TRUCK_TYPES[0],
     capacityLbs: 0,
     loadedLbs: 0,
@@ -130,7 +112,6 @@ const AddTruckPage = () => {
     cratesLoaded: 0,
     boxesLoaded: 0,
     temperature: TEMPERATURE_OPTIONS[0],
-    fuelNeeded: "",
     loadBalance: { left: 50, right: 50 },
     tiltRisk: "Low",
   });
@@ -151,18 +132,6 @@ const AddTruckPage = () => {
       // ── Truck ID ──────────────────────────────────────────────────────────
       if (name === "id") {
         next.id = formatTruckId(value);
-        return next;
-      }
-
-      // ── Departure / Arrival — letters only ────────────────────────────────
-      if (name === "departure" || name === "arrival") {
-        next = { ...next, [name]: lettersOnly(value) };
-        return next;
-      }
-
-      // ── Fuel Needed ───────────────────────────────────────────────────────
-      if (name === "fuelNeeded") {
-        next.fuelNeeded = sanitiseFuel(value);
         return next;
       }
 
@@ -213,19 +182,6 @@ const AddTruckPage = () => {
     }
 
     if (!form.operator.trim())  e.operator  = "Operator name is required";
-    if (!form.departure.trim()) e.departure = "Departure location is required";
-    if (!form.arrival.trim())   e.arrival   = "Arrival location is required";
-
-    if (!form.fuelNeeded.trim()) {
-      e.fuelNeeded = "Fuel needed is required";
-    } else {
-      const fuel = parseFloat(form.fuelNeeded);
-      if (isNaN(fuel) || fuel <= 0) {
-        e.fuelNeeded = "Fuel must be a positive number";
-      } else if (fuel >= 200) {
-        e.fuelNeeded = "Fuel must be less than 200";
-      }
-    }
 
     if (!form.capacityLbs || form.capacityLbs <= 0) {
       e.capacityLbs = "Capacity must be greater than 0";
@@ -275,7 +231,7 @@ const AddTruckPage = () => {
       setSaving(false);
     }
   };
-  
+
   const errorCount = Object.keys(errors).filter((k) => errors[k]).length;
 
   const truckIdLetters = form.id.replace(/[^A-Z]/g, "").length;
@@ -404,9 +360,6 @@ const AddTruckPage = () => {
                       <span className="ml-1 text-[11px] text-emerald-400">✓</span>
                     )}
                   </div>
-                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
-                    2 capital letters + 4 digits · max 6 characters
-                  </p> */}
                 </Field>
 
                 <Field label="Operator / Company" error={errors.operator}>
@@ -442,65 +395,6 @@ const AddTruckPage = () => {
                     ))}
                   </select>
                 </Field>
-              </div>
-            </section>
-
-            {/* Schedule & Route */}
-            <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 backdrop-blur-sm">
-              <SectionHeading
-                title="Schedule & route"
-                subtitle="Origin, destination and fuel"
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-
-                <Field label="Departure" error={errors.departure}>
-                  <input
-                    name="departure"
-                    placeholder="e.g. Colombo"
-                    value={form.departure}
-                    onChange={handleChange}
-                    className={inputBase(!!errors.departure)}
-                  />
-                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
-                    Letters only · no numbers
-                  </p> */}
-                </Field>
-
-                <Field label="Arrival" error={errors.arrival}>
-                  <input
-                    name="arrival"
-                    placeholder="e.g. Kandy"
-                    value={form.arrival}
-                    onChange={handleChange}
-                    className={inputBase(!!errors.arrival)}
-                  />
-                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
-                    Letters only · no numbers
-                  </p> */}
-                </Field>
-
-                {/* Fuel spanning full width on larger screens */}
-                <div className="sm:col-span-2 sm:max-w-[calc(50%-8px)]">
-                  <Field label="Fuel needed (gal)" error={errors.fuelNeeded}>
-                    <div className="relative">
-                      <input
-                        name="fuelNeeded"
-                        inputMode="decimal"
-                        placeholder="e.g. 43.3"
-                        value={form.fuelNeeded}
-                        onChange={handleChange}
-                        className={`${inputBase(!!errors.fuelNeeded)} pr-10`}
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">
-                        gal
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-slate-500">
-                      Max 199.99 gal
-                    </p>
-                  </Field>
-                </div>
-
               </div>
             </section>
 
@@ -550,9 +444,6 @@ const AddTruckPage = () => {
                       </span>
                     )}
                   </div>
-                  {/* <p className="mt-1.5 text-[11px] text-slate-500">
-                    Calculated from weight capacity — cannot exceed this
-                  </p> */}
                 </div>
                 <Field label="Pallets loaded" error={errors.palletsLoaded}>
                   <input
@@ -589,8 +480,6 @@ const AddTruckPage = () => {
                     ["Number Plate",       form.id || "—"],
                     ["Operator",       form.operator || "—"],
                     ["Type",           form.type],
-                    ["Departure",      form.departure || "—"],
-                    ["Arrival",        form.arrival || "—"],
                     ["Temperature",    form.temperature],
                     ["Capacity",       form.capacityLbs ? `${form.capacityLbs.toLocaleString()} lbs` : "—"],
                     ["Loaded weight",  form.loadedLbs   ? `${form.loadedLbs.toLocaleString()} lbs`   : "—"],
@@ -610,18 +499,6 @@ const AddTruckPage = () => {
                     </div>
                   ))}
                 </div>
-
-                {/* Route preview pill */}
-                {form.departure && form.arrival && (
-                  <div className="mt-4 pt-4 border-t border-white/5">
-                    <p className="text-[11px] text-slate-500 mb-2">Route preview</p>
-                    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
-                      <span className="font-semibold text-white">{form.departure}</span>
-                      <span className="text-slate-500">→</span>
-                      <span className="font-semibold text-white">{form.arrival}</span>
-                    </div>
-                  </div>
-                )}
 
                 {form.capacityLbs > 0 && form.loadedLbs > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/5">
