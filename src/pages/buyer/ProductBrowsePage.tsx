@@ -304,7 +304,7 @@ useEffect(() => {
                     />
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
-                  <p className="text-[11px] text-slate-300">{p.sellerName}</p>
+            
                   <p className="mt-1 text-xs font-semibold text-supply-paper">
                     Rs. {p.pricePerUnit}{' '}
                     <span className="font-normal text-slate-300">

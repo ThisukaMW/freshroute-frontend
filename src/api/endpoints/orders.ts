@@ -2,6 +2,20 @@ import apiClient from '../../store/api/client'
 
 // ============= TYPES =============
 
+export type OrderStatus =
+  | 'PENDING'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_FAILED'
+  | 'PAID'
+  | 'BATCHED'
+  | 'ASSIGNED'
+  | 'IN_TRANSIT'
+  | 'DELIVERED'
+  | 'FAILED'
+  | 'CANCELLED'
+
+export type DeliveryTimeSlot = 'MORNING' | 'AFTERNOON' | 'EVENING'
+
 export interface OrderItem {
   id: string
   productId: string
@@ -23,12 +37,17 @@ export interface Order {
   id: string
   orderNumber: string
   buyerId: string
-  status: 'PENDING' | 'CONFIRMED' | 'PACKING' | 'READY_PICKUP' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED'
+  status: OrderStatus
   totalAmount: number
   deliveryAddress: string
   deliveryLat: number
   deliveryLng: number
+  deliveryTimeSlot: DeliveryTimeSlot
   deliveryNotes?: string
+  specialInstructions?: string | null
+  placedAt: string
+  estimatedDelivery?: string | null
+  actualDelivery?: string | null
   items: OrderItem[]
   buyer?: {
     id: string
@@ -91,7 +110,7 @@ export const getSellerOrders = async (): Promise<Order[]> => {
 
 /**
  * GET /orders/seller/stats
- * Get seller dashboard statistics
+ * Get seller dashboard statistics (totalOrders, ordersToday, totalRevenue, revenueToday, ordersByStatus)
  */
 export const getSellerStats = async (): Promise<SellerStats> => {
   try {
@@ -156,13 +175,13 @@ export const getBuyerOrderById = async (orderId: string): Promise<Order> => {
 }
 
 /**
- * GET /api/v1/orders/addresses
+ * GET /orders/addresses
  * Get buyer's saved addresses
  */
 export const getBuyerAddresses = async (): Promise<any> => {
   try {
     console.log('🔄 Fetching buyer addresses...')
-    const response = await apiClient.get('/api/v1/orders/addresses')
+    const response = await apiClient.get('/orders/addresses')
     console.log('✅ Buyer addresses fetched:', response.data)
     return response.data?.data || response.data || []
   } catch (error) {
@@ -180,7 +199,7 @@ export const createOrder = async (
   deliveryAddress: string,
   deliveryLat: number,
   deliveryLng: number,
-  deliveryTimeSlot: "MORNING" | "AFTERNOON" | "EVENING",
+  deliveryTimeSlot: DeliveryTimeSlot,
   specialInstructions?: string
 ): Promise<Order> => {
   try {

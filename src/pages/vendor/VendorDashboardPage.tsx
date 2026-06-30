@@ -18,7 +18,6 @@ const VendorDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Check authentication before loading
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       setError("You must be logged in as a seller to view this dashboard");
@@ -26,10 +25,7 @@ const VendorDashboardPage = () => {
   }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
-    // Skip fetch if not authenticated or auth is still loading
-    if (!isAuthenticated || authLoading) {
-      return;
-    }
+    if (!isAuthenticated || authLoading) return;
 
     const fetchDashboardMetrics = async () => {
       try {
@@ -52,8 +48,16 @@ const VendorDashboardPage = () => {
   }, [isAuthenticated, authLoading]);
 
   const urgentCount =
-    lowStockAlerts?.alerts.filter((alert) => alert.stock <= alert.lowStock / 2)
+    lowStockAlerts?.alerts.filter((alert) => alert.sellerStock <= alert.lowStockThreshold / 2)
       .length ?? 0;
+
+  // Time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   if (authLoading || loading) {
     return <div className="text-center text-slate-300">Loading...</div>;
@@ -69,15 +73,20 @@ const VendorDashboardPage = () => {
 
   return (
     <div className="space-y-8 text-slate-100">
-      {/* ── Page header ───────────────────────────────────────────────────── */}
+      {/* ── Page header ─────────────────────────────────────────────────── */}
       <header className="flex flex-col justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6 md:flex-row md:items-center">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-supply-peach">
             Vendor dashboard
           </p>
+
+          {/* Greeting + seller name */}
           <h1 className="mt-2 text-2xl font-semibold text-supply-paper">
-            {metrics?.sellerName ?? "Loading..."}
+            {metrics?.sellerName
+              ? `${getGreeting()}, ${metrics.sellerName} 👋`
+              : "Loading..."}
           </h1>
+
           <p className="mt-1 text-sm text-slate-300">
             Monitor product health, live deliveries and margin in a single view.
           </p>
@@ -98,21 +107,21 @@ const VendorDashboardPage = () => {
         </div>
       </header>
 
-      {/* ── Error banner ──────────────────────────────────────────────────── */}
+      {/* ── Error banner ────────────────────────────────────────────────── */}
       {error && (
         <div className="rounded-2xl border border-red-500/50 bg-red-500/10 p-4">
           <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
 
-      {/* ── Urgent low stock banner (shows only when urgent items exist) ──── */}
+      {/* ── Urgent low stock banner ──────────────────────────────────────── */}
       {!loading && urgentCount > 0 && (
         <div className="flex items-center justify-between rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3">
           <div className="flex items-center gap-3">
             <span className="text-lg">🚨</span>
             <p className="text-sm font-medium text-red-300">
               {urgentCount} product{urgentCount !== 1 ? "s are" : " is"}{" "}
-              critically low on stock — reorder now!
+              critically low on stock !
             </p>
           </div>
           <Link
@@ -124,7 +133,7 @@ const VendorDashboardPage = () => {
         </div>
       )}
 
-      {/* ── Metric cards ──────────────────────────────────────────────────── */}
+      {/* ── Metric cards ────────────────────────────────────────────────── */}
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -139,11 +148,10 @@ const VendorDashboardPage = () => {
           ))}
         </div>
       ) : metrics ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 grid-cols-1 md:grid-cols-3">
           {[
             metrics.ordersToday,
             metrics.revenueToday,
-            metrics.activeProducts,
             metrics.fulfillmentSLA,
           ].map((metric) => (
             <div
@@ -160,7 +168,7 @@ const VendorDashboardPage = () => {
         </section>
       ) : null}
 
-      {/* ── Telemetry + Low stock ──────────────────────────────────────────── */}
+      {/* ── Telemetry + Low stock ────────────────────────────────────────── */}
       <section className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
         {/* Live delivery telemetry */}
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
@@ -193,7 +201,6 @@ const VendorDashboardPage = () => {
             <h2 className="text-base font-semibold text-white">
               Low stock alerts
             </h2>
-            {/* badge showing count */}
             {!loading && lowStockAlerts && lowStockAlerts.alerts.length > 0 && (
               <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
                 {lowStockAlerts.alerts.length} item
@@ -212,8 +219,8 @@ const VendorDashboardPage = () => {
               ))
             ) : lowStockAlerts && lowStockAlerts.alerts.length > 0 ? (
               lowStockAlerts.alerts.map((alert) => {
-                const isUrgent = alert.stock <= alert.lowStock / 2;
-                const isOutOfStock = alert.stock === 0;
+                const isUrgent = alert.sellerStock <= alert.lowStockThreshold / 2;
+                const isOutOfStock = alert.sellerStock === 0;
                 return (
                   <li
                     key={alert.id}
@@ -230,8 +237,8 @@ const VendorDashboardPage = () => {
                       <p className="text-xs text-slate-400">
                         {isOutOfStock
                           ? "Out of stock"
-                          : `Only ${alert.stock} ${alert.unit} left`}{" "}
-                        · Reorder at {alert.lowStock}
+                          : `Only ${alert.sellerStock} ${alert.unit} left`}{" "}
+                        · Reorder at {alert.lowStockThreshold}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -276,7 +283,7 @@ const VendorDashboardPage = () => {
         </div>
       </section>
 
-      {/* ── Recent catalog + Operational notes ────────────────────────────── */}
+      {/* ── Recent catalog + Operational notes ──────────────────────────── */}
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">

@@ -9,7 +9,7 @@ const SelectSellerPage = () => {
   const { id: productId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const cartItems = useSelector((state: any) => state.cart?.items ?? []) // ✅ Get cart items to calculate remaining stock
+  const cartItems = useSelector((state: any) => state.cart?.items ?? [])
 
   const [product, setProduct] = useState<any>(null)
   const [sellers, setSellers] = useState<any[]>([])
@@ -19,14 +19,12 @@ const SelectSellerPage = () => {
   const [quantity, setQuantity] = useState<number>(1)
   const [requirements, setRequirements] = useState<string>('')
 
-  // Fetch product and sellers on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Fetch product details
         const productData = await getProductById(productId!)
         setProduct({
           id: productData.id,
@@ -39,14 +37,13 @@ const SelectSellerPage = () => {
           description: productData.description,
         })
 
-        // Fetch all sellers offering this product
         const sellersData = await getProductBySellers(productId!)
         const formattedSellers = sellersData.map((item: any) => ({
           id: item.id,
           sellerId: item.seller?.id,
           sellerName: item.seller?.businessName || 'Unknown Seller',
           price: item.price,
-          stock: item.stock, // ✅ NOW INCLUDED - Available quantity from this seller
+          stock: item.stock,
           rating: 4.5,
           deliveriesPerWeek: 5,
           etaLabel: '',
@@ -76,13 +73,78 @@ const SelectSellerPage = () => {
     [selectedSellerId, sellers]
   )
 
-  // ✅ Calculate remaining stock for a specific seller (accounting for items already in cart from this seller)
+  // ✅ Calculate remaining stock for a specific seller (accounting for items already in cart)
   const getRemainingStockForSeller = (sellerId: string, totalSellerStock: number) => {
     const quantityInCart = cartItems
       .filter((item: any) => item.productId === productId && item.sellerId === sellerId)
       .reduce((sum: number, item: any) => sum + item.quantity, 0)
-    
     return Math.max(0, totalSellerStock - quantityInCart)
+  }
+
+  // ✅ FIX 1: Extracted onChange handler — validates against remainingStock
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value)
+    setQuantity(val)
+    if (!selectedSeller) return
+    const remaining = getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)
+    if (val > remaining) {
+      setError(
+        `Only ${remaining} ${product.unit} available from ${selectedSeller.sellerName}`
+      )
+    } else {
+      setError(null)
+    }
+  }
+
+  const handleAddToCart = async () => {
+    if (!selectedSeller || !product) return
+
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+    const remainingStock = getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)
+
+    // ✅ VALIDATION: Check if quantity exceeds REMAINING available stock (accounting for cart)
+    if (safeQuantity > remainingStock) {
+      setError(`Only ${remainingStock} ${product.unit} available from ${selectedSeller.sellerName}`)
+      return
+    }
+
+    // Clear previous errors
+    setError(null)
+
+    // 1️⃣ Dispatch to Redux immediately (optimistic update)
+    dispatch(
+      addItemLocal({
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        category: product.category,
+        price: selectedSeller.price,
+        unit: product.unit,
+        quantity: safeQuantity,
+        imageUrl: product.imageUrl,
+        sellerId: selectedSeller.sellerId,
+        vendor: selectedSeller.sellerName,
+      })
+    )
+
+    // 2️⃣ Also save to database (in background)
+    try {
+      await dispatch(
+        addItemAsync({
+          productId: product.id,
+          quantity: safeQuantity,
+          sellerId: selectedSeller.sellerId,
+        }) as any
+      )
+      console.log('✅ Item added to cart and saved to DB')
+      showSuccessToast(`✓ ${product.name} added! Reserved for 20 mins.`)
+      navigate('/buyer/cart') // ✅ FIX 3: Only navigates on full success
+    } catch (error: any) {
+      console.error('❌ Failed to sync with DB:', error)
+      const msg = error.response?.data?.message || 'Failed to add item to cart'
+      showErrorToast(msg)
+      setError(msg) // shows under quantity field, no navigate
+    }
   }
 
   if (loading) {
@@ -94,7 +156,7 @@ const SelectSellerPage = () => {
     )
   }
 
-  if (error || !product) {
+  if (error && !product) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
         <h1 className="text-xl font-semibold text-slate-50">Product not found</h1>
@@ -134,7 +196,6 @@ const SelectSellerPage = () => {
     if (product.imageUrl) {
       return product.imageUrl
     }
-
     switch (product.category) {
       case 'Fruits':
         return 'https://images.unsplash.com/photo-1576179635662-9d1983e97f5d?auto=format&fit=crop&w=600&q=80'
@@ -151,79 +212,6 @@ const SelectSellerPage = () => {
 
   const basePrice = Number(product.pricePerUnit) || 0
   const productImage = getImageForProduct(product)
-
-//   const handleAddToCart = async () => {
-//   if (!selectedSeller) return
-
-//   const safeQuantity =
-//     Number.isFinite(quantity) && quantity > 0 ? quantity : 1
-
-//   try {
-//     await addItemToCart(
-//       product.id,
-//       safeQuantity,
-//       selectedSeller.sellerId
-      
-//     )
-
-//     console.log("✅ Added to backend cart")
-
-//     navigate('/buyer/cart')
-//   } catch (error) {
-//     console.error("❌ Add to cart failed:", error)
-//   }
-// }
-
-  const handleAddToCart = async () => {
-    if (!selectedSeller || !product) return
-
-    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
-    const remainingStock = getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)
-
-    // ✅ VALIDATION: Check if quantity exceeds REMAINING available stock (accounting for cart)
-    if (safeQuantity > remainingStock) {
-      setError(`Insufficient stock! Only ${remainingStock} ${product.unit} available for you from ${selectedSeller.sellerName}`)
-      return
-    }
-
-    // Clear previous errors
-    setError(null)
-
-    // 1️⃣ Dispatch to Redux immediately (optimistic update)
-    dispatch(
-      addItemLocal({
-        id: product.id,
-        productId: product.id,
-        name: product.name,
-        category: product.category,
-        price: selectedSeller.price,
-        unit: product.unit,
-        quantity: safeQuantity,
-        imageUrl: product.imageUrl,
-        sellerId: selectedSeller.sellerId,
-        vendor: selectedSeller.sellerName // ✅ Added seller name
-      })
-    )
-
-    // 2️⃣ Also save to database (in background)
-    try {
-      await dispatch(
-        addItemAsync({
-          productId: product.id,
-          quantity: safeQuantity,
-          sellerId: selectedSeller.sellerId, // ✅ NOW REQUIRED
-        }) as any
-      )
-      console.log('✅ Item added to cart and saved to DB')
-      showSuccessToast(`✓ ${product.name} added! Reserved for 20 mins.`)
-      navigate('/buyer/cart')
-    } catch (error: any) {
-      console.error('❌ Failed to sync with DB:', error)
-      showErrorToast(error.response?.data?.message || 'Failed to add item to cart')
-      setError(error.response?.data?.message || 'Failed to add item to cart')
-      // Item stays in Redux even if DB save fails - user can retry
-    }
-  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -283,6 +271,7 @@ const SelectSellerPage = () => {
       </section>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,2fr),minmax(0,1.4fr)]">
+        {/* Seller list */}
         <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
           <p className="text-xs font-semibold text-supply-paper">Available sellers ({sellers.length})</p>
           <div className="mt-2 space-y-2">
@@ -291,60 +280,61 @@ const SelectSellerPage = () => {
               const inYourCart = cartItems
                 .filter((item: any) => item.productId === productId && item.sellerId === seller.sellerId)
                 .reduce((sum: number, item: any) => sum + item.quantity, 0)
-              
+
               return (
-  <button
-    key={seller.id}
-    type="button"
-    onClick={() => setSelectedSellerId(seller.sellerId)}
-    className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
-      selectedSellerId === seller.sellerId
-        ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
-        : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
-    }`}
-  >
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <p className="font-semibold">{seller.sellerName}</p>
-        <p className="mt-0.5 text-[11px] text-slate-300">
-          {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
-        </p>
-        {/* ✅ SHOW REMAINING QUANTITY (Total - Already in cart) */}
-        <p className="mt-1 text-[11px] font-medium">
-          {remainingStock === 0 ? (
-            <span className="text-red-400">❌ Out of stock</span>
-          ) : remainingStock <= 5 ? (
-            <span className="text-amber-400">⚠️ Low: {remainingStock} {product.unit} left</span>
-          ) : (
-            <span className="text-emerald-400">✓ {remainingStock} {product.unit} available for you</span>
-          )}
-        </p>
-        {inYourCart > 0 && (
-          <p className="mt-0.5 text-[10px] text-supply-peach">
-            📦 {inYourCart} {product.unit} already in your cart from this seller
-          </p>
-        )}
-      </div>
-      <div className="text-right">
-        <p className="text-xs font-semibold text-supply-paper">
-          Rs. {seller.price}{' '}
-          <span className="font-normal text-slate-300">/ {product.unit}</span>
-        </p>
-        <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
-      </div>
-    </div>
-  </button>
+                <button
+                  key={seller.id}
+                  type="button"
+                  onClick={() => setSelectedSellerId(seller.sellerId)}
+                  className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${
+                    selectedSellerId === seller.sellerId
+                      ? 'border border-supply-teal bg-supply-teal/20 text-supply-paper'
+                      : 'border border-white/10 bg-slate-950/40 text-slate-200 hover:border-supply-teal/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{seller.sellerName}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-300">
+                        {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
+                      </p>
+                      {/* ✅ SHOW REMAINING QUANTITY (Total - Already in cart) */}
+                      <p className="mt-1 text-[11px] font-medium">
+                        {remainingStock === 0 ? (
+                          <span className="text-red-400">❌ Out of stock</span>
+                        ) : remainingStock <= 5 ? (
+                          <span className="text-amber-400">⚠️ Low: {remainingStock} {product.unit} left</span>
+                        ) : (
+                          <span className="text-emerald-400">✓ {remainingStock} {product.unit} available for you</span>
+                        )}
+                      </p>
+                      {inYourCart > 0 && (
+                        <p className="mt-0.5 text-[10px] text-supply-peach">
+                          📦 {inYourCart} {product.unit} already in your cart from this seller
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-supply-paper">
+                        Rs. {seller.price}{' '}
+                        <span className="font-normal text-slate-300">/ {product.unit}</span>
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-supply-peach">{seller.etaLabel}</p>
+                    </div>
+                  </div>
+                </button>
               )
             })}
           </div>
         </section>
 
+        {/* Requirements panel */}
         <section className="space-y-3 rounded-2xl border border-supply-teal/40 bg-supply-deep/80 p-4 text-xs text-supply-paper">
           <p className="text-xs font-semibold text-supply-paper">Your requirements</p>
           <div className="mt-2 space-y-3">
             <div>
               <label className="text-[11px] text-slate-200">
-                Quantity ({product.unit}) 
+                Quantity ({product.unit})
                 {selectedSeller && (
                   <span className="ml-2 font-medium text-supply-peach">
                     Max: {getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)} available for you
@@ -356,18 +346,16 @@ const SelectSellerPage = () => {
                 min={1}
                 max={selectedSeller ? getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock) : 1}
                 value={quantity}
-                onChange={(e) => {
-                  const val = Number(e.target.value)
-                  setQuantity(val)
-                  // ✅ VALIDATE ON INPUT CHANGE
-                  if (selectedSeller && val > selectedSeller.stock) {
-                    setError(`Cannot order more than ${selectedSeller.stock} ${product.unit} available`)
-                  } else {
-                    setError(null)
-                  }
-                }}
+                onChange={handleQuantityChange}  // ✅ FIX 1: use extracted handler
                 className="mt-1 w-32 rounded-xl border border-white/15 bg-slate-950/60 px-3 py-1.5 text-xs text-supply-paper outline-none focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
               />
+
+              {/* ✅ FIX 2: Error shown RIGHT under quantity input */}
+              {error && (
+                <div className="mt-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+                  <p className="font-semibold">❌ {error}</p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -380,12 +368,6 @@ const SelectSellerPage = () => {
                 className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950/60 px-3 py-2 text-xs text-supply-paper outline-none placeholder:text-slate-400 focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
               />
             </div>
-
-            {error && (
-              <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-50">
-                <p className="font-semibold">❌ {error}</p>
-              </div>
-            )}
 
             {selectedSeller && !error && (
               <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
@@ -401,10 +383,10 @@ const SelectSellerPage = () => {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={error !== null} // ✅ DISABLE IF ERROR
+              disabled={error !== null}
               className={`mt-1 inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium transition ${
-                error 
-                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed' 
+                error
+                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
                   : 'bg-primary text-white hover:bg-primary-dark'
               }`}
             >
@@ -417,6 +399,4 @@ const SelectSellerPage = () => {
   )
 }
 
-export default SelectSellerPage;
-
-
+export default SelectSellerPage
