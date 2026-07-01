@@ -10,6 +10,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useDispatch } from 'react-redux'
 import { setBuyerProfile } from '../store/slices/userSlice'
 import { setCredentials } from '../store/slices/authSlice'
+import MapAddressPicker from '../components/MapAddressPicker'
+
 
 // ─── Validation helpers ───────────────────────────────────────────
 
@@ -65,7 +67,6 @@ const EyeIcon = ({ show }: { show: boolean }) => show ? (
 )
 
 // ─── NameField ────────────────────────────────────────────────────
-// Silently strips digits/symbols as you type. Shows error on blur or submit.
 
 interface NameFieldProps {
   value: string
@@ -108,7 +109,6 @@ const NameField = ({
 }
 
 // ─── PhoneField ───────────────────────────────────────────────────
-// +94 locked prefix; user enters exactly 9 digits.
 
 interface PhoneFieldProps {
   value: string
@@ -148,7 +148,6 @@ const PhoneField = ({
           inputMode="numeric"
           value={value}
           onChange={(e) => {
-            // digits only, max 9
             const digits = e.target.value.replace(/\D/g, '').slice(0, 9)
             onChange(digits)
           }}
@@ -201,44 +200,6 @@ const EmailField = ({
       {touched && isEmpty  && <Hint ok={false} msg="Email is required" />}
       {touched && !isEmpty && !isValid && <Hint ok={false} msg="Enter a valid email address" />}
       {hasOk && <Hint ok={true} msg="Looks good" />}
-    </div>
-  )
-}
-
-// ─── AddressField ─────────────────────────────────────────────────
-
-interface AddressFieldProps {
-  value: string
-  onChange: (v: string) => void
-  onBlur: () => void
-  touched: boolean
-  label?: string
-  placeholder?: string
-}
-
-const AddressField = ({
-  value, onChange, onBlur, touched,
-  label = 'Address', placeholder = 'No. 12, Flower Road',
-}: AddressFieldProps) => {
-  const isEmpty  = value.trim().length === 0
-  const hasError = touched && isEmpty
-  const hasOk    = touched && !isEmpty
-
-  return (
-    <div className="space-y-1">
-      <label className="block text-xs font-medium text-slate-200">
-        {label} <span className="text-red-400">*</span>
-      </label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        className={hasError ? cls.error : hasOk ? cls.ok : cls.input}
-        placeholder={placeholder}
-      />
-      {hasError && <Hint ok={false} msg={`${label} is required`} />}
-      {hasOk    && <Hint ok={true}  msg="Looks good" />}
     </div>
   )
 }
@@ -350,84 +311,6 @@ const ConfirmPasswordField = ({
   )
 }
 
-// ─── CitySelect ───────────────────────────────────────────────────
-
-const SRI_LANKA_CITIES = [
-  "Colombo","Kandy","Galle","Jaffna","Negombo","Trincomalee","Batticaloa",
-  "Anuradhapura","Polonnaruwa","Ratnapura","Badulla","Matara","Kurunegala",
-  "Puttalam","Mannar","Vavuniya","Mullaitivu","Kilinochchi","Hambantota",
-  "Matale","Nuwara Eliya","Kegalle","Kalutara","Gampaha","Ampara",
-  "Monaragala","Bandarawela","Dambulla","Chilaw","Wennappuwa","Panadura",
-  "Moratuwa","Dehiwala","Kotte","Avissawella","Horana","Balangoda",
-  "Embilipitiya","Tangalle","Weligama","Beruwala","Aluthgama","Hikkaduwa",
-  "Kadugannawa","Nawalapitiya","Hatton","Talawakele","Haputale","Ella",
-  "Welimada","Mahiyanganaya","Medirigiriya","Minneriya","Sigiriya",
-]
-
-const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
-  const [search, setSearch] = useState('')
-  const [open, setOpen]     = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  const filtered = SRI_LANKA_CITIES.filter((c) =>
-    c.toLowerCase().includes(search.toLowerCase())
-  )
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  return (
-    <div className="space-y-1" ref={ref}>
-      <label className="block text-xs font-medium text-slate-200">City</label>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => { setOpen((p) => !p); setSearch('') }}
-          className={`${cls.input} flex items-center justify-between`}
-        >
-          <span>{value || 'Select city'}</span>
-          <svg className="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {open && (
-          <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-slate-800 shadow-2xl overflow-hidden">
-            <div className="p-2 border-b border-white/10">
-              <input
-                autoFocus
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search city..."
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-50 outline-none placeholder:text-slate-500 focus:border-white/30"
-              />
-            </div>
-            <ul className="max-h-48 overflow-y-auto py-1">
-              {filtered.length === 0
-                ? <li className="px-3 py-2 text-xs text-slate-500">No cities found</li>
-                : filtered.map((city) => (
-                  <li
-                    key={city}
-                    onClick={() => { onChange(city); setOpen(false) }}
-                    className={`px-3 py-2 text-xs cursor-pointer transition-colors ${
-                      value === city ? 'bg-teal-500/15 text-teal-300' : 'text-slate-300 hover:bg-white/10'
-                    }`}
-                  >
-                    {city}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ─── CustomerForm ─────────────────────────────────────────────────
 
@@ -440,6 +323,7 @@ const CustomerForm = ({ onSuccess, onError }: {
   const [phoneLocal, setPhoneLocal]   = useState('')
   const [city, setCity]               = useState('Colombo')
   const [address, setAddress]         = useState('')
+  const [coords, setCoords]           = useState<{ lat: number; lng: number } | null>(null)
   const [password, setPassword]       = useState('')
   const [confirmPwd, setConfirmPwd]   = useState('')
   const [loading, setLoading]         = useState(false)
@@ -451,7 +335,6 @@ const CustomerForm = ({ onSuccess, onError }: {
   const touch = (f: keyof typeof touched) => setTouched((p) => ({ ...p, [f]: true }))
   const touchAll = () => setTouched({ fullName: true, email: true, phone: true, address: true, confirmPwd: true })
 
-  // ── Central validation — returns first error string or null ──
   const validate = (): string | null => {
     if (!fullName.trim())                             return 'Full name is required'
     if (!isValidPersonName(fullName))                 return 'Name can only contain letters and spaces'
@@ -471,12 +354,15 @@ const CustomerForm = ({ onSuccess, onError }: {
     setShowPwdHints(true)
 
     const err = validate()
-    if (err) { onError(err); return }   // ← hard stop
+    if (err) { onError(err); return }
 
     setLoading(true)
     try {
       const phone = phoneLocal ? `+94${phoneLocal}` : ''
-      const data  = await registerCustomer({ name: fullName, email, password, phone, city, address })
+      const data  = await registerCustomer({
+        name: fullName, email, password, phone, city, address,
+        latitude: coords?.lat, longitude: coords?.lng,
+      })
       onSuccess(data)
     } catch (err: any) {
       onError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
@@ -492,8 +378,23 @@ const CustomerForm = ({ onSuccess, onError }: {
       </div>
       <EmailField value={email} onChange={setEmail} onBlur={() => touch('email')} touched={touched.email} />
       <PhoneField value={phoneLocal} onChange={setPhoneLocal} onBlur={() => touch('phone')} touched={touched.phone} />
-      <CitySelect value={city} onChange={setCity} />
-      <AddressField value={address} onChange={setAddress} onBlur={() => touch('address')} touched={touched.address} placeholder="No. 12, Flower Road" />
+      <div className="md:col-span-2 space-y-1">
+        <label className="block text-xs font-medium text-slate-200">
+          Address <span className="text-red-400">*</span>
+        </label>
+        <MapAddressPicker
+          address={address}
+          onChange={({ address: a, city: c, lat, lng }) => {
+            setAddress(a)
+            if (c) setCity(c)
+            setCoords({ lat, lng })
+            touch('address')
+          }}
+        />
+        {touched.address && !address.trim() && (
+          <p className="text-[10px] mt-0.5 text-red-400">✕ Address is required</p>
+        )}
+      </div>
       <PasswordField value={password} onChange={setPassword} showHints={showPwdHints} setShowHints={setShowPwdHints} />
       <ConfirmPasswordField value={confirmPwd} onChange={setConfirmPwd} onBlur={() => touch('confirmPwd')} password={password} touched={touched.confirmPwd} />
       <div className="mt-2 flex items-start gap-2 md:col-span-2">
@@ -523,6 +424,7 @@ const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (m
   const [email, setEmail]                 = useState('')
   const [phoneLocal, setPhoneLocal]       = useState('')
   const [businessAddress, setBusinessAddress] = useState('')
+  const [coords, setCoords]               = useState<{ lat: number; lng: number } | null>(null)
   const [city, setCity]                   = useState('Colombo')
   const [password, setPassword]           = useState('')
   const [confirmPwd, setConfirmPwd]       = useState('')
@@ -561,12 +463,16 @@ const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (m
     setShowPwdHints(true)
 
     const err = validate()
-    if (err) { onError(err); return }   // ← hard stop
+    if (err) { onError(err); return }
 
     setLoading(true)
     try {
       const phone = phoneLocal ? `+94${phoneLocal}` : ''
-      await registerVendor({ businessName, ownerName, email, phone, password, confirmPassword: confirmPwd, businessAddress, city, agreedToPolicy })
+      await registerVendor({
+        businessName, ownerName, email, phone, password, confirmPassword: confirmPwd,
+        businessAddress, city, agreedToPolicy,
+        latitude: coords?.lat, longitude: coords?.lng,
+      })
       onSuccess()
     } catch (err: any) {
       onError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
@@ -595,11 +501,25 @@ const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (m
       <NameField value={ownerName} onChange={setOwnerName} onBlur={() => touch('ownerName')} touched={touched.ownerName} label="Owner full name" placeholder="Kamal Perera" required />
       <EmailField value={email} onChange={setEmail} onBlur={() => touch('email')} touched={touched.email} placeholder="store@example.com" />
       <PhoneField value={phoneLocal} onChange={setPhoneLocal} onBlur={() => touch('phone')} touched={touched.phone} />
-      <div className="md:col-span-2">
-        <AddressField value={businessAddress} onChange={setBusinessAddress} onBlur={() => touch('businessAddress')} touched={touched.businessAddress} label="Business address" placeholder="No. 45, Market Street, Colombo" />
+
+      <div className="md:col-span-2 space-y-1">
+        <label className="block text-xs font-medium text-slate-200">
+          Business address <span className="text-red-400">*</span>
+        </label>
+        <MapAddressPicker
+          address={businessAddress}
+          onChange={({ address: a, city: c, lat, lng }) => {
+            setBusinessAddress(a)
+            if (c) setCity(c)
+            setCoords({ lat, lng })
+            touch('businessAddress')
+          }}
+        />
+        {touched.businessAddress && !businessAddress.trim() && (
+          <p className="text-[10px] mt-0.5 text-red-400">✕ Business address is required</p>
+        )}
       </div>
-      <CitySelect value={city} onChange={setCity} />
-      <div /> {/* spacer */}
+
       <PasswordField value={password} onChange={setPassword} showHints={showPwdHints} setShowHints={setShowPwdHints} />
       <ConfirmPasswordField value={confirmPwd} onChange={setConfirmPwd} onBlur={() => touch('confirmPwd')} password={password} touched={touched.confirmPwd} />
 

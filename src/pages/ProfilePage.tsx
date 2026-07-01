@@ -1,8 +1,4 @@
-/**
- * ProfilePage.tsx
- * Profile settings page — redesigned to match the Notifications page aesthetic.
- * Added full input validation: names (letters/spaces only), phone (+94 prefix, 9 digits).
- */
+ //ProfilePage.tsx
 
 import { useState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
@@ -12,13 +8,14 @@ import type { RootState } from '../store'
 import { updateSellerProfile, updateBuyerProfile } from '../store/slices/userSlice'
 import { useToast } from '../context/ToastContext'
 import { useAuthContext } from '../context/AuthContext'
+import MapAddressPicker from '../components/MapAddressPicker'
 
 const API = 'http://localhost:5000/api/v1/profile'
 
 // ─── Types ────────────────────────────────────────────────────────
 
 type Role      = 'buyer' | 'seller' | 'admin'
-type BuyerTab  = 'profile' | 'orders' | 'address' | 'password' | 'settings'
+type BuyerTab  = 'profile' | 'orders' | 'address' | 'wishlist' | 'payments' | 'password' | 'settings'
 type SellerTab = 'profile' | 'business' | 'password' | 'settings'
 type AdminTab  = 'profile' | 'password' | 'settings'
 type Tab       = BuyerTab | SellerTab | AdminTab
@@ -48,7 +45,6 @@ const inputClass =
   'w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-50 outline-none placeholder:text-slate-500 focus:border-emerald-500/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-500/40 transition-all'
 
 // ─── PhoneInput ───────────────────────────────────────────────────
-// +94 is locked; user types the remaining 9 digits.
 
 const PhoneInput = ({
   value, onChange, label = 'Phone number',
@@ -91,7 +87,6 @@ const PhoneInput = ({
 }
 
 // ─── NameInput ────────────────────────────────────────────────────
-// Accepts letters and spaces only.
 
 const NameInput = ({
   value, onChange, label, placeholder = '', autoComplete = 'name',
@@ -145,6 +140,10 @@ const buyerTabs = [
     { tab: 'profile'  as Tab, label: 'Personal info',    icon: 'user'     },
     { tab: 'orders'   as Tab, label: 'Orders',           icon: 'orders'   },
     { tab: 'address'  as Tab, label: 'Delivery address', icon: 'location' },
+    { tab: 'wishlist' as Tab, label: 'Wishlist',         icon: 'wishlist' },
+  ]},
+  { section: 'Payments',     items: [
+    { tab: 'payments' as Tab, label: 'Payment methods',  icon: 'payments' },
   ]},
   { section: 'Security',     items: [{ tab: 'password' as Tab, label: 'Password', icon: 'lock' }] },
   { section: 'Preferences',  items: [{ tab: 'settings' as Tab, label: 'Settings', icon: 'settings' }] },
@@ -198,6 +197,16 @@ const TabIcon = ({ type }: { type: string }) => {
         <rect x="2" y="6" width="12" height="8" rx="1" /><path d="M5 6V4a3 3 0 016 0v2" /><path d="M8 10v2" />
       </svg>
     ),
+    wishlist: (
+      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 16 16">
+        <path d="M8 13.5s-5.5-3.3-5.5-7A3 3 0 018 4.5 3 3 0 0113.5 6.5c0 3.7-5.5 7-5.5 7z" />
+      </svg>
+    ),
+    payments: (
+      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 16 16">
+        <rect x="1.5" y="4" width="13" height="9" rx="1.5" /><path d="M1.5 6.5h13" strokeLinecap="round" />
+      </svg>
+    ),
   }
   return icons[type] ?? null
 }
@@ -217,7 +226,7 @@ const ProfilePage = (): JSX.Element => {
   const validTabs: Tab[] =
     role === 'admin'  ? ['profile', 'password', 'settings'] :
     role === 'seller' ? ['profile', 'business', 'password', 'settings'] :
-                        ['profile', 'orders', 'address', 'password', 'settings']
+                        ['profile', 'orders', 'address', 'wishlist', 'payments', 'password', 'settings']
 
   const tabParam               = searchParams.get('tab') as Tab | null
   const activeTab: Tab         = tabParam && validTabs.includes(tabParam) ? tabParam : 'profile'
@@ -227,11 +236,9 @@ const ProfilePage = (): JSX.Element => {
   const [saved, setSaved]         = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(localStorage.getItem(`${role}AvatarUrl`))
 
-  // Personal info — name stored as raw string; phone stored as 9-digit local part only
   const [name, setName]   = useState(
     role === 'seller' ? (sellerProfile?.ownerName ?? '') : (buyerProfile?.name ?? '')
   )
-  // Extract local part from stored phone (remove +94 prefix if present)
   const stripPrefix = (p: string) => p.startsWith('+94') ? p.slice(3) : p.startsWith('94') && p.length === 11 ? p.slice(2) : p
   const [phoneLocal, setPhoneLocal] = useState(
     role === 'seller'
@@ -242,10 +249,12 @@ const ProfilePage = (): JSX.Element => {
     role === 'seller' ? (sellerProfile?.city ?? 'Colombo') : (buyerProfile?.city ?? 'Colombo')
   )
   const [address, setAddress]                 = useState(buyerProfile?.address          ?? '')
+  const [coords, setCoords]                   = useState<{ lat: number; lng: number } | null>(null)
   const [businessName, setBusinessName]       = useState(sellerProfile?.businessName    ?? '')
   const [businessAddress, setBusinessAddress] = useState(sellerProfile?.businessAddress ?? '')
+  const [businessCoords, setBusinessCoords]   = useState<{ lat: number; lng: number } | null>(null)
   const [adminName, setAdminName]             = useState(user?.name ?? 'Super Admin')
-  const [adminPhone, setAdminPhone]           = useState('')   // local part for admin
+  const [adminPhone, setAdminPhone]           = useState('')
 
   // Seller approval
   const [isApproved, setIsApproved] = useState<boolean | null>(null)
@@ -269,6 +278,22 @@ const ProfilePage = (): JSX.Element => {
   const [maintenanceMode,    setMaintenanceMode]    = useState(false)
   const [newRegistrations,   setNewRegistrations]   = useState(true)
   const [autoApproveVendors, setAutoApproveVendors] = useState(false)
+  const [showPwdFields, setShowPwdFields] = useState<Record<string, boolean>>({})
+
+  // Wishlist
+  const [wishlist, setWishlist] = useState<{ id: string; name: string; details: string }[]>([
+    { id: 'wl-1', name: 'Organic Apples', details: 'Fresh farm produce · $3.99' },
+    { id: 'wl-2', name: 'Coconut Water',  details: 'Cold pressed · $2.50'       },
+  ])
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+
+  // Payment methods
+  const [payments, setPayments]             = useState<{ label: string; details: string }[]>([
+    { label: 'Primary card', details: 'Visa •••• 4242' },
+  ])
+  const [paymentLabel, setPaymentLabel]     = useState('')
+  const [paymentDetails, setPaymentDetails] = useState('')
+  const [showAddPayment, setShowAddPayment] = useState(false)
 
   // Danger zone
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false)
@@ -367,6 +392,34 @@ const ProfilePage = (): JSX.Element => {
     reader.readAsDataURL(file)
   }
 
+  const handleRemoveWishlistItem = (id: string) => {
+    setWishlist((prev) => prev.filter((w) => w.id !== id))
+  }
+
+  const handleAddPayment = () => {
+    if (!paymentLabel.trim() || !paymentDetails.trim()) {
+      showToast('Please enter a label and details for the payment method', 'error')
+      return
+    }
+    setPayments((prev) => [{ label: paymentLabel.trim(), details: paymentDetails.trim() }, ...prev])
+    setPaymentLabel('')
+    setPaymentDetails('')
+    setShowAddPayment(false)
+    showToast('Payment method added successfully')
+  }
+
+  const handleRemovePayment = (item: { label: string; details: string }) => {
+    setPayments((prev) => prev.filter((p) => p !== item))
+  }
+
+  const openSupportEmail = () => {
+    const to = 'support@freshroute.lk'
+    const subject = 'Support Request'
+    const body = `\n\n---\nSent from: ${displayEmail || 'N/A'}\nRole: ${roleLabel}`
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(gmailUrl, '_blank')
+  }
+
   // ── Save ──
 
   const handleSave = async () => {
@@ -395,30 +448,41 @@ const ProfilePage = (): JSX.Element => {
       if (activeTab === 'profile') {
         const phone = phoneLocal ? `+94${phoneLocal}` : undefined
         if (role === 'buyer') {
-          const res  = await fetch(`${API}/personal`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ name, phone, city }) })
+          const res  = await fetch(`${API}/personal`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ name, phone }) })
           const data = await res.json()
           if (!res.ok) { showToast(data.message ?? 'Failed to update', 'error'); setSaved(false); return }
-          dispatch(updateBuyerProfile({ name, phone: phone ?? '', city }))
+          dispatch(updateBuyerProfile({ name, phone: phone ?? '' }))
           updateUser({ name: data.user?.name ?? name })
           showToast('Personal info updated successfully')
         } else if (role === 'seller') {
-          const res  = await fetch(`${API}/personal`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ name, phone, city }) })
+          const res  = await fetch(`${API}/personal`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ name, phone }) })
           const data = await res.json()
           if (!res.ok) { showToast(data.message ?? 'Failed to update', 'error'); setSaved(false); return }
-          dispatch(updateSellerProfile({ ownerName: name, phone: phone ?? '', city }))
+          dispatch(updateSellerProfile({ ownerName: name, phone: phone ?? '' }))
           updateUser({ name: data.user?.name ?? name })
           showToast('Personal info updated successfully')
         } else {
           showToast('Profile updated successfully')
         }
       } else if (activeTab === 'business' && role === 'seller') {
-        const res  = await fetch(`${API}/business`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ businessName, businessAddress, city }) })
+        const res  = await fetch(`${API}/business`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            businessName, businessAddress, city,
+            latitude: businessCoords?.lat, longitude: businessCoords?.lng,
+          }),
+        })
         const data = await res.json()
         if (!res.ok) { showToast(data.message ?? 'Failed to update business info', 'error'); setSaved(false); return }
         dispatch(updateSellerProfile({ businessName, businessAddress }))
         showToast('Business info updated successfully')
       } else if (activeTab === 'address' && role === 'buyer') {
-        const res  = await fetch(`${API}/address`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ address, city }) })
+        const res  = await fetch(`${API}/address`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ address, city, latitude: coords?.lat, longitude: coords?.lng }),
+        })
         const data = await res.json()
         if (!res.ok) { showToast(data.message ?? 'Failed to update address', 'error'); setSaved(false); return }
         dispatch(updateBuyerProfile({ address, city }))
@@ -608,11 +672,10 @@ const ProfilePage = (): JSX.Element => {
         {/* ── PERSONAL INFO TAB ── */}
         {activeTab === 'profile' && (
           <div className="space-y-5">
-            {/* Header — matches notifications page style */}
             <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Account Details</p>
               <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Personal Information</h1>
-              <p className="mt-1 text-sm text-slate-300">Update your name, phone number, and city.</p>
+              <p className="mt-1 text-sm text-slate-300">Update your name and phone number.</p>
             </header>
 
             <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
@@ -632,16 +695,7 @@ const ProfilePage = (): JSX.Element => {
                 ) : (
                   <PhoneInput value={phoneLocal} onChange={setPhoneLocal} />
                 )}
-                {role !== 'admin' ? (
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-300">City</label>
-                    <select value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} style={{ colorScheme: 'dark' }}>
-                      {['Colombo', 'Kandy', 'Galle', 'Jaffna'].map((c) => (
-                        <option key={c} style={{ backgroundColor: '#0f2d2d', color: '#f8fafc' }}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
+                {role === 'admin' && (
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-300">Role</label>
                     <input value="Super Administrator" disabled className={`${inputClass} cursor-not-allowed opacity-50`} />
@@ -734,7 +788,14 @@ const ProfilePage = (): JSX.Element => {
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300">Business address</label>
-                  <input value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} className={inputClass} placeholder="No. 45, Market Street, Colombo" autoComplete="street-address" />
+                  <MapAddressPicker
+                    address={businessAddress}
+                    onChange={({ address: a, city: c, lat, lng }) => {
+                      setBusinessAddress(a)
+                      if (c) setCity(c)
+                      setBusinessCoords({ lat, lng })
+                    }}
+                  />
                 </div>
               </div>
 
@@ -833,20 +894,132 @@ const ProfilePage = (): JSX.Element => {
             <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-300">Full address</label>
-                <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="No. 12, Flower Road" autoComplete="street-address" />
+                <MapAddressPicker
+                  address={address}
+                  initialLat={(buyerProfile as any)?.latitude}
+                  initialLng={(buyerProfile as any)?.longitude}
+                  onChange={({ address: a, city: c, lat, lng }) => {
+                    setAddress(a)
+                    if (c) setCity(c)
+                    setCoords({ lat, lng })
+                  }}
+                />
                 {address.trim() === '' && <p className="text-[10px] text-slate-500">Enter your street address including house number.</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">City</label>
-                <select value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} style={{ colorScheme: 'dark' }}>
-                  {['Colombo', 'Kandy', 'Galle', 'Jaffna'].map((c) => (
-                    <option key={c} style={{ backgroundColor: '#0f2d2d', color: '#f8fafc' }}>{c}</option>
-                  ))}
-                </select>
               </div>
               <button onClick={handleSave} className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
                 {saveLabel}
               </button>
+            </div>
+          </div>
+        )}
+
+
+        {/* ── WISHLIST TAB ── */}
+        {activeTab === 'wishlist' && role === 'buyer' && (
+          <div className="space-y-5">
+            <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Saved Items</p>
+              <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Wishlist</h1>
+              <p className="mt-1 text-sm text-slate-300">Items you saved for later.</p>
+            </header>
+            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+              {wishlistLoading ? (
+                <p className="py-6 text-center text-sm text-slate-400">Loading your wishlist…</p>
+              ) : wishlist.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <span className="text-4xl opacity-30">❤️</span>
+                  <p className="text-sm font-medium text-white">Your wishlist is empty</p>
+                  <p className="text-xs text-slate-500">Items you save will show up here.</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {wishlist.map((item) => (
+                    <li key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
+                      <div>
+                        <p className="text-sm font-medium text-slate-50">{item.name}</p>
+                        <p className="text-xs text-slate-400">{item.details}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveWishlistItem(item.id)}
+                        className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors focus:outline-none"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAYMENT METHODS TAB ── */}
+        {activeTab === 'payments' && role === 'buyer' && (
+          <div className="space-y-5">
+            <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Billing</p>
+              <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Payment Methods</h1>
+              <p className="mt-1 text-sm text-slate-300">Cards and wallet preferences.</p>
+            </header>
+
+            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-3">
+              {payments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <span className="text-4xl opacity-30">💳</span>
+                  <p className="text-sm font-medium text-white">No payment methods yet</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {payments.map((p, i) => (
+                    <li key={`${p.label}-${i}`} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
+                      <div>
+                        <p className="text-sm font-medium text-slate-50">{p.label}</p>
+                        <p className="text-xs text-slate-400">{p.details}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemovePayment(p)}
+                        className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors focus:outline-none"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {showAddPayment ? (
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-300">Payment label</label>
+                    <input value={paymentLabel} onChange={(e) => setPaymentLabel(e.target.value)} className={inputClass} placeholder="e.g. Business card" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-300">Card details</label>
+                    <input value={paymentDetails} onChange={(e) => setPaymentDetails(e.target.value)} className={inputClass} placeholder="e.g. Mastercard •••• 2020" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddPayment}
+                      className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                    >
+                      Save payment method
+                    </button>
+                    <button
+                      onClick={() => setShowAddPayment(false)}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddPayment(true)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  Add payment method
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -867,7 +1040,32 @@ const ProfilePage = (): JSX.Element => {
               ].map((f) => (
                 <div key={f.id} className="space-y-1.5">
                   <label htmlFor={f.id} className="block text-sm font-medium text-slate-300">{f.label}</label>
-                  <input id={f.id} type="password" placeholder={f.placeholder} className={inputClass} autoComplete={f.auto} />
+                  <div className="relative">
+                    <input
+                      id={f.id}
+                      type={showPwdFields[f.id] ? 'text' : 'password'}
+                      placeholder={f.placeholder}
+                      className={inputClass}
+                      autoComplete={f.auto}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwdFields((p) => ({ ...p, [f.id]: !p[f.id] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPwdFields[f.id] ? (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ))}
               {role === 'admin' && (
@@ -934,18 +1132,33 @@ const ProfilePage = (): JSX.Element => {
 
             {/* Privacy */}
             {(role === 'buyer' || role === 'seller') && (
-              <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-                <p className="mb-4 text-sm font-semibold text-slate-200">Privacy</p>
-                <div className="space-y-3">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-4">
+                <div>
+                  <p className="mb-4 text-sm font-semibold text-slate-200">Privacy</p>
+                  <div className="space-y-3">
+                    {[
+                      role === 'buyer'
+                        ? { label: 'Profile visibility',             sub: 'Allow vendors to see your profile',  value: profileVisible, onChange: () => setProfileVisible(!profileVisible) }
+                        : { label: 'Store visibility',               sub: 'Allow customers to find your store', value: storeVisible,   onChange: () => setStoreVisible(!storeVisible)     },
+                      { label: 'Share data for recommendations',    sub: 'Help us improve your experience',     value: dataSharing,    onChange: () => setDataSharing(!dataSharing)       },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                        <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
+                        <Toggle value={item.value} onChange={item.onChange} label={item.label} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t border-white/10 pt-4">
                   {[
-                    role === 'buyer'
-                      ? { label: 'Profile visibility',             sub: 'Allow vendors to see your profile',  value: profileVisible, onChange: () => setProfileVisible(!profileVisible) }
-                      : { label: 'Store visibility',               sub: 'Allow customers to find your store', value: storeVisible,   onChange: () => setStoreVisible(!storeVisible)     },
-                    { label: 'Share data for recommendations',    sub: 'Help us improve your experience',     value: dataSharing,    onChange: () => setDataSharing(!dataSharing)       },
+                    { title: 'Privacy & terms', body: 'Your data is protected and used only to improve your FreshRoute experience.' },
+                    { title: 'Data use',        body: 'We use your profile details to personalize products, delivery, and support — and never share them without your consent.' },
+                    { title: 'Account rights',  body: 'You can edit your information, change your password, and request account deletion at any time from this profile section.' },
                   ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                      <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
-                      <Toggle value={item.value} onChange={item.onChange} label={item.label} />
+                    <div key={item.title} className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                      <p className="text-sm font-medium text-slate-100">{item.title}</p>
+                      <p className="mt-1 text-xs text-slate-400">{item.body}</p>
                     </div>
                   ))}
                 </div>
@@ -995,6 +1208,25 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               </>
             )}
+
+            {/* Help & Support */}
+            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-3">
+              <p className="text-sm font-semibold text-slate-200">Help & Support</p>
+              <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                <p className="text-sm font-medium text-slate-100">Need help?</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Our support team is available Mon–Fri, 9am–6pm.<br />
+                  support@freshroute.lk
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openSupportEmail}
+                className="inline-block rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                Contact support
+              </button>
+            </div>
 
             {/* Danger zone */}
             <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-5 space-y-3">

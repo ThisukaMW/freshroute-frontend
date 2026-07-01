@@ -16,6 +16,8 @@ export interface CustomerRegisterInput {
   phone?: string;
   city?: string;
   address?: string;
+  latitude?: number
+  longitude?: number
 }
 
 // Data needed to sign up a new vendor.
