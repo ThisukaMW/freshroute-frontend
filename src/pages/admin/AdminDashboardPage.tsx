@@ -132,7 +132,6 @@ const AdminDashboardPage = () => {
       <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Admin</p>
         <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Platform overview</h1>
-        <p className="mt-1 text-sm text-slate-300">Monitor users, fulfillment and approvals across FreshRoute.</p>
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -153,7 +152,6 @@ const AdminDashboardPage = () => {
       <section className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <h2 className="text-base font-semibold text-white">Pending product approvals</h2>
-          <p className="text-xs text-slate-400">Approve or reject seller submissions before they reach buyers.</p>
           <div className="mt-4 space-y-3 text-sm text-slate-300">
             {pendingProducts.length === 0 && (
               <p className="text-xs text-slate-500">No pending products right now.</p>
@@ -190,7 +188,6 @@ const AdminDashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-white">Recent orders</h2>
-              <p className="text-xs text-slate-400">5 most recent · Update fulfillment states directly from HQ</p>
             </div>
           </div>
           <div className="mt-3 overflow-x-auto text-xs">
@@ -245,9 +242,6 @@ const AdminDashboardPage = () => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Fleet capacity</p>
             <h2 className="text-xl font-semibold text-white">Truck load planner</h2>
-            <p className="text-xs text-slate-400">
-              Live data from the database. Add or adjust trucks in the Truck capacity planner to see updates here.
-            </p>
           </div>
         </div>
 
@@ -267,11 +261,9 @@ const AdminDashboardPage = () => {
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{truck.operator ?? 'Unassigned'}</p>
-                    <p className="text-lg font-semibold text-white">{truck.route ?? truck.id}</p>
-                    <p className="text-xs text-slate-400">
-                      {truck.vehicleType ?? truckTypeLabel(truck.type)} · {truck.storageSupport ?? '—'} · max stops {truck.maxStops ?? '—'}
-                    </p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{truck.operator}</p>
+                    <p className="text-lg font-semibold text-white">{truck.route}</p>
+                    
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs">
                     <div className="rounded-xl border border-white/10 px-3 py-1 text-center">
@@ -305,11 +297,11 @@ const AdminDashboardPage = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-2">
                   {[
-                    { label: 'Pallets', value: `${truck.palletsLoaded ?? 0}/${truck.palletsCap ?? 0}` },
-                    { label: 'Crates', value: truck.cratesLoaded ?? 0 },
-                    { label: 'Boxes', value: truck.boxesLoaded ?? 0 },
+                    { label: 'Pallets', value: `${truck.palletsLoaded}/${truck.palletsCap}` },
+                    // { label: 'Crates', value: truck.cratesLoaded },
+                    // { label: 'Boxes', value: truck.boxesLoaded },
                     {
                       label: 'Reefer',
                       value: (() => {

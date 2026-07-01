@@ -337,10 +337,7 @@ const TruckCapacityPage = () => {
             <h1 className="mt-2 text-2xl font-semibold text-white">
               Truck capacity planner
             </h1>
-            <p className="text-sm text-slate-400">
-              Switch across trucks to demonstrate live cargo loading, reefer
-              status, and efficiency recommendations.
-            </p>
+            
           </div>
           <button
             onClick={() => navigate("/admin/trucks/add")}
@@ -363,10 +360,7 @@ const TruckCapacityPage = () => {
                 <h2 className="text-xl font-semibold text-white">
                   {selectedTruck.operator}
                 </h2>
-                <p className="text-xs text-slate-400">
-                  {selectedTruck.departure} departure · arrival{" "}
-                  {selectedTruck.arrival} · {selectedTruck.type}
-                </p>
+                
               </div>
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
@@ -588,7 +582,7 @@ const TruckCapacityPage = () => {
 
           <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/40 p-5">
             <h3 className="text-base font-semibold text-white">
-              Manifest & alerts
+              Manifest
             </h3>
             <div className="space-y-3 text-sm">
               {fleet.map((truck) => (
