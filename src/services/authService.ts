@@ -59,20 +59,30 @@ export interface SellerProfile {
   businessAddress: string;
 }
 
-// The full response the backend sends back after a successful login or registration.
+// The full response the backend sends back after a successful login.
 export interface AuthResponse {
   token: string;
   user: AuthUser;
-  profile: SellerProfile | null; // null for buyers, filled in for sellers.
-  redirectTo: string;            // The URL to send the user to after login.
+  profile: SellerProfile | null;
+  redirectTo: string;
+}
+
+// Response when registration is submitted but awaiting admin approval (no token yet).
+export interface PendingRegistrationResponse {
+  message: string;
+  user: AuthUser;
 }
 
 // ── FUNCTIONS ──
 
-// Sends customer registration data to the backend and saves the returned token.
-export const registerCustomer = async (input: CustomerRegisterInput): Promise<AuthResponse> => {
-  const { data } = await client.post<AuthResponse>('/auth/customer/register', input);
-  LocalStorageService.set('fr_token', data.token); // Save the token so the user stays logged in.
+// Sends customer registration data to the backend. No token until admin approves.
+export const registerCustomer = async (
+  input: CustomerRegisterInput
+): Promise<PendingRegistrationResponse> => {
+  const { data } = await client.post<PendingRegistrationResponse>(
+    '/auth/customer/register',
+    input
+  );
   return data;
 };
 
@@ -84,9 +94,10 @@ export const loginUser = async (input: LoginInput): Promise<AuthResponse> => {
   return data;
 };
 
-// Sends vendor registration data to the backend (as JSON, not a form).
-// Saves the token and returns the full response.
-export const registerVendor = async (input: VendorRegisterInput): Promise<AuthResponse> => {
+// Sends vendor registration data to the backend. No token until admin approves.
+export const registerVendor = async (
+  input: VendorRegisterInput
+): Promise<PendingRegistrationResponse> => {
   const payload = {
     businessName:    input.businessName,
     ownerName:       input.ownerName,
@@ -101,8 +112,10 @@ export const registerVendor = async (input: VendorRegisterInput): Promise<AuthRe
     longitude:       input.longitude,
   };
 
-  const { data } = await client.post<AuthResponse>('/auth/vendor/signup', payload);
-  LocalStorageService.set('fr_token', data.token);
+  const { data } = await client.post<PendingRegistrationResponse>(
+    '/auth/vendor/signup',
+    payload
+  );
   return data;
 };
 

@@ -372,8 +372,8 @@ const TruckCapacityPage = () => {
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
                   <p className="text-slate-400">Weight</p>
                   <p className="text-lg font-semibold text-white">
-                    {selectedTruck.loadedLbs.toLocaleString()} /{" "}
-                    {selectedTruck.capacityLbs.toLocaleString()} lbs
+                    {Number(selectedTruck.loadedLbs ?? 0).toLocaleString()} /{" "}
+                    {Number(selectedTruck.capacityLbs ?? 0).toLocaleString()} lbs
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
@@ -538,10 +538,14 @@ const TruckCapacityPage = () => {
                       />
                     </div>
                     <div className="mt-1 flex justify-between text-[11px] text-slate-400">
-                      <span>{selectedTruck.fillPercent}% of weight capacity</span>
+                      <span>{selectedTruck ? `${selectedTruck.fillPercent}% of weight capacity` : "—"}</span>
                       <span>
-                        {(selectedTruck.capacityLbs - selectedTruck.loadedLbs).toLocaleString()}{" "}
-                        lbs free
+                        {selectedTruck
+                          ? `${Math.max(
+                              0,
+                              selectedTruck.capacityLbs - selectedTruck.loadedLbs
+                            ).toLocaleString()} lbs free`
+                          : "—"}
                       </span>
                     </div>
                   </div>

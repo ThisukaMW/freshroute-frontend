@@ -22,6 +22,7 @@ const lazyPage = (pathBase: string) => {
 const LandingPage = lazyPage("../pages/LandingPage");
 const AdminLoginPage = lazyPage("../pages/admin/AdminLoginPage");
 const AdminDashboardPage = lazyPage("../pages/admin/AdminDashboardPage");
+const AdminAggregatorPage = lazyPage("../pages/admin/AdminAggregatorPage");
 const UserManagementPage = lazyPage("../pages/admin/UserManagementPage");
 const SellerManagementPage = lazyPage("../pages/admin/SellerManagementPage");
 const BuyerManagementPage = lazyPage("../pages/admin/BuyerManagementPage");
@@ -143,6 +144,16 @@ export const routeConfig: {
       element: (
         <MainLayout role="admin">
           <AdminDashboardPage />
+        </MainLayout>
+      ),
+    },
+    // Admin order aggregator override page
+    {
+      path: "/admin/aggregator",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <AdminAggregatorPage />
         </MainLayout>
       ),
     },

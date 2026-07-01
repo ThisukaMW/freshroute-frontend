@@ -1,30 +1,53 @@
 import { useSelector, useDispatch } from 'react-redux'
+import { createSelector } from '@reduxjs/toolkit'
 import { useEffect, useState } from 'react'
+import type { RootState } from '../../store'
 import { setProductStatus } from '../../store/slices/sellerProductsSlice'
 import { updateOrderStatus } from '../../store/slices/ordersSlice'
 
+const selectOrders = (state: RootState) => state.orders?.orders ?? []
+
+const selectPendingProducts = createSelector(
+  [(state: RootState) => state.sellerProducts?.products ?? []],
+  (products) => products.filter((p) => p.status === 'pending'),
+)
+
+const formatLbs = (value: number | null | undefined) =>
+  (value ?? 0).toLocaleString()
+
+const truckTypeLabel = (type: string | null | undefined) => type ?? '—'
+
 type Truck = {
   id: string
-  operator: string
-  departure: string
-  arrival: string
-  route: string
-  type: string
-  capacityLbs: number
-  loadedLbs: number
-  palletsLoaded: number
-  palletsCap: number
-  cratesLoaded: number
-  boxesLoaded: number
-  temperature: string
-  fuelNeeded: string
-  efficiency: number
-  avgDelay: string
-  loadBalance: { left: number; right: number }
-  tiltRisk: string
+  operator?: string | null
+  departure?: string | null
+  arrival?: string | null
+  route?: string | null
+  vehicleNumber?: string | null
+  vehicleType?: string | null
+  type?: string | null
+  capacityLbs?: number | null
+  loadedLbs?: number | null
+  palletsLoaded?: number | null
+  palletsCap?: number | null
+  cratesLoaded?: number | null
+  boxesLoaded?: number | null
+  temperature?: string | null
+  maxWeight?: number | null
+  maxVolume?: number | null
+  maxStops?: number | null
+  currentLoadWeight?: number | null
+  currentLoadVolume?: number | null
+  currentLoadStops?: number | null
+  storageSupport?: string | null
+  isActive?: boolean | null
+  isAvailable?: boolean | null
+  fuelNeeded?: string | null
+  efficiency?: number | null
+  avgDelay?: string | null
+  loadBalance?: { left: number; right: number } | null
+  tiltRisk?: string | null
 }
-
-const PER_PALLET_WEIGHT = 1800
 
 const statusStyles: Record<string, string> = {
   Preparing: 'border-amber-500/40 bg-amber-500/20 text-amber-300',
@@ -33,10 +56,8 @@ const statusStyles: Record<string, string> = {
 }
 
 const AdminDashboardPage = () => {
-  const orders = useSelector((state: any) => state.orders.orders)
-  const pendingProducts = useSelector((state: any) =>
-    state.sellerProducts.products.filter((p: any) => p.status === 'pending')
-  )
+  const orders = useSelector(selectOrders)
+  const pendingProducts = useSelector(selectPendingProducts)
   const dispatch = useDispatch()
 
   const [totalUsers, setTotalUsers] = useState<number>(0)
@@ -82,10 +103,28 @@ const AdminDashboardPage = () => {
   }, [])
 
   const fleetWithMetrics = fleet.map((truck) => {
-    const loadedLbs = Math.min(truck.capacityLbs, truck.loadedLbs ?? 0)
-    const fillPercent = truck.capacityLbs ? Math.round((loadedLbs / truck.capacityLbs) * 100) : 0
+    const capacityLbs = truck.capacityLbs ?? truck.maxWeight ?? 0
+    const loadedLbs = Math.min(
+      capacityLbs,
+      truck.loadedLbs ?? truck.currentLoadWeight ?? 0
+    )
+    const fillPercent = capacityLbs ? Math.round((loadedLbs / capacityLbs) * 100) : 0
     const freeSpacePercent = Math.max(0, 100 - fillPercent)
-    return { ...truck, loadedLbs, fillPercent, freeSpacePercent }
+    const temperature =
+      truck.temperature ??
+      (truck.storageSupport === "COLD" ? "2°C" : "Ambient")
+    const route = truck.route ?? truck.vehicleNumber ?? truck.id
+    const vehicleType = truck.vehicleType ?? truck.type
+    return {
+      ...truck,
+      capacityLbs,
+      loadedLbs,
+      fillPercent,
+      freeSpacePercent,
+      temperature,
+      route,
+      vehicleType,
+    }
   })
 
   return (
@@ -126,9 +165,7 @@ const AdminDashboardPage = () => {
               >
                 <div>
                   <p className="font-semibold text-white">{p.name}</p>
-                  <p className="text-xs text-slate-400">
-                    {p.category} · Rs. {p.pricePerUnit} / {p.unit}
-                  </p>
+                  <p className="text-xs text-slate-400">Awaiting seller listing review</p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <button
@@ -179,7 +216,7 @@ const AdminDashboardPage = () => {
                     <tr key={o.id} className="hover:bg-white/5 transition">
                       <td className="px-3 py-2 text-slate-300">{o.id}</td>
                       <td className="px-3 py-2 font-medium text-white">{o.customerName}</td>
-                      <td className="px-3 py-2">Rs. {o.total.toLocaleString('en-LK')}</td>
+                      <td className="px-3 py-2">Rs. {(o.total ?? 0).toLocaleString('en-LK')}</td>
                       <td className="px-3 py-2 text-slate-400">
                         {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
@@ -230,17 +267,17 @@ const AdminDashboardPage = () => {
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{truck.operator}</p>
-                    <p className="text-lg font-semibold text-white">{truck.route}</p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{truck.operator ?? 'Unassigned'}</p>
+                    <p className="text-lg font-semibold text-white">{truck.route ?? truck.id}</p>
                     <p className="text-xs text-slate-400">
-                      {truck.departure} · Arrival {truck.arrival} · {truck.type}
+                      {truck.vehicleType ?? truckTypeLabel(truck.type)} · {truck.storageSupport ?? '—'} · max stops {truck.maxStops ?? '—'}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs">
                     <div className="rounded-xl border border-white/10 px-3 py-1 text-center">
                       <p className="text-slate-400">Capacity</p>
                       <p className="text-base font-semibold text-white">
-                        {truck.loadedLbs.toLocaleString()} / {truck.capacityLbs.toLocaleString()} lbs
+                        {formatLbs(truck.loadedLbs)} / {formatLbs(truck.capacityLbs)} lbs
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/10 px-3 py-1 text-center">
@@ -249,7 +286,7 @@ const AdminDashboardPage = () => {
                     </div>
                     <div className="rounded-xl border border-white/10 px-3 py-1 text-center">
                       <p className="text-slate-400">Temperature</p>
-                      <p className="text-base font-semibold text-white">{truck.temperature}</p>
+                      <p className="text-base font-semibold text-white">{truck.temperature ?? '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -264,21 +301,23 @@ const AdminDashboardPage = () => {
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-400">
                     <span>{truck.fillPercent}% filled</span>
-                    <span>{truck.capacityLbs - truck.loadedLbs} lbs available</span>
+                    <span>{Math.max(0, truck.capacityLbs - truck.loadedLbs)} lbs available</span>
                   </div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-4">
                   {[
-                    { label: 'Pallets', value: `${truck.palletsLoaded}/${truck.palletsCap}` },
-                    { label: 'Crates', value: truck.cratesLoaded },
-                    { label: 'Boxes', value: truck.boxesLoaded },
+                    { label: 'Pallets', value: `${truck.palletsLoaded ?? 0}/${truck.palletsCap ?? 0}` },
+                    { label: 'Crates', value: truck.cratesLoaded ?? 0 },
+                    { label: 'Boxes', value: truck.boxesLoaded ?? 0 },
                     {
                       label: 'Reefer',
-                      value:
-                        truck.type.toLowerCase().includes('refrigerat') || truck.type.toLowerCase().includes('reefer')
-                          ? truck.temperature
-                          : '—',
+                      value: (() => {
+                        const type = truck.type?.toLowerCase() ?? ''
+                        return type.includes('refrigerat') || type.includes('reefer')
+                          ? (truck.temperature ?? '—')
+                          : '—'
+                      })(),
                     },
                   ].map((item) => (
                     <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-center">

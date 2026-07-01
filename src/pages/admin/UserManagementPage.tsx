@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 type UserRole = "BUYER" | "SELLER" | "DRIVER" | "ADMIN" | "FIELD_ADMIN";
 type UserStatus = "ACTIVE" | "SUSPENDED";
 
-const API_BASE = "http://localhost:5009";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:5001";
 
 interface User {
   id: string;

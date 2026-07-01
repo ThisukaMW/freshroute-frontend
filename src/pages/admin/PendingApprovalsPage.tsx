@@ -44,6 +44,14 @@ const roleConfig: Record<UserRole, { emoji: string; label: string; color: string
   DRIVER: { emoji: "🚚", label: "Driver", color: "text-violet-400",  bg: "bg-violet-500/15 border-violet-500/20"   },
 };
 
+const getRoleConfig = (role: string) =>
+  roleConfig[role as UserRole] ?? {
+    emoji: "👤",
+    label: role,
+    color: "text-slate-300",
+    bg: "bg-white/10 border-white/10",
+  };
+
 // Pre-written list of reasons an admin can pick when rejecting someone
 const REJECT_REASONS = [
   "Incomplete or suspicious registration details",
@@ -188,7 +196,11 @@ const PendingApprovalsPage = () => {
       const res = await fetch("/api/v1/admin/users/pending", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch pending users");
+      if (res.status === 401) throw new Error("Session expired. Please sign in again as admin.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to fetch pending users");
+      }
       const data = await res.json();
       // Use empty array as fallback if data.data is missing
       setUsers(data.data ?? []);
@@ -360,7 +372,7 @@ const PendingApprovalsPage = () => {
           // Render a card for each filtered user
           <div className="space-y-3">
             {filtered.map((user) => {
-              const config = roleConfig[user.role]; // get emoji/color/etc for this user's role
+              const config = getRoleConfig(user.role);
               const isApproved  = approvedIds.has(user.id);  // was this user just approved?
               const isRejected  = rejectedIds.has(user.id);  // was this user just rejected?
               const isApproving = approvingId === user.id;   // is this user's approve in progress?

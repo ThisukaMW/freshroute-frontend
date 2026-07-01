@@ -23,9 +23,15 @@ export function useFcm(authToken: string | null) {
     async function register() {
       console.log("[useFcm] starting registration...");
       try {
-        const permission = await Notification.requestPermission();
-        console.log("[useFcm] permission:", permission);
-        if (permission !== "granted") return;
+        if (Notification.permission === "default") {
+          console.log("[useFcm] notification permission is default; skipping auto-register until user gesture");
+          return;
+        }
+
+        if (Notification.permission !== "granted") {
+          console.log("[useFcm] notification permission is not granted; skipping FCM registration");
+          return;
+        }
 
         const registration = await navigator.serviceWorker.register(
           "/firebase-messaging-sw.js"
