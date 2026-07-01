@@ -352,7 +352,7 @@ const OrderHistoryPage: React.FC = () => {
             <table className="min-w-full divide-y divide-white/5 text-left">
               <thead className="text-xs uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Order ID</th>
+                  
                   <th className="px-3 py-2 font-medium">Product</th>
                   <th className="px-3 py-2 font-medium">Quantity</th>
                   <th className="px-3 py-2 font-medium">Unit Price</th>
@@ -362,7 +362,6 @@ const OrderHistoryPage: React.FC = () => {
               <tbody className="divide-y divide-white/5 text-slate-200">
                 {highlightedItems.map((item) => (
                   <tr key={`${item.orderId}-${item.productId}`}>
-                    <td className="px-3 py-2 text-white">{item.orderId}</td>
                     <td className="px-3 py-2">
                       {item.product?.name || "Product"}
                     </td>
