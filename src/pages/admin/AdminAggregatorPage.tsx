@@ -56,7 +56,7 @@ const AdminAggregatorPage: React.FC = () => {
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Admin aggregator</p>
         <h1 className="mt-3 text-3xl font-semibold text-white">Manual batch override</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-          Run an on-demand order aggregation cycle for paid, unbatched deliveries. Use this page to override the usual automated batching process and allocate orders to field admins.
+          Run an on-demand order aggregation cycle for paid, unbatched deliveries. Overnight batching also runs automatically between 00:00 and 04:00 (Asia/Colombo). Use this page anytime to override or demo batch creation manually.
         </p>
       </header>
 

@@ -8,6 +8,7 @@ import {
   createOrder as createOrderApi,
 } from "../../api/endpoints/orders";
 import api from "../../api/client";
+import { getOrderingStatus, type OrderingPortalStatus } from "../../api/endpoints/system";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
@@ -55,6 +56,7 @@ const CheckoutPage: React.FC = () => {
   });
 
   const [orderCompleted, setOrderCompleted] = useState(false);
+  const [orderingStatus, setOrderingStatus] = useState<OrderingPortalStatus | null>(null);
 
   // ⏱ Tick every second to keep reservation countdowns live
   const [, setTick] = useState(0);
@@ -101,7 +103,30 @@ const CheckoutPage: React.FC = () => {
     fetchAddress();
   }, []);
 
+  useEffect(() => {
+    const fetchOrderingStatus = async () => {
+      try {
+        const status = await getOrderingStatus();
+        setOrderingStatus(status);
+      } catch (err) {
+        console.error("Failed to fetch ordering status:", err);
+      }
+    };
+    fetchOrderingStatus();
+    const interval = setInterval(fetchOrderingStatus, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const orderingClosed = orderingStatus?.isOpen === false;
+
   const handleNextStep = () => {
+    if (orderingClosed) {
+      setState((prev) => ({
+        ...prev,
+        error: orderingStatus?.message ?? "Ordering is currently closed.",
+      }));
+      return;
+    }
     if (state.currentStep === 2 && !state.deliveryAddress.address) {
       setState((prev) => ({ ...prev, error: "Please enter a delivery address" }));
       return;
@@ -126,6 +151,14 @@ const CheckoutPage: React.FC = () => {
   };
 
   const handlePay = async () => {
+    if (orderingClosed) {
+      setState((prev) => ({
+        ...prev,
+        error: orderingStatus?.message ?? "Ordering is currently closed.",
+      }));
+      return;
+    }
+
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
@@ -236,6 +269,16 @@ const CheckoutPage: React.FC = () => {
         <h1 className="text-2xl font-semibold text-slate-50">Checkout</h1>
         <p className="text-xs text-slate-400 mt-1">Step {state.currentStep} of 5</p>
       </div>
+
+      {orderingClosed && orderingStatus ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+          <p className="text-sm font-medium text-amber-200">Ordering portal closed</p>
+          <p className="mt-1 text-sm text-amber-100/90">{orderingStatus.message}</p>
+          <p className="mt-2 text-xs text-amber-200/80">
+            Reopens at {new Date(orderingStatus.opensAt).toLocaleString("en-LK", { timeZone: orderingStatus.timezone })}
+          </p>
+        </div>
+      ) : null}
 
       {/* Progress bar */}
       <div className="flex justify-between gap-1">
@@ -414,7 +457,7 @@ const CheckoutPage: React.FC = () => {
           <button
             type="button"
             onClick={handleNextStep}
-            disabled={state.loading}
+            disabled={state.loading || orderingClosed}
             className="flex-1 rounded-xl bg-supply-teal px-4 py-2 text-sm font-medium text-slate-950 hover:bg-supply-teal/90 disabled:opacity-50"
           >
             Next →
@@ -423,7 +466,7 @@ const CheckoutPage: React.FC = () => {
           <button
             type="button"
             onClick={handlePay}
-            disabled={state.loading}
+            disabled={state.loading || orderingClosed}
             className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {state.loading ? "Redirecting to payment…" : "Proceed to Payment"}
