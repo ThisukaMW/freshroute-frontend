@@ -47,7 +47,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/admin", label: "Dashboard" },
     { to: "/admin/aggregator", label: "Aggregator" },
     { to: "/admin/users", label: "Users" },
-    { to: "/admin/orders", label: "Orders" },
+    { to: "/admin/orders", label: "Batches" },
     { to: "/admin/trucks", label: "Trucks" },
     { to: "/admin/transactions", label: "Transactions" },
     { to: "/admin/analytics", label: "Analytics" },

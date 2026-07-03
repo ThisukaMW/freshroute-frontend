@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import AdminDateRangeBar, { defaultSinceDate, todayDateInput } from "../../components/admin/AdminDateRangeBar";
+import { formatDisplayDate } from "../../utils/adminDateFilters";
 
 type OrderStatus =
   | "PENDING"
@@ -85,55 +87,59 @@ const TransactionHistoryPage = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [since, setSince] = useState(defaultSinceDate);
+  const [until, setUntil] = useState(todayDateInput);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem("fr_token");
+
+      if (!token) {
+        setError("Not authenticated.");
+        setLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams({ since, until });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/admin/orders?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (res.status === 401) {
+        setError("Session expired. Please log in again.");
+        return;
+      }
+
+      if (res.status === 403) {
+        setError("Access denied. Admin privileges required.");
+        return;
+      }
+
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+      const data: Order[] = await res.json();
+      const sorted = [...data].sort(
+        (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()
+      );
+      setOrders(sorted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [since, until]);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const token = localStorage.getItem("fr_token");
-
-        if (!token) {
-          setError("Not authenticated.");
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Use VITE_API_URL — not a hardcoded port
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/v1/admin/orders`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (res.status === 401) {
-          setError("Session expired. Please log in again.");
-          return;
-        }
-
-        if (res.status === 403) {
-          setError("Access denied. Admin privileges required.");
-          return;
-        }
-
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-
-        const data: Order[] = await res.json();
-        const latest50 = [...data]
-          .sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime())
-          .slice(0, 50);
-        setOrders(latest50);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const filtered = orders
     .filter((o) => filter === "ALL" || o.status === filter)
@@ -155,8 +161,19 @@ const TransactionHistoryPage = () => {
     <div className="space-y-6 pb-10">
       <div>
         <h1 className="text-xl font-semibold text-slate-50">Transaction History</h1>
-        <p className="text-sm text-slate-400 mt-1">All orders across the platform.</p>
+        <p className="text-sm text-slate-400 mt-1">Orders and payments from the last 7 days.</p>
       </div>
+
+      <AdminDateRangeBar
+        since={since}
+        until={until}
+        onSinceChange={setSince}
+        onUntilChange={setUntil}
+        onResetLast7Days={() => {
+          setSince(defaultSinceDate());
+          setUntil(todayDateInput());
+        }}
+      />
 
       {loading && (
         <div className="flex items-center justify-center py-20">
@@ -257,7 +274,7 @@ const TransactionHistoryPage = () => {
                     </div>
 
                     <div className="hidden sm:block text-right flex-shrink-0">
-                      <p className="text-xs text-slate-400">{formatDate(order.placedAt)}</p>
+                      <p className="text-xs text-slate-400">{formatDisplayDate(order.placedAt)}</p>
                       <p className="text-xs text-slate-500">{formatTime(order.placedAt)}</p>
                     </div>
 
