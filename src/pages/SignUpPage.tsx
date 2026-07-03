@@ -562,7 +562,14 @@ const SignUpPage = (): JSX.Element => {
   const handleVendorSuccess = () => { navigate('/pending-approval') }
   const handleBuyerSuccess  = (data: { token: string; user: any; redirectTo: string }) => {
     dispatch(setCredentials({ user: { id: data.user.id, email: data.user.email, name: data.user.name }, token: data.token }))
-    dispatch(setBuyerProfile({ name: data.user.name, email: data.user.email, phone: '', city: 'Colombo', address: '' }))
+    // 🔧 FIX: use the real values that came back from signup instead of hardcoded blanks
+    dispatch(setBuyerProfile({
+      name:    data.user.name,
+      email:   data.user.email,
+      phone:   data.user.phone   ?? '',
+      city:    data.user.city    ?? 'Colombo',
+      address: data.user.address ?? '',
+    }))
     login(data.token, { id: data.user.id, name: data.user.name, email: data.user.email, role: 'buyer' })
     showToast(`Welcome to FreshRoute, ${data.user.name}! 🎉`)
     navigate(data.redirectTo)

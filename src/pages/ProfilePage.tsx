@@ -1,4 +1,4 @@
- //ProfilePage.tsx
+//ProfilePage.tsx
 
 import { useState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
@@ -15,18 +15,16 @@ const API = 'http://localhost:5000/api/v1/profile'
 // ─── Types ────────────────────────────────────────────────────────
 
 type Role      = 'buyer' | 'seller' | 'admin'
-type BuyerTab  = 'profile' | 'orders' | 'address' | 'wishlist' | 'payments' | 'password' | 'settings'
+type BuyerTab  = 'profile' | 'address' | 'password' | 'settings'
 type SellerTab = 'profile' | 'business' | 'password' | 'settings'
 type AdminTab  = 'profile' | 'password' | 'settings'
 type Tab       = BuyerTab | SellerTab | AdminTab
 
-type Order = {
-  id: string; date: string; status: string; total: string; items: number; sellerName: string
-}
 type AuditEntry = {
   id: number; action: string; target: string; time: string; type: 'approve' | 'suspend' | 'reject' | 'config'
 }
 type Product = { name: string; price: string; status: 'APPROVED' | 'PENDING_APPROVAL' }
+type SavedAddress = { id: string; label: string; address: string; city: string; lat?: number; lng?: number; isDefault: boolean }
 type HealthCard = { label: string; value: string; good: boolean }
 type StatsData = {
   totalOrders?: number; delivered?: number; memberSince?: string;
@@ -138,12 +136,7 @@ const Toggle = ({ value, onChange, label }: { value: boolean; onChange: () => vo
 const buyerTabs = [
   { section: 'Account',      items: [
     { tab: 'profile'  as Tab, label: 'Personal info',    icon: 'user'     },
-    { tab: 'orders'   as Tab, label: 'Orders',           icon: 'orders'   },
     { tab: 'address'  as Tab, label: 'Delivery address', icon: 'location' },
-    { tab: 'wishlist' as Tab, label: 'Wishlist',         icon: 'wishlist' },
-  ]},
-  { section: 'Payments',     items: [
-    { tab: 'payments' as Tab, label: 'Payment methods',  icon: 'payments' },
   ]},
   { section: 'Security',     items: [{ tab: 'password' as Tab, label: 'Password', icon: 'lock' }] },
   { section: 'Preferences',  items: [{ tab: 'settings' as Tab, label: 'Settings', icon: 'settings' }] },
@@ -226,7 +219,7 @@ const ProfilePage = (): JSX.Element => {
   const validTabs: Tab[] =
     role === 'admin'  ? ['profile', 'password', 'settings'] :
     role === 'seller' ? ['profile', 'business', 'password', 'settings'] :
-                        ['profile', 'orders', 'address', 'wishlist', 'payments', 'password', 'settings']
+                        ['profile', 'address', 'password', 'settings']
 
   const tabParam               = searchParams.get('tab') as Tab | null
   const activeTab: Tab         = tabParam && validTabs.includes(tabParam) ? tabParam : 'profile'
@@ -250,6 +243,12 @@ const ProfilePage = (): JSX.Element => {
   )
   const [address, setAddress]                 = useState(buyerProfile?.address          ?? '')
   const [coords, setCoords]                   = useState<{ lat: number; lng: number } | null>(null)
+
+  // Saved addresses (multi-address, buyer + seller)
+  const [addresses, setAddresses]               = useState<SavedAddress[]>([])
+  const [addressesLoading, setAddressesLoading] = useState(false)
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null) // null = closed, 'new' = adding
+  const [addrLabel, setAddrLabel]                = useState('')
   const [businessName, setBusinessName]       = useState(sellerProfile?.businessName    ?? '')
   const [businessAddress, setBusinessAddress] = useState(sellerProfile?.businessAddress ?? '')
   const [businessCoords, setBusinessCoords]   = useState<{ lat: number; lng: number } | null>(null)
@@ -260,19 +259,13 @@ const ProfilePage = (): JSX.Element => {
   const [isApproved, setIsApproved] = useState<boolean | null>(null)
   const [userStatus, setUserStatus] = useState<string>('ACTIVE')
 
-  // Notification toggles
-  const [notifOrders,          setNotifOrders]          = useState(true)
-  const [notifPromos,          setNotifPromos]          = useState(false)
-  const [notifStock,           setNotifStock]           = useState(true)
-  const [notifPayouts,         setNotifPayouts]         = useState(true)
-  const [notifVendorApprovals, setNotifVendorApprovals] = useState(true)
-  const [notifDisputes,        setNotifDisputes]        = useState(true)
-  const [notifSystem,          setNotifSystem]          = useState(false)
+  // Notification preferences — fetched from / saved to the backend so the
+  // toggles here actually control whether notification.service.ts sends
+  // notifications (mirrors the mobile app's NotificationsSection).
+  const [notifPrefs, setNotifPrefs]               = useState<Record<string, boolean>>({})
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(true)
 
   // Privacy / platform toggles
-  const [storeVisible,       setStoreVisible]       = useState(true)
-  const [profileVisible,     setProfileVisible]     = useState(true)
-  const [dataSharing,        setDataSharing]        = useState(false)
   const [twoFactor,          setTwoFactor]          = useState(true)
   const [auditLogging,       setAuditLogging]       = useState(true)
   const [maintenanceMode,    setMaintenanceMode]    = useState(false)
@@ -280,29 +273,12 @@ const ProfilePage = (): JSX.Element => {
   const [autoApproveVendors, setAutoApproveVendors] = useState(false)
   const [showPwdFields, setShowPwdFields] = useState<Record<string, boolean>>({})
 
-  // Wishlist
-  const [wishlist, setWishlist] = useState<{ id: string; name: string; details: string }[]>([
-    { id: 'wl-1', name: 'Organic Apples', details: 'Fresh farm produce · $3.99' },
-    { id: 'wl-2', name: 'Coconut Water',  details: 'Cold pressed · $2.50'       },
-  ])
-  const [wishlistLoading, setWishlistLoading] = useState(false)
-
-  // Payment methods
-  const [payments, setPayments]             = useState<{ label: string; details: string }[]>([
-    { label: 'Primary card', details: 'Visa •••• 4242' },
-  ])
-  const [paymentLabel, setPaymentLabel]     = useState('')
-  const [paymentDetails, setPaymentDetails] = useState('')
-  const [showAddPayment, setShowAddPayment] = useState(false)
-
   // Danger zone
   const [showDeleteConfirm,  setShowDeleteConfirm]  = useState(false)
   const [showSessionConfirm, setShowSessionConfirm] = useState(false)
   const [deleteLoading,      setDeleteLoading]      = useState(false)
 
   // Real data
-  const [orders,          setOrders]          = useState<Order[]>([])
-  const [ordersLoading,   setOrdersLoading]   = useState(false)
   const [products,        setProducts]        = useState<Product[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [auditLog,        setAuditLog]        = useState<AuditEntry[]>([])
@@ -314,11 +290,12 @@ const ProfilePage = (): JSX.Element => {
   // ── Fetches ──
 
   const hasFetchedStatus   = useRef(false)
-  const hasFetchedOrders   = useRef(false)
   const hasFetchedProducts = useRef(false)
   const hasFetchedAuditLog = useRef(false)
   const hasFetchedHealth   = useRef(false)
   const hasFetchedStats    = useRef(false)
+  const hasFetchedAddresses = useRef(false)
+  const hasFetchedNotifPrefs = useRef(false)
 
   useEffect(() => {
     if (role !== 'seller' || hasFetchedStatus.current) return
@@ -327,16 +304,6 @@ const ProfilePage = (): JSX.Element => {
     if (!token) return
     fetch(`${API}/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null).then(d => { if (d) { setIsApproved(d.isApproved); setUserStatus(d.status) } }).catch(() => {})
-  }, [role])
-
-  useEffect(() => {
-    if (role !== 'buyer' || hasFetchedOrders.current) return
-    hasFetchedOrders.current = true
-    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
-    if (!token) return
-    setOrdersLoading(true)
-    fetch(`${API}/orders`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d?.orders) setOrders(d.orders) }).catch(() => {}).finally(() => setOrdersLoading(false))
   }, [role])
 
   useEffect(() => {
@@ -378,6 +345,30 @@ const ProfilePage = (): JSX.Element => {
       .then(r => r.ok ? r.json() : null).then(d => { if (d?.stats) setStatsData(d.stats) }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (role === 'admin' || hasFetchedAddresses.current) return
+    hasFetchedAddresses.current = true
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) return
+    setAddressesLoading(true)
+    fetch(`${API}/addresses`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d?.addresses) setAddresses(d.addresses) }).catch(() => {}).finally(() => setAddressesLoading(false))
+  }, [role])
+
+  // Notification preferences — same endpoint the mobile app uses:
+  // GET /profile/notification-prefs -> { prefs: Record<string, boolean> }
+  useEffect(() => {
+    if (hasFetchedNotifPrefs.current) return
+    hasFetchedNotifPrefs.current = true
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) { setNotifPrefsLoading(false); return }
+    fetch(`${API}/notification-prefs`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setNotifPrefs(d.prefs ?? {}) })
+      .catch(() => { /* fall back to empty — toggles default to "on" below */ })
+      .finally(() => setNotifPrefsLoading(false))
+  }, [])
+
   // ── Avatar ──
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -392,24 +383,74 @@ const ProfilePage = (): JSX.Element => {
     reader.readAsDataURL(file)
   }
 
-  const handleRemoveWishlistItem = (id: string) => {
-    setWishlist((prev) => prev.filter((w) => w.id !== id))
+  // ── Saved addresses (multi-address) ──
+
+  const openAddAddress = () => {
+    setEditingAddressId('new')
+    setAddrLabel('')
+    setAddress('')
+    setCity('Colombo')
+    setCoords(null)
   }
 
-  const handleAddPayment = () => {
-    if (!paymentLabel.trim() || !paymentDetails.trim()) {
-      showToast('Please enter a label and details for the payment method', 'error')
-      return
+  const openEditAddress = (a: SavedAddress) => {
+    setEditingAddressId(a.id)
+    setAddrLabel(a.label)
+    setAddress(a.address)
+    setCity(a.city)
+    setCoords(a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null)
+  }
+
+  const cancelAddressEdit = () => setEditingAddressId(null)
+
+  const handleSaveAddress = async () => {
+    if (!address.trim()) { showToast('Please enter an address', 'error'); return }
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) { showToast('You are not authenticated. Please sign in again.', 'error'); return }
+    const payload = { label: addrLabel.trim() || 'Address', address, city, latitude: coords?.lat, longitude: coords?.lng }
+    try {
+      if (editingAddressId === 'new') {
+        const res  = await fetch(`${API}/addresses`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to add address', 'error'); return }
+        setAddresses((prev) => [...prev, data.address ?? { id: crypto.randomUUID(), ...payload, lat: payload.latitude, lng: payload.longitude, isDefault: prev.length === 0 }])
+        showToast('Address added')
+      } else if (editingAddressId) {
+        const id   = editingAddressId
+        const res  = await fetch(`${API}/addresses/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) })
+        const data = await res.json()
+        if (!res.ok) { showToast(data.message ?? 'Failed to update address', 'error'); return }
+        setAddresses((prev) => prev.map((a) => a.id === id ? { ...a, label: payload.label, address: payload.address, city: payload.city, lat: payload.latitude, lng: payload.longitude } : a))
+        showToast('Address updated')
+      }
+      setEditingAddressId(null)
+    } catch {
+      showToast('Network error — please check your connection', 'error')
     }
-    setPayments((prev) => [{ label: paymentLabel.trim(), details: paymentDetails.trim() }, ...prev])
-    setPaymentLabel('')
-    setPaymentDetails('')
-    setShowAddPayment(false)
-    showToast('Payment method added successfully')
   }
 
-  const handleRemovePayment = (item: { label: string; details: string }) => {
-    setPayments((prev) => prev.filter((p) => p !== item))
+  const handleDeleteAddress = async (id: string) => {
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    try {
+      const res = await fetch(`${API}/addresses/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { const d = await res.json(); showToast(d.message ?? 'Failed to remove address', 'error'); return }
+      setAddresses((prev) => prev.filter((a) => a.id !== id))
+      showToast('Address removed')
+    } catch {
+      showToast('Network error — please check your connection', 'error')
+    }
+  }
+
+  const handleSetDefaultAddress = async (id: string) => {
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    try {
+      const res = await fetch(`${API}/addresses/${id}/default`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { showToast('Failed to set default address', 'error'); return }
+      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })))
+      showToast('Default address updated')
+    } catch {
+      showToast('Network error — please check your connection', 'error')
+    }
   }
 
   const openSupportEmail = () => {
@@ -418,6 +459,31 @@ const ProfilePage = (): JSX.Element => {
     const body = `\n\n---\nSent from: ${displayEmail || 'N/A'}\nRole: ${roleLabel}`
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.open(gmailUrl, '_blank')
+  }
+
+  // ── Notification preference toggle ──
+  // Optimistically flips the toggle, then PATCHes just that one key —
+  // mirrors NotificationsSection.toggle() in the mobile app.
+
+  const toggleNotifPref = async (key: string) => {
+    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
+    if (!token) { showToast('You are not authenticated. Please sign in again.', 'error'); return }
+
+    const previous = notifPrefs
+    const next     = { ...notifPrefs, [key]: !(notifPrefs[key] ?? true) }
+    setNotifPrefs(next) // optimistic update
+
+    try {
+      const res = await fetch(`${API}/notification-prefs`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ prefs: { [key]: next[key] } }),
+      })
+      if (!res.ok) throw new Error()
+    } catch {
+      setNotifPrefs(previous) // revert on failure
+      showToast('Failed to update notification preference', 'error')
+    }
   }
 
   // ── Save ──
@@ -437,12 +503,6 @@ const ProfilePage = (): JSX.Element => {
         showToast('Phone number must be exactly 9 digits', 'error'); return
       }
     }
-    if (activeTab === 'address') {
-      if (phoneLocal && !isValidLocalPhone(phoneLocal)) {
-        showToast('Phone number must be exactly 9 digits', 'error'); return
-      }
-    }
-
     setSaved(true)
     try {
       if (activeTab === 'profile') {
@@ -477,16 +537,6 @@ const ProfilePage = (): JSX.Element => {
         if (!res.ok) { showToast(data.message ?? 'Failed to update business info', 'error'); setSaved(false); return }
         dispatch(updateSellerProfile({ businessName, businessAddress }))
         showToast('Business info updated successfully')
-      } else if (activeTab === 'address' && role === 'buyer') {
-        const res  = await fetch(`${API}/address`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ address, city, latitude: coords?.lat, longitude: coords?.lng }),
-        })
-        const data = await res.json()
-        if (!res.ok) { showToast(data.message ?? 'Failed to update address', 'error'); setSaved(false); return }
-        dispatch(updateBuyerProfile({ address, city }))
-        showToast('Delivery address updated successfully')
       } else if (activeTab === 'password') {
         const currentPwd = (document.getElementById('current-password') as HTMLInputElement)?.value?.trim()
         const newPwd     = (document.getElementById('new-password')     as HTMLInputElement)?.value?.trim()
@@ -552,35 +602,97 @@ const ProfilePage = (): JSX.Element => {
     config:  'text-sky-400    bg-sky-400/10    border-sky-400/20',
   }
 
-  const stats =
-    role === 'admin'  ? [
-      { label: 'Total users',    value: statsData?.totalUsers    != null ? String(statsData.totalUsers)    : '—' },
-      { label: 'Active vendors', value: statsData?.activeVendors != null ? String(statsData.activeVendors) : '—' },
-      { label: 'Orders today',   value: statsData?.ordersToday   != null ? String(statsData.ordersToday)   : '—' },
-      { label: 'Admin since',    value: statsData?.adminSince ?? '—' },
-    ] :
-    role === 'seller' ? [
-      { label: 'Products',     value: statsData?.totalProducts != null ? String(statsData.totalProducts) : '—' },
-      { label: 'Orders',       value: statsData?.totalOrders   != null ? String(statsData.totalOrders)   : '—' },
-      { label: 'Member since', value: statsData?.memberSince ?? '—' },
-    ] : [
-      { label: 'Orders',       value: statsData?.totalOrders != null ? String(statsData.totalOrders) : '—' },
-      { label: 'Delivered',    value: statsData?.delivered   != null ? String(statsData.delivered)   : '—' },
-      { label: 'Member since', value: statsData?.memberSince ?? '—' },
-    ]
-
   const saveLabel =
     activeTab === 'password' ? (saved ? '✓ Password updated' : 'Update Password') :
-    activeTab === 'address'  ? (saved ? '✓ Address saved'    : 'Save Address') :
                                (saved ? '✓ Changes saved'    : 'Save Changes')
 
   // ── Render ──
 
+  const renderAddressManager = (addLabel: string) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-200">Saved addresses</p>
+        {editingAddressId === null && (
+          <button
+            onClick={openAddAddress}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >{addLabel}</button>
+        )}
+      </div>
+
+      {addressesLoading ? (
+        <p className="py-4 text-center text-sm text-slate-400">Loading addresses…</p>
+      ) : addresses.length === 0 && editingAddressId === null ? (
+        <p className="py-4 text-center text-sm text-slate-400">No addresses saved yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {addresses.map((a) => (
+            <li key={a.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-50">{a.label}</p>
+                    {a.isDefault && (
+                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">Default</span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-400 truncate">{a.address}{a.city ? `, ${a.city}` : ''}</p>
+                </div>
+                <div className="flex flex-shrink-0 gap-1.5">
+                  {!a.isDefault && (
+                    <button onClick={() => handleSetDefaultAddress(a.id)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">Set default</button>
+                  )}
+                  <button onClick={() => openEditAddress(a)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteAddress(a.id)} className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-400 hover:bg-red-500/20 transition-colors">Remove</button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {editingAddressId !== null && (
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-semibold text-slate-200">{editingAddressId === 'new' ? 'New address' : 'Edit address'}</p>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-slate-300">Label</label>
+            <input value={addrLabel} onChange={(e) => setAddrLabel(e.target.value)} placeholder="Home, Work, Store, etc." className={inputClass} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-slate-300">Full address</label>
+            <MapAddressPicker
+              address={address}
+              initialLat={coords?.lat}
+              initialLng={coords?.lng}
+              onChange={({ address: a, city: c, lat, lng }) => {
+                setAddress(a)
+                if (c) setCity(c)
+                setCoords({ lat, lng })
+              }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveAddress}
+              className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+            >{editingAddressId === 'new' ? 'Add address' : 'Save changes'}</button>
+            <button onClick={cancelAddressEdit} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   return (
-    <main className="flex min-h-screen gap-0" aria-label="Profile page">
+    /* ── PROFILE PAGE ROOT ──
+       No h-screen / overflow-hidden here — this page lives INSIDE MainLayout's
+       own <main class="flex-1 overflow-y-auto ..."> scroll container, so this
+       page must NOT try to own scrolling itself. Only the sidebar is pinned
+       via `sticky`, so it stays in view while MainLayout scrolls the page. */
+    <div className="flex gap-0" aria-label="Profile page">
 
       {/* ── SIDEBAR ── */}
-      <aside className="flex w-64 flex-shrink-0 flex-col gap-4 border-r border-white/10 px-3 py-6">
+      <aside className="sticky top-0 flex h-fit max-h-screen w-64 flex-shrink-0 flex-col gap-4 self-start border-r border-white/10 px-3 py-6">
 
         {/* Avatar card */}
         <div className="rounded-3xl border border-white/10 bg-supply-teal/30 px-4 py-5 text-center space-y-3">
@@ -654,20 +766,12 @@ const ProfilePage = (): JSX.Element => {
             Sign out
           </button>
         </nav>
-
-        {/* Stats */}
-        <div className="flex flex-col gap-2">
-          {stats.map((s) => (
-            <div key={s.label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2.5">
-              <span className="text-xs text-slate-400">{s.label}</span>
-              <span className="text-sm font-semibold text-slate-50">{s.value}</span>
-            </div>
-          ))}
-        </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      {/* ── MAIN CONTENT ──
+          No overflow-y-auto here anymore — MainLayout's <main> is the single
+          scroll container for the whole page now. */}
+      <div className="flex-1 px-6 py-6 space-y-6">
 
         {/* ── PERSONAL INFO TAB ── */}
         {activeTab === 'profile' && (
@@ -799,6 +903,8 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               </div>
 
+              {renderAddressManager('+ Add location')}
+
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-300">Your Products</p>
                 {productsLoading ? (
@@ -846,43 +952,6 @@ const ProfilePage = (): JSX.Element => {
           </div>
         )}
 
-        {/* ── ORDERS TAB ── */}
-        {activeTab === 'orders' && role === 'buyer' && (
-          <div className="space-y-5">
-            <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">History</p>
-              <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Your Orders</h1>
-              <p className="mt-1 text-sm text-slate-300">Track all your past and current orders.</p>
-            </header>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-              {ordersLoading ? (
-                <p className="py-6 text-center text-sm text-slate-400">Loading your orders…</p>
-              ) : orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <span className="text-4xl opacity-30">📦</span>
-                  <p className="text-sm font-medium text-white">No orders yet</p>
-                  <p className="text-xs text-slate-500">Your order history will show up here.</p>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {orders.map((order) => (
-                    <li key={order.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-50">{order.id}</p>
-                        <p className="mt-0.5 text-xs text-slate-400">{order.date} · {order.items} items · {order.sellerName}</p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <p className="text-sm font-semibold text-slate-200">{order.total}</p>
-                        <span className={`rounded-full border px-3 py-0.5 text-xs font-medium ${statusStyles[order.status] ?? statusStyles['Pending']}`}>{order.status}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* ── DELIVERY ADDRESS TAB ── */}
         {activeTab === 'address' && role === 'buyer' && (
           <div className="space-y-5">
@@ -891,135 +960,8 @@ const ProfilePage = (): JSX.Element => {
               <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Delivery Address</h1>
               <p className="mt-1 text-sm text-slate-300">Where should your orders be delivered?</p>
             </header>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">Full address</label>
-                <MapAddressPicker
-                  address={address}
-                  initialLat={(buyerProfile as any)?.latitude}
-                  initialLng={(buyerProfile as any)?.longitude}
-                  onChange={({ address: a, city: c, lat, lng }) => {
-                    setAddress(a)
-                    if (c) setCity(c)
-                    setCoords({ lat, lng })
-                  }}
-                />
-                {address.trim() === '' && <p className="text-[10px] text-slate-500">Enter your street address including house number.</p>}
-              </div>
-              <button onClick={handleSave} className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
-                {saveLabel}
-              </button>
-            </div>
-          </div>
-        )}
-
-
-        {/* ── WISHLIST TAB ── */}
-        {activeTab === 'wishlist' && role === 'buyer' && (
-          <div className="space-y-5">
-            <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Saved Items</p>
-              <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Wishlist</h1>
-              <p className="mt-1 text-sm text-slate-300">Items you saved for later.</p>
-            </header>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-              {wishlistLoading ? (
-                <p className="py-6 text-center text-sm text-slate-400">Loading your wishlist…</p>
-              ) : wishlist.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <span className="text-4xl opacity-30">❤️</span>
-                  <p className="text-sm font-medium text-white">Your wishlist is empty</p>
-                  <p className="text-xs text-slate-500">Items you save will show up here.</p>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {wishlist.map((item) => (
-                    <li key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
-                      <div>
-                        <p className="text-sm font-medium text-slate-50">{item.name}</p>
-                        <p className="text-xs text-slate-400">{item.details}</p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveWishlistItem(item.id)}
-                        className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors focus:outline-none"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── PAYMENT METHODS TAB ── */}
-        {activeTab === 'payments' && role === 'buyer' && (
-          <div className="space-y-5">
-            <header className="rounded-3xl border border-white/10 bg-supply-teal/50 px-5 py-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Billing</p>
-              <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Payment Methods</h1>
-              <p className="mt-1 text-sm text-slate-300">Cards and wallet preferences.</p>
-            </header>
-
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-3">
-              {payments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <span className="text-4xl opacity-30">💳</span>
-                  <p className="text-sm font-medium text-white">No payment methods yet</p>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {payments.map((p, i) => (
-                    <li key={`${p.label}-${i}`} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
-                      <div>
-                        <p className="text-sm font-medium text-slate-50">{p.label}</p>
-                        <p className="text-xs text-slate-400">{p.details}</p>
-                      </div>
-                      <button
-                        onClick={() => handleRemovePayment(p)}
-                        className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors focus:outline-none"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {showAddPayment ? (
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-300">Payment label</label>
-                    <input value={paymentLabel} onChange={(e) => setPaymentLabel(e.target.value)} className={inputClass} placeholder="e.g. Business card" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-300">Card details</label>
-                    <input value={paymentDetails} onChange={(e) => setPaymentDetails(e.target.value)} className={inputClass} placeholder="e.g. Mastercard •••• 2020" />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleAddPayment}
-                      className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-                    >
-                      Save payment method
-                    </button>
-                    <button
-                      onClick={() => setShowAddPayment(false)}
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAddPayment(true)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  Add payment method
-                </button>
-              )}
+            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6">
+              {renderAddressManager('+ Add address')}
             </div>
           </div>
         )}
@@ -1095,62 +1037,54 @@ const ProfilePage = (): JSX.Element => {
             {/* Notifications */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
               <p className="mb-4 text-sm font-semibold text-slate-200">Notifications</p>
-              <div className="space-y-3">
-                {role === 'buyer' && [
-                  { label: 'Order updates',       sub: 'Confirmed, picked up, delivered',   value: notifOrders, onChange: () => setNotifOrders(!notifOrders)   },
-                  { label: 'Promotions & offers', sub: 'Deals and discounts from vendors',  value: notifPromos, onChange: () => setNotifPromos(!notifPromos)   },
-                  { label: 'Low stock alerts',    sub: 'When your favourite items run low', value: notifStock,  onChange: () => setNotifStock(!notifStock)     },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                    <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
-                    <Toggle value={item.value} onChange={item.onChange} label={item.label} />
-                  </div>
-                ))}
-                {role === 'seller' && [
-                  { label: 'New orders',       sub: 'When a customer places an order',      value: notifOrders,  onChange: () => setNotifOrders(!notifOrders)   },
-                  { label: 'Payout alerts',    sub: 'When earnings are transferred to you', value: notifPayouts, onChange: () => setNotifPayouts(!notifPayouts) },
-                  { label: 'Low stock alerts', sub: 'When your product stock runs low',     value: notifStock,   onChange: () => setNotifStock(!notifStock)     },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                    <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
-                    <Toggle value={item.value} onChange={item.onChange} label={item.label} />
-                  </div>
-                ))}
-                {role === 'admin' && [
-                  { label: 'Vendor approval requests', sub: 'When a new vendor applies to join',      value: notifVendorApprovals, onChange: () => setNotifVendorApprovals(!notifVendorApprovals) },
-                  { label: 'New orders',               sub: 'Platform-wide order activity',           value: notifOrders,          onChange: () => setNotifOrders(!notifOrders)                   },
-                  { label: 'Disputes & escalations',   sub: 'When a buyer or seller raises an issue', value: notifDisputes,        onChange: () => setNotifDisputes(!notifDisputes)               },
-                  { label: 'System alerts',            sub: 'Server errors, downtime warnings',       value: notifSystem,          onChange: () => setNotifSystem(!notifSystem)                   },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                    <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
-                    <Toggle value={item.value} onChange={item.onChange} label={item.label} />
-                  </div>
-                ))}
-              </div>
+              {notifPrefsLoading ? (
+                <p className="py-4 text-center text-sm text-slate-400">Loading preferences…</p>
+              ) : (
+                <div className="space-y-3">
+                  {role === 'buyer' && [
+                    { key: 'orderUpdates', label: 'Order updates',    sub: 'Confirmed, picked up, delivered'   },
+                    { key: 'lowStock',     label: 'Low stock alerts', sub: 'When your favourite items run low' },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                      <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
+                      <Toggle value={notifPrefs[item.key] ?? true} onChange={() => toggleNotifPref(item.key)} label={item.label} />
+                    </div>
+                  ))}
+                  {role === 'seller' && [
+                    { key: 'newOrders', label: 'New orders',       sub: 'When a customer places an order'      },
+                    { key: 'payouts',   label: 'Payout alerts',    sub: 'When earnings are transferred to you' },
+                    { key: 'lowStock',  label: 'Low stock alerts', sub: 'When your product stock runs low'     },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                      <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
+                      <Toggle value={notifPrefs[item.key] ?? true} onChange={() => toggleNotifPref(item.key)} label={item.label} />
+                    </div>
+                  ))}
+                  {role === 'admin' && [
+                    { key: 'vendorApprovals',  label: 'Vendor approval requests',  sub: 'When a new vendor applies to join'    },
+                    { key: 'productApprovals', label: 'Product approval requests', sub: 'When a seller submits a new product' },
+                    // NOTE: 'disputes' and 'systemAlerts' don't yet have a
+                    // matching notifyAdmins... function in
+                    // notification.service.ts — wire those up (checking
+                    // isPrefEnabled(admin.id, 'disputes' / 'systemAlerts')
+                    // before sending) or these toggles won't do anything yet.
+                    { key: 'disputes',     label: 'Disputes & escalations', sub: 'When a buyer or seller raises an issue' },
+                    { key: 'systemAlerts', label: 'System alerts',          sub: 'Server errors, downtime warnings'       },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                      <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
+                      <Toggle value={notifPrefs[item.key] ?? true} onChange={() => toggleNotifPref(item.key)} label={item.label} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Privacy */}
+            {/* Terms / info */}
             {(role === 'buyer' || role === 'seller') && (
               <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-4">
-                <div>
-                  <p className="mb-4 text-sm font-semibold text-slate-200">Privacy</p>
-                  <div className="space-y-3">
-                    {[
-                      role === 'buyer'
-                        ? { label: 'Profile visibility',             sub: 'Allow vendors to see your profile',  value: profileVisible, onChange: () => setProfileVisible(!profileVisible) }
-                        : { label: 'Store visibility',               sub: 'Allow customers to find your store', value: storeVisible,   onChange: () => setStoreVisible(!storeVisible)     },
-                      { label: 'Share data for recommendations',    sub: 'Help us improve your experience',     value: dataSharing,    onChange: () => setDataSharing(!dataSharing)       },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                        <div><p className="text-sm text-slate-200">{item.label}</p><p className="text-xs text-slate-400">{item.sub}</p></div>
-                        <Toggle value={item.value} onChange={item.onChange} label={item.label} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3 border-t border-white/10 pt-4">
+                <p className="mb-4 text-sm font-semibold text-slate-200">Terms & Privacy</p>
+                <div className="space-y-3">
                   {[
                     { title: 'Privacy & terms', body: 'Your data is protected and used only to improve your FreshRoute experience.' },
                     { title: 'Data use',        body: 'We use your profile details to personalize products, delivery, and support — and never share them without your consent.' },
@@ -1275,7 +1209,7 @@ const ProfilePage = (): JSX.Element => {
         )}
 
       </div>
-    </main>
+    </div>
   )
 }
 

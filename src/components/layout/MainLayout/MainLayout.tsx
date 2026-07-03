@@ -60,7 +60,6 @@ const navByRole: Record<Role, NavItem[]> = {
 const profileNavByRole: Record<Role, { to: string; label: string }[]> = {
   buyer: [
     { to: "/profile", label: "Personal Info" },
-    { to: "/profile?tab=orders", label: "Orders" },
     { to: "/profile?tab=address", label: "Delivery Address" },
     { to: "/profile?tab=password", label: "Password" },
     { to: "/profile?tab=settings", label: "Settings" },
@@ -161,7 +160,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
       {/* desktop sidebar — visible on md+ screens only */}
       {!hideSidebar && (
-        <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-brand-muted/60 bg-gradient-to-bl from-brand-background/90 via-supply-teal/60 to-supply-teal/45 px-4 py-6 md:flex">
+        <aside className="hidden w-64 flex-shrink-0 flex-col overflow-y-auto border-r border-brand-muted/60 bg-gradient-to-bl from-brand-background/90 via-supply-teal/60 to-supply-teal/45 px-4 py-6 md:flex">
           {sidebarContent()}
 
           {/* profile section at bottom of sidebar */}
@@ -234,7 +233,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
           {/* drawer panel — slides in from left */}
           <aside
-            className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-white/10 bg-brand-background/95 px-4 py-6 transition-transform duration-300 ${
+            className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col overflow-y-auto border-r border-white/10 bg-brand-background/95 px-4 py-6 transition-transform duration-300 ${
               navDrawerOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -299,9 +298,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
           {/* right side — date, notification bell, logout */}
           <div className="flex flex-1 items-center justify-end gap-3">
-            <span className="hidden text-xs text-slate-400 md:inline">
-              {new Date().toLocaleDateString()} · Prototype UI
-            </span>
             <NotificationBell />
             <Button variant="ghost" onClick={logout}>Logout</Button>
           </div>
