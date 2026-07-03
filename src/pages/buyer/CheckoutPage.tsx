@@ -7,6 +7,7 @@ import {
   getBuyerAddresses,
   createOrder as createOrderApi,
 } from "../../api/endpoints/orders";
+import api from "../../api/client";
 import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
@@ -29,6 +30,18 @@ interface CheckoutState {
   error: string | null;
 }
 
+// Helper: correctly parse a price value that may come as a number,
+// a decimal string ("1.5"), or a string with a currency prefix ("Rs. 1.5").
+// Strips everything except digits and the decimal point, then parses as a float.
+const parsePrice = (price: unknown): number => {
+  const cleaned = String(price).replace(/[^0-9.]/g, "");
+  const parsed = parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCurrency = (value: number): string =>
+  value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
@@ -47,7 +60,6 @@ const CheckoutPage: React.FC = () => {
     error: null,
   });
 
-  // ✅ NEW: Track cart totals with applied discount
   const [cartTotals, setCartTotals] = useState({
     subtotal: 0,
     tax: 0,
@@ -55,21 +67,21 @@ const CheckoutPage: React.FC = () => {
     total: 0,
   });
 
-  // Guard: redirect if cart is empty — wait for cart to load first
-  const [cartChecked, setCartChecked] = useState(false);
+  const [orderCompleted, setOrderCompleted] = useState(false);
 
+  // ⏱ Tick every second to keep reservation countdowns live
+  const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCartChecked(true);
-    }, 500);
-    return () => clearTimeout(timer);
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
   }, []);
 
+  // Guard: redirect if cart is empty
   useEffect(() => {
-    if (cartChecked && items.length === 0) navigate("/buyer/cart");
-  }, [cartChecked, items, navigate]);
+    if (items.length === 0 && !orderCompleted) navigate("/buyer/cart");
+  }, [items, navigate, orderCompleted]);
 
-  // ✅ NEW: Fetch cart totals with applied discount
+  // Fetch cart totals
   useEffect(() => {
     const fetchCartTotals = async () => {
       try {
@@ -84,51 +96,33 @@ const CheckoutPage: React.FC = () => {
         console.error("Failed to fetch cart totals:", err);
       }
     };
-
-    if (items.length > 0) {
-      fetchCartTotals();
-    }
+    if (items.length > 0) fetchCartTotals();
   }, [items]);
 
-  // Fetch buyer's current address using API
+  // Fetch buyer address
   useEffect(() => {
     const fetchAddress = async () => {
       try {
-        console.log("📍 Fetching buyer addresses...");
         const addresses = await getBuyerAddresses();
         if (addresses?.primary) {
-          setState((prev) => ({
-            ...prev,
-            deliveryAddress: addresses.primary,
-          }));
-          console.log("✅ Address loaded:", addresses.primary);
+          setState((prev) => ({ ...prev, deliveryAddress: addresses.primary }));
         }
       } catch (err) {
         console.error("Failed to fetch addresses:", err);
       }
     };
-
     fetchAddress();
   }, []);
 
   const handleNextStep = () => {
-    // Validate current step before moving to next
     if (state.currentStep === 2 && !state.deliveryAddress.address) {
-      setState((prev) => ({
-        ...prev,
-        error: "Please enter a delivery address",
-      }));
+      setState((prev) => ({ ...prev, error: "Please enter a delivery address" }));
       return;
     }
-
     if (state.currentStep === 3 && !state.deliveryTimeSlot) {
-      setState((prev) => ({
-        ...prev,
-        error: "Please select a delivery time slot",
-      }));
+      setState((prev) => ({ ...prev, error: "Please select a delivery time slot" }));
       return;
     }
-
     setState((prev) => ({
       ...prev,
       currentStep: Math.min(prev.currentStep + 1, 5),
@@ -152,12 +146,12 @@ const CheckoutPage: React.FC = () => {
         throw new Error("Please select a delivery time slot");
       }
 
-      // ✅ NEW: Validate all reservations are still ACTIVE
+      // Validate reservations
       const expiredItems: string[] = [];
       const expiringItems: string[] = [];
 
       items.forEach((item: any) => {
-        if (item.reservation && item.reservation.expiresAt) {
+        if (item.reservation?.expiresAt) {
           const status = getReservationStatus(item.reservation.expiresAt);
           if (status.isExpired) {
             expiredItems.push(item.name);
@@ -167,27 +161,20 @@ const CheckoutPage: React.FC = () => {
         }
       });
 
-      // If any items have expired, show error
       if (expiredItems.length > 0) {
         throw new Error(
-          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`,
+          `❌ The following items have expired: ${expiredItems.join(", ")}. Please go back to cart and re-add them.`
         );
       }
 
-      // Warn if items are running out
       if (expiringItems.length > 0) {
         const proceed = window.confirm(
-          `⚠️ The following items are running out of reservation time:\n${expiringItems.join(
-            "\n",
-          )}\n\nDo you want to continue?`,
+          `⚠️ The following items are running out of reservation time:\n${expiringItems.join("\n")}\n\nDo you want to continue?`
         );
-        if (!proceed) {
-          throw new Error("Checkout cancelled. Please hurry!");
-        }
+        if (!proceed) throw new Error("Checkout cancelled. Please hurry!");
       }
 
-      // ✅ Use API endpoint (token auto-injected by interceptor)
-      console.log("📦 Creating order via API...");
+      // STEP 1: Create order
       const orderResponse = await createOrderApi(
         items.map((item) => ({
           productId: item.productId,
@@ -198,7 +185,7 @@ const CheckoutPage: React.FC = () => {
         state.deliveryAddress.latitude,
         state.deliveryAddress.longitude,
         state.deliveryTimeSlot!,
-        state.specialInstructions,
+        state.specialInstructions
       );
 
       console.log("✅ Order created:", orderResponse);
@@ -222,14 +209,53 @@ const CheckoutPage: React.FC = () => {
       navigate("/buyer/order-confirmation", {
         state: { orderId: orderResponse.id },
       });
+      // STEP 2: Create Stripe checkout session
+      const paymentRes = await api.post("/payments", {
+        orderId: orderResponse?.id,
+        currency: "usd",
+      });
+
+      const { checkoutUrl } = paymentRes.data;
+      if (!checkoutUrl) throw new Error("Failed to get payment URL. Please try again.");
+
+      // STEP 3: Clear cart and redirect
+      setOrderCompleted(true);
+      dispatch(clearCart());
+      window.location.href = checkoutUrl;
+
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong";
+      const message = err instanceof Error ? err.message : "Something went wrong";
       setState((prev) => ({ ...prev, loading: false, error: message }));
     }
   };
 
-  // Step indicators
+  // Helper: render reservation countdown badge for an item
+  const renderReservationBadge = (item: any) => {
+    if (!item.reservation?.expiresAt) return null;
+    const status = getReservationStatus(item.reservation.expiresAt);
+
+    if (status.isExpired) {
+      return (
+        <p className="text-xs text-red-400 font-medium">
+          ⏱ Expired — go back to cart to re-add
+        </p>
+      );
+    }
+
+    const color =
+      status.percentageRemaining < 10
+        ? "text-yellow-400"
+        : status.percentageRemaining < 25
+        ? "text-orange-400"
+        : "text-emerald-400";
+
+    return (
+      <p className={`text-xs font-medium ${color}`}>
+        ⏱ {status.timeRemaining}
+      </p>
+    );
+  };
+
   const steps = [
     { number: 1, title: "Order Summary" },
     { number: 2, title: "Address" },
@@ -242,26 +268,22 @@ const CheckoutPage: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-6 pb-10">
       <div>
         <h1 className="text-2xl font-semibold text-slate-50">Checkout</h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Step {state.currentStep} of 5
-        </p>
+        <p className="text-xs text-slate-400 mt-1">Step {state.currentStep} of 5</p>
       </div>
 
-      {/* Step Progress Indicator */}
+      {/* Progress bar */}
       <div className="flex justify-between gap-1">
         {steps.map((step) => (
           <div
             key={step.number}
             className={`flex-1 h-1 rounded-full transition ${
-              step.number <= state.currentStep
-                ? "bg-supply-teal"
-                : "bg-slate-800"
+              step.number <= state.currentStep ? "bg-supply-teal" : "bg-slate-800"
             }`}
           />
         ))}
       </div>
 
-      {/* Error Message */}
+      {/* Error */}
       {state.error && (
         <div className="rounded-lg bg-red-900/20 border border-red-500/30 p-3">
           <p className="text-sm text-red-400">{state.error}</p>
@@ -276,26 +298,23 @@ const CheckoutPage: React.FC = () => {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between rounded-xl bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+              className="flex items-start justify-between rounded-xl bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
             >
-              <div>
+              <div className="space-y-0.5">
                 <p className="font-medium">{item.name}</p>
                 <p className="text-xs text-slate-400">
                   {item.vendor && `🏪 ${item.vendor} · `}
                   {item.price} / {item.unit} · Qty {item.quantity}
                 </p>
+                {/* ⏱ Live reservation countdown */}
+                {renderReservationBadge(item)}
               </div>
-              <p className="text-sm font-medium">
-                Rs.{" "}
-                {(
-                  (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                  item.quantity
-                ).toLocaleString("en-LK")}
+              <p className="text-sm font-medium shrink-0 ml-3">
+                Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
               </p>
             </div>
           ))}
 
-          {/* Total */}
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Subtotal</p>
             <p className="text-lg font-semibold text-supply-teal">
@@ -305,7 +324,7 @@ const CheckoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Step 2: Delivery Address */}
+      {/* Step 2: Address */}
       {state.currentStep === 2 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
           <AddressSelector
@@ -329,76 +348,55 @@ const CheckoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Step 4: Special Instructions */}
+      {/* Step 4: Instructions */}
       {state.currentStep === 4 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
           <SpecialInstructions
             instructions={state.specialInstructions}
             onInstructionsChange={(instructions) =>
-              setState((prev) => ({
-                ...prev,
-                specialInstructions: instructions,
-              }))
+              setState((prev) => ({ ...prev, specialInstructions: instructions }))
             }
           />
         </div>
       )}
 
-      {/* Step 5: Final Review */}
+      {/* Step 5: Review */}
       {state.currentStep === 5 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl space-y-4">
-          <h2 className="text-sm font-medium text-slate-300">
-            Review Your Order
-          </h2>
+          <h2 className="text-sm font-medium text-slate-300">Review Your Order</h2>
 
-          {/* Order Items */}
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-slate-400 uppercase">
               Items ({items.length})
             </h3>
             {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex justify-between text-sm text-slate-300"
-              >
+              <div key={item.id} className="flex justify-between text-sm text-slate-300">
                 <div>
-                  <span>
-                    {item.name} × {item.quantity}
-                  </span>
+                  <span>{item.name} × {item.quantity}</span>
                   {item.vendor && (
                     <p className="text-xs text-slate-400">🏪 {item.vendor}</p>
                   )}
+                  {/* ⏱ Live countdown on review step too */}
+                  {renderReservationBadge(item)}
                 </div>
                 <span>
-                  Rs.{" "}
-                  {(
-                    (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                    item.quantity
-                  ).toLocaleString("en-LK")}
+                  Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* Delivery Details */}
           <div className="border-t border-white/10 pt-4 space-y-2">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase">
-              Delivery
-            </h3>
-            <p className="text-sm text-slate-300">
-              📍 {state.deliveryAddress.address}
-            </p>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase">Delivery</h3>
+            <p className="text-sm text-slate-300">📍 {state.deliveryAddress.address}</p>
             <p className="text-sm text-slate-300">
               🕐 {state.deliveryTimeSlot?.replace(/_/g, " ")}
             </p>
             {state.specialInstructions && (
-              <p className="text-sm text-slate-300">
-                📝 {state.specialInstructions}
-              </p>
+              <p className="text-sm text-slate-300">📝 {state.specialInstructions}</p>
             )}
           </div>
 
-          {/* Price Breakdown */}
           <div className="border-t border-white/10 pt-4 space-y-2">
             <div className="flex justify-between text-sm text-slate-300">
               <span>Subtotal:</span>
@@ -416,7 +414,6 @@ const CheckoutPage: React.FC = () => {
             )}
           </div>
 
-          {/* Total */}
           <div className="rounded-xl border border-supply-teal/30 bg-supply-teal/5 p-3 flex justify-between items-center">
             <p className="text-sm font-medium text-slate-300">Total Amount</p>
             <p className="text-lg font-semibold text-supply-teal">
@@ -426,7 +423,7 @@ const CheckoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Navigation Buttons */}
+      {/* Navigation */}
       <div className="flex gap-3">
         {state.currentStep > 1 && (
           <button
@@ -455,12 +452,11 @@ const CheckoutPage: React.FC = () => {
             disabled={state.loading}
             className="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {state.loading ? "Processing…" : "Proceed to Payment"}
+            {state.loading ? "Redirecting to payment…" : "Proceed to Payment"}
           </button>
         )}
       </div>
 
-      {/* Back to Cart Link */}
       <button
         type="button"
         onClick={() => navigate("/buyer/cart")}

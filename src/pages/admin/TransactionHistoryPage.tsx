@@ -343,10 +343,10 @@ const TransactionHistoryPage = () => {
                                 {formatAmount(order.payment.amount, order.payment.currency)}
                               </p>
                             </div>
-                            <div>
+                            {/* <div>
                               <p className="text-xs text-slate-500">Gateway ID</p>
                               <p className="text-xs text-slate-400 font-mono">{order.payment.gatewayPaymentId ?? "—"}</p>
-                            </div>
+                            </div> */}
                             {order.payment.completedAt && (
                               <div>
                                 <p className="text-xs text-slate-500">Paid At</p>

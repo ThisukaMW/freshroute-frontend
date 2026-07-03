@@ -8,12 +8,15 @@ type UserRole   = "SELLER" | "DRIVER";
 type RoleFilter = "ALL" | UserRole;
 type PageTab    = "accounts" | "products";
 
+// FIX: this was previously shaped like a product (category/price/stock)
+// instead of a user. That's what caused the "role/email/city does not
+// exist on type 'PendingUser'" errors.
 interface PendingUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  city: string | null;
+  city?: string | null;
   createdAt: string;
   sellerProfile?: {
     id: string;
@@ -182,31 +185,33 @@ const ConfirmApproveModal = ({
   );
 };
 
-// ─── Accounts Section (existing user approval UI) ─────────────────────────────
+// ─── Accounts Section (pending seller/driver registrations) ───────────────────
 
 const AccountsSection = ({ token, onCountChange }: { token: string | null; onCountChange: (n: number) => void }) => {
-  const [users, setUsers]               = useState<PendingUser[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [approvingId, setApprovingId]   = useState<string | null>(null);
-  const [approvedIds, setApprovedIds]   = useState<Set<string>>(new Set());
-  const [rejectedIds, setRejectedIds]   = useState<Set<string>>(new Set());
-  const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
+  const [users, setUsers]                 = useState<PendingUser[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [approvingId, setApprovingId]     = useState<string | null>(null);
+  const [approvedIds, setApprovedIds]     = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds]     = useState<Set<string>>(new Set());
+  const [rejectTarget, setRejectTarget]   = useState<PendingUser | null>(null);
   const [approveTarget, setApproveTarget] = useState<PendingUser | null>(null);
-  const [isRejecting, setIsRejecting]   = useState(false);
-  const [roleFilter, setRoleFilter]     = useState<RoleFilter>("ALL");
-  const { refreshPendingCount }         = usePendingApprovalsContext();
+  const [isRejecting, setIsRejecting]     = useState(false);
+  const [roleFilter, setRoleFilter]       = useState<RoleFilter>("ALL");
+  const { refreshPendingCount }           = usePendingApprovalsContext();
 
   const fetchPending = async () => {
     try {
       setLoading(true);
       setError(null);
+      // NOTE: verify this matches your actual backend route for pending
+      // seller/driver registrations — adjust if it differs.
       const res = await fetch("/api/v1/admin/users/pending", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch pending users");
+      if (!res.ok) throw new Error("Failed to fetch pending accounts");
       const data = await res.json();
-      const list = data.data ?? [];
+      const list: PendingUser[] = data.data ?? data ?? [];
       setUsers(list);
       onCountChange(list.length);
     } catch (err: any) {
@@ -229,9 +234,12 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
       setApprovedIds((prev) => new Set(prev).add(userId));
       refreshPendingCount();
       setTimeout(() => {
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
+        setUsers((prev) => {
+          const next = prev.filter((u) => u.id !== userId);
+          onCountChange(next.length);
+          return next;
+        });
         setApprovedIds((prev) => { const n = new Set(prev); n.delete(userId); return n; });
-        onCountChange(users.length - 1);
       }, 1500);
     } catch (err: any) {
       setError(err.message);
@@ -257,12 +265,16 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
         body: JSON.stringify({ reason }),
       });
       if (!res.ok) throw new Error("Failed to reject user");
-      setRejectedIds((prev) => new Set(prev).add(rejectTarget.id));
+      const rejectedId = rejectTarget.id;
+      setRejectedIds((prev) => new Set(prev).add(rejectedId));
       refreshPendingCount();
       setTimeout(() => {
-        setUsers((prev) => prev.filter((u) => u.id !== rejectTarget.id));
-        setRejectedIds((prev) => { const n = new Set(prev); n.delete(rejectTarget.id); return n; });
-        onCountChange(users.length - 1);
+        setUsers((prev) => {
+          const next = prev.filter((u) => u.id !== rejectedId);
+          onCountChange(next.length);
+          return next;
+        });
+        setRejectedIds((prev) => { const n = new Set(prev); n.delete(rejectedId); return n; });
       }, 1500);
       setRejectTarget(null);
     } catch (err: any) {
@@ -344,9 +356,9 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
         ) : (
           <div className="space-y-3">
             {filtered.map((user) => {
-              const config     = roleConfig[user.role];
-              const isApproved = approvedIds.has(user.id);
-              const isRejected = rejectedIds.has(user.id);
+              const config      = roleConfig[user.role];
+              const isApproved  = approvedIds.has(user.id);
+              const isRejected  = rejectedIds.has(user.id);
               const isApproving = approvingId === user.id;
               return (
                 <div
@@ -419,21 +431,17 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
   );
 };
 
-// ─── Products Section ─────────────────────────────────────────────────────────
+// ─── Products Section (pending product listings) ──────────────────────────────
 
-const ProductsSection = ({ token, onCountChange }: { token: string | null; onCountChange: (n: number) => void }) => {
-  const [products, setProducts]         = useState<PendingProduct[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [approvingId, setApprovingId]   = useState<string | null>(null);
-  const [approvedIds, setApprovedIds]   = useState<Set<string>>(new Set());
-  const [rejectedIds, setRejectedIds]   = useState<Set<string>>(new Set());
-  const [rejectTarget, setRejectTarget] = useState<PendingProduct | null>(null);
-  const [approveTarget, setApproveTarget] = useState<PendingProduct | null>(null);
-  const [isRejecting, setIsRejecting]   = useState(false);
-  const { refreshPendingCount }         = usePendingApprovalsContext();
+const ProductsSection = ({ token }: { token: string | null }) => {
+  const [products, setProducts]       = useState<PendingProduct[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
-  const fetchPendingProducts = async () => {
+  const fetchPending = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -442,9 +450,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
       });
       if (!res.ok) throw new Error("Failed to fetch pending products");
       const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-      setProducts(list);
-      onCountChange(list.length);
+      setProducts(Array.isArray(data) ? data : data.data ?? []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -452,263 +458,209 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
     }
   };
 
-  useEffect(() => { fetchPendingProducts(); }, []);
+  useEffect(() => { fetchPending(); }, []);
 
-  const handleApprove = async (productId: string) => {
-    setApprovingId(productId);
+  const updateStatus = async (productId: string, status: "APPROVED" | "REJECTED") => {
+    setProcessingId(productId);
     try {
       const res = await fetch(`/api/v1/products/${productId}/status`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "APPROVED" }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error("Failed to approve product");
-      setApprovedIds((prev) => new Set(prev).add(productId));
-      refreshPendingCount();
+      if (!res.ok) throw new Error(`Failed to ${status === "APPROVED" ? "approve" : "reject"} product`);
+
+      if (status === "APPROVED") {
+        setApprovedIds((prev) => new Set(prev).add(productId));
+      } else {
+        setRejectedIds((prev) => new Set(prev).add(productId));
+      }
+
       setTimeout(() => {
         setProducts((prev) => prev.filter((p) => p.id !== productId));
         setApprovedIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
-        onCountChange(products.length - 1);
+        setRejectedIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
       }, 1500);
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setApprovingId(null);
+      setProcessingId(null);
     }
   };
-
-  const handleApproveConfirm = () => {
-    if (!approveTarget) return;
-    const target = approveTarget;
-    setApproveTarget(null);
-    handleApprove(target.id);
-  };
-
-  const handleRejectConfirm = async (reason: string) => {
-    if (!rejectTarget) return;
-    setIsRejecting(true);
-    try {
-      const res = await fetch(`/api/v1/products/${rejectTarget.id}/status`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REJECTED", reason }),
-      });
-      if (!res.ok) throw new Error("Failed to reject product");
-      setRejectedIds((prev) => new Set(prev).add(rejectTarget.id));
-      refreshPendingCount();
-      setTimeout(() => {
-        setProducts((prev) => prev.filter((p) => p.id !== rejectTarget.id));
-        setRejectedIds((prev) => { const n = new Set(prev); n.delete(rejectTarget.id); return n; });
-        onCountChange(products.length - 1);
-      }, 1500);
-      setRejectTarget(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsRejecting(false);
-    }
-  };
-
-  return (
-    <>
-      {rejectTarget && (
-        <RejectModal
-          title="Reject Product"
-          subtitle={`Rejecting "${rejectTarget.name}" by ${rejectTarget.seller.user.name}. Please select a reason.`}
-          reasons={PRODUCT_REJECT_REASONS}
-          onConfirm={handleRejectConfirm}
-          onCancel={() => setRejectTarget(null)}
-          isSubmitting={isRejecting}
-        />
-      )}
-
-      {approveTarget && (
-        <ConfirmApproveModal
-          title="Approve Product"
-          subtitle={`Are you sure you want to approve "${approveTarget.name}" by ${approveTarget.seller.user.name}? It will become visible to buyers.`}
-          onConfirm={handleApproveConfirm}
-          onCancel={() => setApproveTarget(null)}
-          isSubmitting={approvingId === approveTarget.id}
-        />
-      )}
-
-      <div className="space-y-4">
-        {error && (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-400">{error}</p>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/3 py-20 gap-4">
-            <span className="text-5xl opacity-40">✅</span>
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-400">No pending product approvals</p>
-              <p className="text-xs text-slate-500 mt-1">All submitted products have been reviewed.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {products.map((product) => {
-              const isApproved  = approvedIds.has(product.id);
-              const isRejected  = rejectedIds.has(product.id);
-              const isApproving = approvingId === product.id;
-              return (
-                <div
-                  key={product.id}
-                  className={`rounded-2xl border px-5 py-4 transition-all ${
-                    isApproved ? "border-emerald-500/40 bg-emerald-500/10"
-                    : isRejected ? "border-red-500/40 bg-red-500/10"
-                    : "border-white/10 bg-white/3 hover:bg-white/5"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      {/* Product image or placeholder */}
-                      <div className="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border border-white/10 bg-white/5">
-                        {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-xl">📦</div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-100">{product.name}</p>
-                          <span className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold bg-violet-500/15 border-violet-500/20 text-violet-400">
-                            📋 Product
-                          </span>
-                        </div>
-                        {/* Seller info */}
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          🏪 {product.seller.user.name} · {product.seller.user.email}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                          <span>🏷️ {product.category}</span>
-                          <span>Rs. {product.price} / {product.unit}</span>
-                          <span>📦 Stock: {product.stock}</span>
-                          <span>🕐 Submitted {relativeTime(product.createdAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex-shrink-0 flex items-center gap-2">
-                      {isApproved ? (
-                        <span className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-400">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                          Approved!
-                        </span>
-                      ) : isRejected ? (
-                        <span className="flex items-center gap-1.5 rounded-xl bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                          Rejected
-                        </span>
-                      ) : (
-                        <>
-                          <button onClick={() => setRejectTarget(product)} disabled={isApproving} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">
-                            Reject
-                          </button>
-                          <button onClick={() => setApproveTarget(product)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
-                            {isApproving ? "Approving..." : "Approve"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {products.length > 0 && (
-          <p className="text-center text-[11px] text-slate-600">
-            Showing {products.length} pending product{products.length !== 1 ? "s" : ""}
-          </p>
-        )}
-      </div>
-    </>
-  );
-};
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-const PendingApprovalsPage = () => {
-  const [activeTab, setActiveTab]         = useState<PageTab>("accounts");
-  const [accountCount, setAccountCount]   = useState(0);
-  const [productCount, setProductCount]   = useState(0);
-  const token = LocalStorageService.get("fr_token");
-  const totalPending = accountCount + productCount;
 
   return (
     <div className="space-y-6">
-
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-50">Pending Approvals</h1>
+          <h1 className="text-xl font-semibold text-slate-50">Product Approvals</h1>
           <p className="mt-0.5 text-sm text-slate-400">
-            {totalPending === 0
-              ? "Nothing awaiting approval"
-              : `${totalPending} item${totalPending !== 1 ? "s" : ""} awaiting approval`}
+            {loading
+              ? "Loading..."
+              : products.length === 0
+              ? "No products awaiting approval"
+              : `${products.length} product${products.length !== 1 ? "s" : ""} awaiting approval`}
           </p>
         </div>
-        {totalPending > 0 && (
+        {products.length > 0 && (
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400">
-            {totalPending} pending
+            {products.length} pending
           </span>
         )}
       </div>
 
-      {/* Top-level tab switcher — Accounts vs Products */}
-      <div className="flex gap-1 rounded-2xl border border-white/10 bg-white/3 p-1 w-fit">
+      {error && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
+          ))}
+        </div>
+      ) : products.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/3 py-20 gap-4">
+          <span className="text-5xl opacity-40">✅</span>
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-400">No pending product approvals</p>
+            <p className="text-xs text-slate-500 mt-1">All submitted products have been reviewed.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {products.map((product) => {
+            const isApproved   = approvedIds.has(product.id);
+            const isRejected   = rejectedIds.has(product.id);
+            const isProcessing = processingId === product.id;
+
+            return (
+              <div
+                key={product.id}
+                className={`rounded-2xl border px-5 py-4 transition-all ${
+                  isApproved
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : isRejected
+                    ? "border-red-500/40 bg-red-500/10"
+                    : "border-white/10 bg-white/3 hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="h-14 w-14 flex-shrink-0 rounded-xl object-cover border border-white/10"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500/30 to-sky-500/20 text-lg font-bold text-teal-300">
+                        {product.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-slate-100">{product.name}</p>
+                        <span className="rounded-full border border-sky-500/20 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
+                          {product.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        🏪 {product.seller.user.name} · {product.seller.user.email}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                        <span>Rs. {product.price.toFixed(2)} / {product.unit}</span>
+                        <span>📦 {product.stock} in stock</span>
+                        <span>🕐 Submitted {relativeTime(product.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {isApproved ? (
+                      <span className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-400">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                        Approved!
+                      </span>
+                    ) : isRejected ? (
+                      <span className="flex items-center gap-1.5 rounded-xl bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Rejected
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => updateStatus(product.id, "REJECTED")}
+                          disabled={isProcessing}
+                          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => updateStatus(product.id, "APPROVED")}
+                          disabled={isProcessing}
+                          className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isProcessing ? "Working..." : "Approve"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Top-level page (tab switcher) ─────────────────────────────────────────────
+
+const PendingApprovalsPage = () => {
+  const [activeTab, setActiveTab] = useState<PageTab>("accounts");
+  const [accountsCount, setAccountsCount] = useState(0);
+  const token = LocalStorageService.get("fr_token");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 rounded-xl border border-white/10 bg-white/3 p-1 w-fit">
         <button
           onClick={() => setActiveTab("accounts")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all ${
+          className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-all ${
             activeTab === "accounts"
-              ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+              ? "bg-teal-500/20 text-teal-300"
               : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          👤 Accounts
-          {accountCount > 0 && (
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-              activeTab === "accounts" ? "bg-teal-500/30 text-teal-300" : "bg-white/10 text-slate-400"
-            }`}>
-              {accountCount}
-            </span>
-          )}
+          Accounts{accountsCount > 0 ? ` (${accountsCount})` : ""}
         </button>
         <button
           onClick={() => setActiveTab("products")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all ${
+          className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-all ${
             activeTab === "products"
-              ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+              ? "bg-teal-500/20 text-teal-300"
               : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          📦 Products
-          {productCount > 0 && (
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-              activeTab === "products" ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-slate-400"
-            }`}>
-              {productCount}
-            </span>
-          )}
+          Products
         </button>
       </div>
 
-      {/* Tab content */}
-      {activeTab === "accounts"
-        ? <AccountsSection token={token} onCountChange={setAccountCount} />
-        : <ProductsSection token={token} onCountChange={setProductCount} />
-      }
+      {activeTab === "accounts" ? (
+        <AccountsSection token={token} onCountChange={setAccountsCount} />
+      ) : (
+        <ProductsSection token={token} />
+      )}
     </div>
   );
 };

@@ -26,16 +26,6 @@ type Truck = {
 
 const PER_PALLET_WEIGHT = 1800
 
-function readFleet(): Truck[] {
-  try {
-    const raw = localStorage.getItem('fleet')
-    const parsed = JSON.parse(raw || '[]')
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 const statusStyles: Record<string, string> = {
   Preparing: 'border-amber-500/40 bg-amber-500/20 text-amber-300',
   'On the way': 'border-sky-500/40 bg-sky-500/20 text-sky-300',
@@ -49,6 +39,26 @@ const AdminDashboardPage = () => {
   )
   const dispatch = useDispatch()
 
+  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [activeVendors, setActiveVendors] = useState<number>(0)
+
+  useEffect(() => {
+    fetch('/api/v1/users')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch users')
+        return res.json()
+      })
+      .then((users: Array<{ role: string; status: string }>) => {
+        setTotalUsers(users.filter((user) => user.role !== 'ADMIN').length)
+        setActiveVendors(
+          users.filter((user) => user.role === 'SELLER' && user.status === 'ACTIVE').length
+        )
+      })
+      .catch((error) => {
+        console.error('Failed to load admin counts:', error)
+      })
+  }, [])
+
   const todaysOrders = orders.length
   const delivered = orders.filter((o: any) => o.status === 'Delivered').length
 
@@ -56,22 +66,23 @@ const AdminDashboardPage = () => {
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
 
+  // ── Fleet: fetched from the API ────────────────────────────────────────────
   const [fleet, setFleet] = useState<Truck[]>([])
+  const [fleetLoading, setFleetLoading] = useState(true)
 
   useEffect(() => {
-    setFleet(readFleet())
-    const onStorage = (ev: StorageEvent) => { if (ev.key === 'fleet') setFleet(readFleet()) }
-    const onFocus = () => setFleet(readFleet())
-    window.addEventListener('storage', onStorage)
-    window.addEventListener('focus', onFocus)
-    return () => {
-      window.removeEventListener('storage', onStorage)
-      window.removeEventListener('focus', onFocus)
-    }
+    fetch('/api/v1/trucks')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch fleet')
+        return res.json()
+      })
+      .then((trucks: Truck[]) => setFleet(trucks))
+      .catch((err) => console.error('Fleet fetch error:', err))
+      .finally(() => setFleetLoading(false))
   }, [])
 
   const fleetWithMetrics = fleet.map((truck) => {
-    const loadedLbs = Math.min(truck.capacityLbs, truck.palletsLoaded * PER_PALLET_WEIGHT)
+    const loadedLbs = Math.min(truck.capacityLbs, truck.loadedLbs ?? 0)
     const fillPercent = truck.capacityLbs ? Math.round((loadedLbs / truck.capacityLbs) * 100) : 0
     const freeSpacePercent = Math.max(0, 100 - fillPercent)
     return { ...truck, loadedLbs, fillPercent, freeSpacePercent }
@@ -87,9 +98,9 @@ const AdminDashboardPage = () => {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'Total users', value: '1,250', helper: 'Customers + vendors' },
-          { label: 'Vendors live', value: '45', helper: '5 pending approval' },
-          { label: 'Orders today', value: todaysOrders, helper: `${delivered} delivered` },
+          { label: 'Total users', value: totalUsers, helper: 'Buyers + sellers + drivers + field admins' },
+          { label: 'Active vendors', value: activeVendors, helper: 'Active seller accounts only' },
+          { label: 'Today orders', value: todaysOrders, helper: `${delivered} delivered` },
           { label: 'Revenue today', value: 'Rs. 540,000', helper: 'Platform gross' },
         ].map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
@@ -100,7 +111,7 @@ const AdminDashboardPage = () => {
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <h2 className="text-base font-semibold text-white">Pending product approvals</h2>
           <p className="text-xs text-slate-400">Approve or reject seller submissions before they reach buyers.</p>
@@ -198,12 +209,14 @@ const AdminDashboardPage = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Fleet capacity</p>
             <h2 className="text-xl font-semibold text-white">Truck load planner</h2>
             <p className="text-xs text-slate-400">
-              Live data from the truck capacity planner. Add or adjust trucks there to see updates here.
+              Live data from the database. Add or adjust trucks in the Truck capacity planner to see updates here.
             </p>
           </div>
         </div>
 
-        {fleetWithMetrics.length === 0 ? (
+        {fleetLoading ? (
+          <div className="px-6 py-10 text-center text-xs text-slate-500">Loading fleet…</div>
+        ) : fleetWithMetrics.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-center text-slate-400">
             <p className="text-sm font-medium text-white">No trucks in manifest</p>
             <p className="mt-1 text-xs">Add trucks from the Truck capacity planner to see them here.</p>
@@ -275,7 +288,7 @@ const AdminDashboardPage = () => {
                   ))}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                {/* <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3">
                     <p className="text-xs uppercase tracking-wide text-slate-400">Delivery efficiency</p>
                     <p className="text-2xl font-semibold text-white">{truck.efficiency}%</p>
@@ -301,7 +314,7 @@ const AdminDashboardPage = () => {
                     </div>
                     <p className="mt-2 text-[11px] text-slate-500">Tilt risk: {truck.tiltRisk}</p>
                   </div>
-                </div>
+                </div> */}
               </div>
             ))}
           </div>
