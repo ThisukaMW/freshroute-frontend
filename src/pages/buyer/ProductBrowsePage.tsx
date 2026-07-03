@@ -263,12 +263,13 @@ useEffect(() => {
             <select
               value={sortBy}
               onChange={handleSortChange}
-              className="rounded-xl border border-supply-teal/40 bg-supply-teal/20 px-3 py-1.5 text-xs  text-supply-charcoal outline-none ring-supply-teal/60 focus:border-supply-teal focus:ring-2 hover:bg-supply-teal/30 transition-colors"
+              className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-supply-paper outline-none ring-supply-teal/60 focus:border-supply-teal focus:ring-2 hover:bg-white/10 transition-colors"
+            
             >
-              <option value="recommended">Sort by: Recommended</option>
-              <option value="price-low-high">Price: Low to High</option>
-              <option value="price-high-low">Price: High to Low</option>
-              <option value="rating">Rating</option>
+              <option value="recommended" className="bg-slate-900 text-supply-paper">Sort by: Recommended</option>
+              <option value="price-low-high" className="bg-slate-900 text-supply-paper">Price: Low to High</option>
+              <option value="price-high-low" className="bg-slate-900 text-supply-paper">Price: High to Low</option>
+              <option value="rating" className="bg-slate-900 text-supply-paper">Rating</option>
             </select>
           </div>
 

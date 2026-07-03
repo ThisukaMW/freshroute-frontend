@@ -15,6 +15,7 @@ const SelectSellerPage = () => {
   const [sellers, setSellers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // No seller pre-selected — buyer must actively choose one
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState<number>(1)
   const [requirements, setRequirements] = useState<string>('')
@@ -50,9 +51,7 @@ const SelectSellerPage = () => {
         }))
 
         setSellers(formattedSellers)
-        if (formattedSellers.length > 0) {
-          setSelectedSellerId(formattedSellers[0].sellerId)
-        }
+        // No auto-selection here — buyer picks a seller manually
 
         console.log('✅ Product and sellers loaded successfully')
       } catch (err: any) {
@@ -68,12 +67,13 @@ const SelectSellerPage = () => {
     }
   }, [productId])
 
+  // No fallback to sellers[0] — stays null until the buyer clicks a seller card
   const selectedSeller = useMemo(
-    () => sellers.find((s) => s.sellerId === selectedSellerId) ?? sellers[0],
+    () => sellers.find((s) => s.sellerId === selectedSellerId) ?? null,
     [selectedSellerId, sellers]
   )
 
-  // ✅ Calculate remaining stock for a specific seller (accounting for items already in cart)
+  // Calculate remaining stock for a specific seller (accounting for items already in cart)
   const getRemainingStockForSeller = (sellerId: string, totalSellerStock: number) => {
     const quantityInCart = cartItems
       .filter((item: any) => item.productId === productId && item.sellerId === sellerId)
@@ -81,7 +81,6 @@ const SelectSellerPage = () => {
     return Math.max(0, totalSellerStock - quantityInCart)
   }
 
-  // ✅ FIX 1: Extracted onChange handler — validates against remainingStock
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
     setQuantity(val)
@@ -102,16 +101,13 @@ const SelectSellerPage = () => {
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
     const remainingStock = getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)
 
-    // ✅ VALIDATION: Check if quantity exceeds REMAINING available stock (accounting for cart)
     if (safeQuantity > remainingStock) {
       setError(`Only ${remainingStock} ${product.unit} available from ${selectedSeller.sellerName}`)
       return
     }
 
-    // Clear previous errors
     setError(null)
 
-    // 1️⃣ Dispatch to Redux immediately (optimistic update)
     dispatch(
       addItemLocal({
         id: product.id,
@@ -127,7 +123,6 @@ const SelectSellerPage = () => {
       })
     )
 
-    // 2️⃣ Also save to database (in background)
     try {
       await dispatch(
         addItemAsync({
@@ -138,12 +133,12 @@ const SelectSellerPage = () => {
       )
       console.log('✅ Item added to cart and saved to DB')
       showSuccessToast(`✓ ${product.name} added! Reserved for 20 mins.`)
-      navigate('/buyer/cart') // ✅ FIX 3: Only navigates on full success
+      navigate('/buyer/cart')
     } catch (error: any) {
       console.error('❌ Failed to sync with DB:', error)
       const msg = error.response?.data?.message || 'Failed to add item to cart'
       showErrorToast(msg)
-      setError(msg) // shows under quantity field, no navigate
+      setError(msg)
     }
   }
 
@@ -210,7 +205,6 @@ const SelectSellerPage = () => {
     }
   }
 
-  const basePrice = Number(product.pricePerUnit) || 0
   const productImage = getImageForProduct(product)
 
   return (
@@ -249,12 +243,6 @@ const SelectSellerPage = () => {
             <p className="text-sm font-semibold text-supply-paper">{product.name}</p>
             <p className="mt-0.5 text-[11px] text-slate-300">
               Category: <span className="font-medium">{product.category || 'General'}</span>
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-300">
-              Base price:{' '}
-              <span className="font-semibold text-supply-paper">
-                Rs. {basePrice} <span className="font-normal">/ {product.unit}</span>
-              </span>
             </p>
           </div>
           <div className="rounded-xl border border-supply-teal/40 bg-supply-teal/10 px-3 py-2 text-[11px] text-supply-paper md:text-right">
@@ -295,10 +283,6 @@ const SelectSellerPage = () => {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold">{seller.sellerName}</p>
-                      {/* <p className="mt-0.5 text-[11px] text-slate-300">
-                        {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
-                      </p> */}
-                      {/* ✅ SHOW REMAINING QUANTITY (Total - Already in cart) */}
                       <p className="mt-1 text-[11px] font-medium">
                         {remainingStock === 0 ? (
                           <span className="text-red-400">❌ Out of stock</span>
@@ -331,68 +315,73 @@ const SelectSellerPage = () => {
         {/* Requirements panel */}
         <section className="space-y-3 rounded-2xl border border-supply-teal/40 bg-supply-deep/80 p-4 text-xs text-supply-paper">
           <p className="text-xs font-semibold text-supply-paper">Your requirements</p>
-          <div className="mt-2 space-y-3">
-            <div>
-              <label className="text-[11px] text-slate-200">
-                Quantity ({product.unit})
-                {selectedSeller && (
+
+          {!selectedSeller ? (
+            // Prompt shown until the buyer picks a seller — quantity/notes hidden until then
+            <div className="rounded-xl border border-white/15 bg-slate-950/40 px-3 py-4 text-center text-[11px] text-slate-300">
+              👈 Select a seller from the list to set quantity and add to cart.
+            </div>
+          ) : (
+            <div className="mt-2 space-y-3">
+              <div>
+                <label className="text-[11px] text-slate-200">
+                  Quantity ({product.unit})
                   <span className="ml-2 font-medium text-supply-peach">
                     Max: {getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)} available for you
                   </span>
-                )}
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={selectedSeller ? getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock) : 1}
-                value={quantity}
-                onChange={handleQuantityChange}  // ✅ FIX 1: use extracted handler
-                className="mt-1 w-32 rounded-xl border border-white/15 bg-slate-950/60 px-3 py-1.5 text-xs text-supply-paper outline-none focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
-              />
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={getRemainingStockForSeller(selectedSeller.sellerId, selectedSeller.stock)}
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  className="mt-1 w-32 rounded-xl border border-white/15 bg-slate-950/60 px-3 py-1.5 text-xs text-supply-paper outline-none focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
+                />
 
-              {/* ✅ FIX 2: Error shown RIGHT under quantity input */}
-              {error && (
-                <div className="mt-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
-                  <p className="font-semibold">❌ {error}</p>
+                {error && (
+                  <div className="mt-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+                    <p className="font-semibold">❌ {error}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[11px] text-slate-200">Special instructions (optional)</label>
+                <textarea
+                  rows={3}
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="E.g. medium-sized fruits, nicely packed, arrive before 6 PM..."
+                  className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950/60 px-3 py-2 text-xs text-supply-paper outline-none placeholder:text-slate-400 focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
+                />
+              </div>
+
+              {!error && (
+                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
+                  <p className="font-semibold">
+                    Selected seller: <span className="font-normal">{selectedSeller.sellerName}</span>
+                  </p>
+                  <p className="mt-0.5">
+                    {selectedSeller.rating.toFixed(1)}★ · Rs. {selectedSeller.price} / {product.unit}
+                  </p>
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={error !== null}
+                className={`mt-1 inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium transition ${
+                  error
+                    ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                    : 'bg-primary text-white hover:bg-primary-dark'
+                }`}
+              >
+                Add to cart from {selectedSeller.sellerName}
+              </button>
             </div>
-
-            <div>
-              <label className="text-[11px] text-slate-200">Special instructions (optional)</label>
-              <textarea
-                rows={3}
-                value={requirements}
-                onChange={(e) => setRequirements(e.target.value)}
-                placeholder="E.g. medium-sized fruits, nicely packed, arrive before 6 PM..."
-                className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950/60 px-3 py-2 text-xs text-supply-paper outline-none placeholder:text-slate-400 focus:border-supply-teal focus:ring-1 focus:ring-supply-teal"
-              />
-            </div>
-
-            {selectedSeller && !error && (
-              <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
-                <p className="font-semibold">
-                  Selected seller: <span className="font-normal">{selectedSeller.sellerName}</span>
-                </p>
-                <p className="mt-0.5">
-                  {selectedSeller.rating.toFixed(1)}★ · Rs. {selectedSeller.price} / {product.unit}
-                </p>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={error !== null}
-              className={`mt-1 inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-medium transition ${
-                error
-                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                  : 'bg-primary text-white hover:bg-primary-dark'
-              }`}
-            >
-              Add to cart from {selectedSeller?.sellerName ?? 'selected seller'}
-            </button>
-          </div>
+          )}
         </section>
       </div>
     </div>

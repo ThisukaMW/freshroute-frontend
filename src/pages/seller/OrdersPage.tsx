@@ -43,7 +43,254 @@ const statusColor = (status: string) => {
   return "bg-white/10 text-slate-300";
 };
 
-// ============= COMPONENT =============
+// ============= ORDER DETAILS MODAL =============
+
+const OrderDetailsModal: React.FC<{
+  order: SellerOrder;
+  onClose: () => void;
+}> = ({ order, onClose }) => {
+  const stage = stageIndex(order.status);
+  const validStage = stage >= 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl border border-white/10 bg-supply-deep p-6 text-slate-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              {TIME_SLOT_LABEL[order.deliveryTimeSlot] ?? order.deliveryTimeSlot}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-white">
+              {order.orderNumber} · {order.buyer?.user?.name ?? "—"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 hover:bg-white/10"
+          >
+            ✕ Close
+          </button>
+        </div>
+
+        {/* Status badges */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(order.status)}`}>
+            Order: {STATUS_LABEL[order.status] ?? order.status}
+          </span>
+          {order.payment && (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                order.payment.status === "COMPLETED"
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : "bg-amber-500/15 text-amber-300"
+              }`}
+            >
+              Payment: {order.payment.status}
+            </span>
+          )}
+        </div>
+
+        {/* Tracking timeline */}
+        {validStage && (
+          <div className="mt-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+              Tracking timeline
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {STATUS_STAGES.map((s, i) => (
+                <span
+                  key={s}
+                  className={`rounded-full px-3 py-1 ${
+                    i <= stage
+                      ? "bg-primary/20 text-primary-light"
+                      : "border border-white/10 text-slate-400"
+                  }`}
+                >
+                  {STATUS_LABEL[s]}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Delivery info */}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+            Delivery details
+          </p>
+          <p className="mt-2 text-slate-200">{order.deliveryAddress}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {TIME_SLOT_LABEL[order.deliveryTimeSlot] ?? order.deliveryTimeSlot}
+          </p>
+          {order.specialInstructions && (
+            <p className="mt-1 text-xs text-slate-400">Notes: {order.specialInstructions}</p>
+          )}
+          <p className="mt-2 text-xs text-slate-500">
+            Placed: {new Date(order.placedAt).toLocaleString()}
+          </p>
+        </div>
+
+        {/* Buyer info */}
+        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+            Buyer
+          </p>
+          <p className="mt-2 text-slate-200">{order.buyer?.user?.name ?? "—"}</p>
+          {order.buyer?.user?.phone && (
+            <p className="text-xs text-slate-400">{order.buyer.user.phone}</p>
+          )}
+        </div>
+
+        {/* Line items */}
+        <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+            Items
+          </p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/5 text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Product</th>
+                  <th className="px-3 py-2 font-medium">Quantity</th>
+                  <th className="px-3 py-2 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-slate-200">
+                {order.items.map((item: any) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2">{item.product.name}</td>
+                    <td className="px-3 py-2">
+                      {item.quantity} {item.product.unit}
+                    </td>
+                    <td className="px-3 py-2 font-medium">
+                      Rs. {item.totalPrice.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="mt-4 flex justify-end border-t border-white/10 pt-4">
+          <p className="text-base font-semibold text-white">
+            Total: Rs. {order.totalAmount.toFixed(2)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============= ORDER CARD =============
+
+// ============= ORDER CARD =============
+
+const OrderCard: React.FC<{
+  order: SellerOrder;
+  onOpen: () => void;
+}> = ({ order, onOpen }) => {
+  const stage = stageIndex(order.status);
+  const validStage = stage >= 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-2xl border border-white/5 bg-white/5 px-4 py-4 text-left text-sm text-slate-100 transition hover:border-primary/50 hover:bg-white/10"
+    >
+      {/* Top row */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-400">
+            {TIME_SLOT_LABEL[order.deliveryTimeSlot] ?? order.deliveryTimeSlot}
+          </p>
+          <p className="text-lg font-semibold text-white">
+            {order.orderNumber} · {order.buyer?.user?.name ?? '—'}
+          </p>
+          <p className="text-xs text-slate-400">
+            {order.deliveryAddress} · Rs. {order.totalAmount.toFixed(2)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(order.status)}`}>
+            {STATUS_LABEL[order.status]}
+          </span>
+          <span className="text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1">
+            Details
+          </span>
+        </div>
+      </div>
+
+      {/* Items pills */}
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
+        {order.items.map((item: any) => (
+          <span
+            key={item.id}
+            className="rounded-full border border-white/10 px-2 py-0.5 text-slate-300"
+          >
+            {item.product.name} · {item.quantity} {item.product.unit}
+          </span>
+        ))}
+      </div>
+
+      {/* Timeline */}
+      {validStage && (
+        <div className="mt-3 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Tracking</p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {STATUS_STAGES.map((s: OrderStatus, i: number) => (
+              <span
+                key={s}
+                className={`rounded-full px-3 py-1 ${
+                  i <= stage
+                    ? "bg-primary/20 text-primary-light"
+                    : "border border-white/10 text-slate-400"
+                }`}
+              >
+                {STATUS_LABEL[s]}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </button>
+  );
+};
+
+// ============= STAT CARD =============
+
+const StatCard: React.FC<{
+  label: string;
+  value: string | number;
+  sub: string;
+  highlight?: "amber" | "red";
+}> = ({ label, value, sub, highlight }) => (
+  <div className={`rounded-2xl border p-4 backdrop-blur ${
+    highlight === "red" ? "border-red-500/20 bg-red-500/5"
+    : highlight === "amber" ? "border-amber-500/20 bg-amber-500/5"
+    : "border-white/10 bg-white/5"
+  }`}>
+    <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+    <p className={`mt-2 text-2xl font-semibold ${
+      highlight === "red" ? "text-red-300"
+      : highlight === "amber" ? "text-amber-300"
+      : "text-white"
+    }`}>{value}</p>
+    <p className="text-xs text-slate-500">{sub}</p>
+  </div>
+);
+
+// ============= MAIN PAGE =============
 
 const OrdersPage: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -52,7 +299,7 @@ const OrdersPage: React.FC = () => {
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<SellerOrder | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -151,8 +398,7 @@ const OrdersPage: React.FC = () => {
             <OrderCard
               key={order.id}
               order={order}
-              expanded={expandedId === order.id}
-              onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
+              onOpen={() => setSelectedOrder(order)}
             />
           ))
         )}
@@ -193,7 +439,11 @@ const OrdersPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {pastOrders.map((order) => (
-                  <tr key={order.id}>
+                  <tr
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    className="cursor-pointer hover:bg-white/5"
+                  >
                     <td className="px-3 py-2 font-semibold text-white">{order.orderNumber}</td>
                     <td className="px-3 py-2">{order.buyer?.user?.name ?? '—'}</td>
                     <td className="px-3 py-2">
@@ -216,137 +466,16 @@ const OrdersPage: React.FC = () => {
         </section>
       )}
 
+      {/* Order details modal */}
+      {selectedOrder && (
+        <OrderDetailsModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
+
     </div>
   );
 };
-
-// ============= ORDER CARD =============
-
-const OrderCard: React.FC<{
-  order: SellerOrder;
-  expanded: boolean;
-  onToggle: () => void;
-}> = ({ order, expanded, onToggle }) => {
-  const stage = stageIndex(order.status);
-  const validStage = stage >= 0;
-
-  return (
-    <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-4 text-sm text-slate-100">
-      {/* Top row */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">
-            {TIME_SLOT_LABEL[order.deliveryTimeSlot] ?? order.deliveryTimeSlot}
-          </p>
-          <p className="text-lg font-semibold text-white">
-            {order.orderNumber} · {order.buyer?.user?.name ?? '—'}
-          </p>
-          <p className="text-xs text-slate-400">
-            {order.deliveryAddress} · Rs. {order.totalAmount.toFixed(2)}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(order.status)}`}>
-            {STATUS_LABEL[order.status]}
-          </span>
-          <button
-            onClick={onToggle}
-            className="text-xs text-slate-400 hover:text-slate-200 transition border border-white/10 rounded-lg px-2 py-1"
-          >
-            {expanded ? "Less" : "Details"}
-          </button>
-        </div>
-      </div>
-
-      {/* Items pills */}
-      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
-        {order.items.map((item: any) => (
-          <span
-            key={item.id}
-            className="rounded-full border border-white/10 px-2 py-0.5 text-slate-300"
-          >
-            {item.product.name} · {item.quantity} {item.product.unit}
-          </span>
-        ))}
-      </div>
-
-      {/* Timeline */}
-      {validStage && (
-        <div className="mt-3 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Tracking</p>
-          <div className="flex flex-wrap gap-2 text-xs">
-            {STATUS_STAGES.map((s: OrderStatus, i: number) => (
-              <span
-                key={s}
-                className={`rounded-full px-3 py-1 ${
-                  i <= stage
-                    ? "bg-primary/20 text-primary-light"
-                    : "border border-white/10 text-slate-400"
-                }`}
-              >
-                {STATUS_LABEL[s]}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Expanded detail */}
-      {expanded && (
-        <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs text-slate-300 md:grid-cols-2">
-          <div>
-            <p className="font-semibold text-slate-100 mb-1">Order items</p>
-            {order.items.map((item: any) => (
-              <p key={item.id}>
-                {item.product.name} × {item.quantity} {item.product.unit} —{" "}
-                <span className="text-slate-400">Rs. {item.totalPrice.toFixed(2)}</span>
-              </p>
-            ))}
-          </div>
-          <div>
-            <p className="font-semibold text-slate-100 mb-1">Delivery info</p>
-            <p>{order.deliveryAddress}</p>
-            <p className="text-slate-400">{TIME_SLOT_LABEL[order.deliveryTimeSlot]}</p>
-            {order.specialInstructions && (
-              <p className="mt-1 text-slate-400">Note: {order.specialInstructions}</p>
-            )}
-            {order.payment && (
-              <p className="mt-1">
-                Payment:{" "}
-                <span className={order.payment.status === "COMPLETED" ? "text-emerald-300" : "text-amber-300"}>
-                  {order.payment.status}
-                </span>
-              </p>
-            )}
-            <p className="mt-1 text-slate-500">Placed: {new Date(order.placedAt).toLocaleString()}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============= STAT CARD =============
-
-const StatCard: React.FC<{
-  label: string;
-  value: string | number;
-  sub: string;
-  highlight?: "amber" | "red";
-}> = ({ label, value, sub, highlight }) => (
-  <div className={`rounded-2xl border p-4 backdrop-blur ${
-    highlight === "red" ? "border-red-500/20 bg-red-500/5"
-    : highlight === "amber" ? "border-amber-500/20 bg-amber-500/5"
-    : "border-white/10 bg-white/5"
-  }`}>
-    <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-    <p className={`mt-2 text-2xl font-semibold ${
-      highlight === "red" ? "text-red-300"
-      : highlight === "amber" ? "text-amber-300"
-      : "text-white"
-    }`}>{value}</p>
-    <p className="text-xs text-slate-500">{sub}</p>
-  </div>
-);
 
 export default OrdersPage;

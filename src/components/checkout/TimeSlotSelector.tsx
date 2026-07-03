@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 interface TimeSlotSelectorProps {
   selectedSlot: "MORNING" | "AFTERNOON" | "EVENING" | null;
@@ -37,9 +37,25 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   selectedSlot,
   onSlotChange,
 }) => {
+  // Delivery is always scheduled for the day after the order is placed
+  const deliveryDateLabel = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  }, []);
+
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-slate-300">Delivery Time Slot</h3>
+      <div>
+        <h3 className="text-sm font-medium text-slate-300">Delivery Time Slot</h3>
+        <p className="mt-0.5 text-xs text-supply-teal">
+          📅 Delivering tomorrow, {deliveryDateLabel}
+        </p>
+      </div>
 
       <div className="grid gap-2">
         {timeSlots.map((slot) => (

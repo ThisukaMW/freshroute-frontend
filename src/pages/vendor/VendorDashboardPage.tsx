@@ -98,12 +98,7 @@ const VendorDashboardPage = () => {
           >
             Manage Products
           </Link>
-          <Link
-            to="/seller/orders"
-            className="rounded-full border border-white/20 px-5 py-2 text-xs font-medium text-slate-100 hover:border-emerald-400"
-          >
-            Fulfillment Board
-          </Link>
+          
         </div>
       </header>
 
@@ -283,7 +278,7 @@ const VendorDashboardPage = () => {
         </div>
       </section>
 
-      {/* ── Recent catalog + Operational notes ──────────────────────────── */}
+      {/* ── Recent catalog + Operational notes ────────────────────────────
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <div className="flex items-center justify-between">
@@ -331,24 +326,12 @@ const VendorDashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-          <h2 className="text-base font-semibold text-white">
-            Operational notes
-          </h2>
-          <div className="space-y-3 text-sm text-slate-300">
-            <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                Team briefing
-              </p>
-              <p className="font-semibold text-white">
-                Push leafy greens by noon to hit freshness SLA.
-              </p>
-            </div>
-          </div>
-        </div>
+        
       </section>
     </div>
   );
+}; */}
+</div>
+  );
 };
-
 export default VendorDashboardPage;

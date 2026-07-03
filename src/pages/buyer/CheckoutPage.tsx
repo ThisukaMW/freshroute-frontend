@@ -29,6 +29,18 @@ interface CheckoutState {
   error: string | null;
 }
 
+// Helper: correctly parse a price value that may come as a number,
+// a decimal string ("1.5"), or a string with a currency prefix ("Rs. 1.5").
+// Strips everything except digits and the decimal point, then parses as a float.
+const parsePrice = (price: unknown): number => {
+  const cleaned = String(price).replace(/[^0-9.]/g, "");
+  const parsed = parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCurrency = (value: number): string =>
+  value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
@@ -276,11 +288,7 @@ const CheckoutPage: React.FC = () => {
                 {renderReservationBadge(item)}
               </div>
               <p className="text-sm font-medium shrink-0 ml-3">
-                Rs.{" "}
-                {(
-                  (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                  item.quantity
-                ).toLocaleString("en-LK")}
+                Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
               </p>
             </div>
           ))}
@@ -350,11 +358,7 @@ const CheckoutPage: React.FC = () => {
                   {renderReservationBadge(item)}
                 </div>
                 <span>
-                  Rs.{" "}
-                  {(
-                    (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                    item.quantity
-                  ).toLocaleString("en-LK")}
+                  Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
                 </span>
               </div>
             ))}
