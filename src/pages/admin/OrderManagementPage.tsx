@@ -3,10 +3,14 @@ import axios from "axios";
 import {
   listBatches,
   getBatchById,
+  listFleetOptions,
+  assignRouteFleet,
+  getBatchRoutingHandoff,
   type BatchDetail,
   type BatchListItem,
   type BatchOrder,
   type BatchStatus,
+  type FleetOptions,
 } from "../../api/endpoints/adminBatches";
 import AdminDateRangeBar, { defaultSinceDate, todayDateInput } from "../../components/admin/AdminDateRangeBar";
 import { formatDisplayDate } from "../../utils/adminDateFilters";
@@ -212,6 +216,16 @@ const OrderManagementPage: React.FC = () => {
   const [detailCache, setDetailCache] = useState<Record<string, BatchDetail>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
   const [modalOrder, setModalOrder] = useState<{ order: BatchOrder; batch: BatchDetail } | null>(null);
+  const [fleetOptions, setFleetOptions] = useState<FleetOptions | null>(null);
+  const [fleetAssign, setFleetAssign] = useState<Record<string, { truckId: string; fieldAdminId: string }>>({});
+  const [fleetSaving, setFleetSaving] = useState<string | null>(null);
+  const [routingHandoff, setRoutingHandoff] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    listFleetOptions()
+      .then(setFleetOptions)
+      .catch(() => setFleetOptions(null));
+  }, []);
 
   const loadBatches = useCallback(async () => {
     try {
@@ -266,6 +280,45 @@ const OrderManagementPage: React.FC = () => {
     setExpandedBatchId(batchId);
     setExpandedOrderId(null);
     await loadBatchDetail(batchId);
+  };
+
+  const saveFleetAssignment = async (batchId: string, routeId: string) => {
+    const selection = fleetAssign[batchId];
+    if (!selection?.truckId || !selection?.fieldAdminId) {
+      setError("Select both a truck and a field admin");
+      return;
+    }
+    setFleetSaving(batchId);
+    setError(null);
+    try {
+      await assignRouteFleet(routeId, selection);
+      setDetailCache((prev) => {
+        const next = { ...prev };
+        delete next[batchId];
+        return next;
+      });
+      await loadBatchDetail(batchId);
+      await loadBatches();
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message ?? err.message
+        : "Failed to assign fleet";
+      setError(message);
+    } finally {
+      setFleetSaving(null);
+    }
+  };
+
+  const openRoutingHandoff = async (batchId: string) => {
+    try {
+      const data = await getBatchRoutingHandoff(batchId);
+      setRoutingHandoff(data);
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message ?? err.message
+        : "Failed to load routing handoff";
+      setError(message);
+    }
   };
 
   const filteredBatches = useMemo(() => {
@@ -434,6 +487,113 @@ const OrderManagementPage: React.FC = () => {
 
                         {detail && (
                           <>
+                            <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 p-4 space-y-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-slate-200">Fleet assignment</p>
+                                <button
+                                  type="button"
+                                  onClick={() => openRoutingHandoff(batch.id)}
+                                  className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200 hover:bg-indigo-500/20"
+                                >
+                                  Routing handoff
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <label className="text-slate-500">
+                                  Field admin
+                                  <select
+                                    value={
+                                      fleetAssign[batch.id]?.fieldAdminId ??
+                                      detailRoute?.fieldAdmin?.id ??
+                                      listRoute?.fieldAdmin?.id ??
+                                      ""
+                                    }
+                                    onChange={(e) =>
+                                      setFleetAssign((prev) => ({
+                                        ...prev,
+                                        [batch.id]: {
+                                          truckId:
+                                            prev[batch.id]?.truckId ??
+                                            detailRoute?.truck?.id ??
+                                            listRoute?.truck?.id ??
+                                            "",
+                                          fieldAdminId: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    className="mt-1 w-full rounded-lg bg-slate-900/60 border border-slate-600 px-2 py-1.5 text-slate-200"
+                                  >
+                                    <option value="">Select field admin…</option>
+                                    {fleetOptions?.fieldAdmins.map((fa) => (
+                                      <option key={fa.id} value={fa.id}>
+                                        {fa.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="text-slate-500">
+                                  Truck
+                                  <select
+                                    value={
+                                      fleetAssign[batch.id]?.truckId ??
+                                      detailRoute?.truck?.id ??
+                                      listRoute?.truck?.id ??
+                                      ""
+                                    }
+                                    onChange={(e) =>
+                                      setFleetAssign((prev) => ({
+                                        ...prev,
+                                        [batch.id]: {
+                                          fieldAdminId:
+                                            prev[batch.id]?.fieldAdminId ??
+                                            detailRoute?.fieldAdmin?.id ??
+                                            listRoute?.fieldAdmin?.id ??
+                                            "",
+                                          truckId: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    className="mt-1 w-full rounded-lg bg-slate-900/60 border border-slate-600 px-2 py-1.5 text-slate-200"
+                                  >
+                                    <option value="">Select truck…</option>
+                                    {fleetOptions?.trucks.map((truck) => (
+                                      <option key={truck.id} value={truck.id} disabled={!truck.isAvailable}>
+                                        {truck.vehicleNumber ?? truck.operator}
+                                        {!truck.isAvailable ? " (unavailable)" : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                                <span>
+                                  Driver:{" "}
+                                  <span className="text-amber-300">
+                                    {detailRoute?.driver?.user.name ?? listRoute?.driver?.user.name ?? "Pending dispatch"}
+                                  </span>
+                                </span>
+                                {(detailRoute?.fieldAdmin || listRoute?.fieldAdmin) &&
+                                  (detailRoute?.truck || listRoute?.truck) && (
+                                    <span className="text-emerald-400">Fleet assigned</span>
+                                  )}
+                              </div>
+                              {(detailRoute?.id ?? listRoute?.id) && (
+                                <button
+                                  type="button"
+                                  disabled={fleetSaving === batch.id}
+                                  onClick={() =>
+                                    saveFleetAssignment(
+                                      batch.id,
+                                      detailRoute?.id ?? listRoute!.id,
+                                    )
+                                  }
+                                  className="rounded-lg bg-emerald-600/80 hover:bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                                >
+                                  {fleetSaving === batch.id ? "Saving…" : "Save fleet assignment"}
+                                </button>
+                              )}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                               <div className="rounded-lg border border-slate-700/40 bg-slate-800/40 p-3">
                                 <p className="text-slate-500 mb-1">Scheduled</p>
@@ -443,23 +603,76 @@ const OrderManagementPage: React.FC = () => {
                                 </p>
                               </div>
                               <div className="rounded-lg border border-slate-700/40 bg-slate-800/40 p-3">
-                                <p className="text-slate-500 mb-1">Field admin</p>
+                                <p className="text-slate-500 mb-1">Route</p>
                                 <p className="text-slate-300">
-                                  {detailRoute?.fieldAdmin?.user.name ?? listRoute?.fieldAdmin?.user.name ?? "Unassigned"}
+                                  {detailRoute?.routeNumber ?? listRoute?.routeNumber ?? "—"}
+                                </p>
+                                <p className="text-slate-500 mt-0.5">
+                                  Status: {detailRoute?.status ?? listRoute?.status ?? "PLANNED"}
                                 </p>
                               </div>
-                              <div className="rounded-lg border border-slate-700/40 bg-slate-800/40 p-3">
-                                <p className="text-slate-500 mb-1">Driver</p>
-                                <p className="text-slate-300">
-                                  {detailRoute?.driver?.user.name ?? listRoute?.driver?.user.name ?? "—"}
+                            </div>
+
+                            {/* Route planning — placeholder for routing team; fills when they wire optimization APIs */}
+                            <div className="rounded-lg border border-dashed border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-slate-200">
+                                  Route planning
+                                  <span className="ml-2 text-xs font-normal text-slate-500">(routing team)</span>
                                 </p>
+                                <button
+                                  type="button"
+                                  onClick={() => openRoutingHandoff(batch.id)}
+                                  className="rounded-lg border border-indigo-500/40 px-2.5 py-1 text-[11px] text-indigo-200 hover:bg-indigo-500/10"
+                                >
+                                  View handoff data
+                                </button>
                               </div>
-                              <div className="rounded-lg border border-slate-700/40 bg-slate-800/40 p-3">
-                                <p className="text-slate-500 mb-1">Truck</p>
-                                <p className="text-slate-300">
-                                  {detailRoute?.truck?.vehicleNumber ?? listRoute?.truck?.vehicleNumber ?? "—"}
-                                </p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                {[
+                                  { label: "Optimized waypoints", value: "—" },
+                                  { label: "Total distance", value: "—" },
+                                  { label: "Est. duration", value: "—" },
+                                  { label: "Map route", value: "Not planned yet" },
+                                ].map((item) => (
+                                  <div
+                                    key={item.label}
+                                    className="rounded-md border border-slate-700/40 bg-slate-900/40 px-2.5 py-2"
+                                  >
+                                    <p className="text-slate-500">{item.label}</p>
+                                    <p className="text-slate-400 mt-0.5">{item.value}</p>
+                                  </div>
+                                ))}
                               </div>
+                              <p className="text-[11px] text-slate-500">
+                                Waypoints and optimized sequence will appear here once the routing developer
+                                connects their planning flow. Use &quot;Routing handoff&quot; above to pass pickup/dropoff data.
+                              </p>
+                            </div>
+
+                            {/* Driver dispatch — placeholder for dispatch team; read-only for now */}
+                            <div className="rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+                              <p className="text-sm font-medium text-slate-200">
+                                Driver dispatch
+                                <span className="ml-2 text-xs font-normal text-slate-500">(dispatch team)</span>
+                              </p>
+                              <div className="flex flex-wrap items-center gap-3 text-xs">
+                                <span className="text-slate-400">Assigned driver:</span>
+                                <span className="text-amber-300 font-medium">
+                                  {detailRoute?.driver?.user.name ??
+                                    listRoute?.driver?.user.name ??
+                                    "Pending dispatch"}
+                                </span>
+                              </div>
+                              <label className="block text-xs text-slate-500">
+                                Driver (read-only until dispatch team enables)
+                                <select
+                                  disabled
+                                  className="mt-1 w-full rounded-lg bg-slate-900/40 border border-slate-700/50 px-2 py-1.5 text-slate-500 cursor-not-allowed"
+                                >
+                                  <option>Pending dispatch — assigned by routing/dispatch team</option>
+                                </select>
+                              </label>
                             </div>
 
                             <div>
@@ -619,6 +832,42 @@ const OrderManagementPage: React.FC = () => {
           batch={modalOrder.batch}
           onClose={() => setModalOrder(null)}
         />
+      )}
+
+      {routingHandoff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setRoutingHandoff(null)}
+            aria-label="Close"
+          />
+          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-700/60 bg-slate-900 shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 px-6 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-500">Routing planner handoff</p>
+                <h2 className="text-lg font-semibold text-slate-100">
+                  {(routingHandoff.batch as { batchNumber?: string })?.batchNumber ?? "Batch"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRoutingHandoff(null)}
+                className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm">
+              <p className="text-slate-400">
+                Real pickup/dropoff locations for the route planning team. Driver assignment is pending dispatch.
+              </p>
+              <pre className="overflow-x-auto rounded-lg bg-slate-950/80 border border-slate-700/50 p-4 text-xs text-slate-300">
+                {JSON.stringify(routingHandoff, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

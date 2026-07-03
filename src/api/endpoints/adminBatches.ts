@@ -27,7 +27,7 @@ export interface BatchListItem {
     id: string;
     routeNumber: string;
     status: string;
-    fieldAdmin: { user: { id: string; name: string; email: string } } | null;
+    fieldAdmin: { id: string; user: { id: string; name: string; email: string } } | null;
     driver: { user: { name: string } } | null;
     truck: { id: string; vehicleNumber: string | null } | null;
   }>;
@@ -92,7 +92,7 @@ export interface BatchDetail extends BatchListItem {
     id: string;
     routeNumber: string;
     status: string;
-    fieldAdmin: { user: { id: string; name: string; email: string } } | null;
+    fieldAdmin: { id: string; user: { id: string; name: string; email: string } } | null;
     driver: { user: { id: string; name: string; email: string } } | null;
     truck: { id: string; vehicleNumber: string | null; maxWeight: number; maxVolume: number } | null;
     stops: BatchStop[];
@@ -121,7 +121,41 @@ export const getBatchById = async (batchId: string): Promise<BatchDetail> => {
   return response.data;
 };
 
+export interface FleetOptions {
+  trucks: Array<{
+    id: string;
+    vehicleNumber: string | null;
+    operator: string;
+    isAvailable: boolean;
+    maxWeight: number;
+    maxVolume: number;
+    maxStops: number | null;
+  }>;
+  fieldAdmins: Array<{ id: string; name: string; email: string }>;
+}
+
+export const listFleetOptions = async (): Promise<FleetOptions> => {
+  const response = await apiClient.get<FleetOptions>("/admin/fleet-options");
+  return response.data;
+};
+
+export const assignRouteFleet = async (
+  routeId: string,
+  payload: { truckId: string; fieldAdminId: string },
+) => {
+  const response = await apiClient.patch(`/admin/routes/${routeId}/fleet`, payload);
+  return response.data;
+};
+
+export const getBatchRoutingHandoff = async (batchId: string): Promise<Record<string, unknown>> => {
+  const response = await apiClient.get(`/admin/batches/${batchId}/routing-handoff`);
+  return response.data;
+};
+
 export default {
   listBatches,
   getBatchById,
+  listFleetOptions,
+  assignRouteFleet,
+  getBatchRoutingHandoff,
 };
