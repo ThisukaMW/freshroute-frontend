@@ -6,6 +6,7 @@ import {
   getStripeDashboardUrl,
   listRefunds,
   updateRefundStatus,
+  initiateStripeRefund,
   type RefundListItem,
   type RefundStatus,
 } from "../../api/endpoints/adminRefunds";
@@ -61,6 +62,29 @@ const RefundDetailModal: React.FC<{
       setBusy(false);
     }
   };
+
+  const handleStripeRefund = async () => {
+  setBusy(true);
+  setActionError(null);
+
+  try {
+    await initiateStripeRefund(refund.id);
+
+    // Reload refund details after Stripe refund succeeds
+    const updated = await getRefundById(refund.id);
+
+    onUpdated(updated);
+
+  } catch (err) {
+    const message = axios.isAxiosError(err)
+      ? (err.response?.data as { message?: string })?.message ?? err.message
+      : "Failed to initiate Stripe refund";
+
+    setActionError(message);
+  } finally {
+    setBusy(false);
+  }
+};
 
   const refundReason =
     refund.reason?.trim() ||
@@ -190,6 +214,16 @@ const RefundDetailModal: React.FC<{
                 </svg>
               </a>
             )}
+            {refund.status !== "REFUNDED" && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleStripeRefund}
+                className="rounded-lg bg-purple-600 hover:bg-purple-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                Initiate Stripe Refund
+            </button>
+            )}
             {refund.status === "PENDING" && (
               <button
                 type="button"
@@ -210,6 +244,7 @@ const RefundDetailModal: React.FC<{
                 Mark refund completed
               </button>
             )}
+            
             {(refund.status === "PENDING" || refund.status === "PROCESSING") && (
               <button
                 type="button"

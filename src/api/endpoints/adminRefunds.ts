@@ -71,9 +71,20 @@ export const getStripeDashboardUrl = (gatewayPaymentId: string | null | undefine
   return `${base}/search?query=${encodeURIComponent(gatewayPaymentId)}`;
 };
 
+export const initiateStripeRefund = async (refundId: string) => {
+
+    const response = await apiClient.post(
+        `/admin/refunds/${refundId}/initiate`
+    );
+
+    return response.data;
+
+};
+
 export default {
   listRefunds,
   getRefundById,
   updateRefundStatus,
+  initiateStripeRefund,
   getStripeDashboardUrl,
 };
