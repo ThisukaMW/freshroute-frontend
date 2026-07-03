@@ -266,11 +266,8 @@ const ProfilePage = (): JSX.Element => {
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(true)
 
   // Privacy / platform toggles
-  const [twoFactor,          setTwoFactor]          = useState(true)
   const [auditLogging,       setAuditLogging]       = useState(true)
-  const [maintenanceMode,    setMaintenanceMode]    = useState(false)
   const [newRegistrations,   setNewRegistrations]   = useState(true)
-  const [autoApproveVendors, setAutoApproveVendors] = useState(false)
   const [showPwdFields, setShowPwdFields] = useState<Record<string, boolean>>({})
 
   // Danger zone
@@ -1010,14 +1007,6 @@ const ProfilePage = (): JSX.Element => {
                   </div>
                 </div>
               ))}
-              {role === 'admin' && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                  <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 16 16">
-                    <circle cx="8" cy="8" r="6" /><path d="M8 5v3" /><circle cx="8" cy="11" r=".6" fill="currentColor" />
-                  </svg>
-                  <p className="text-xs text-emerald-300">Two-factor authentication is <strong>enabled</strong>. You'll be prompted to verify after saving.</p>
-                </div>
-              )}
               <button onClick={handleSave} className={`rounded-xl bg-gradient-to-r ${roleGradient} px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
                 {saveLabel}
               </button>
@@ -1106,7 +1095,6 @@ const ProfilePage = (): JSX.Element => {
                   <p className="mb-4 text-sm font-semibold text-slate-200">Security</p>
                   <div className="space-y-3">
                     {[
-                      { label: 'Two-factor authentication', sub: 'Required on every admin sign-in',       value: twoFactor,    onChange: () => setTwoFactor(!twoFactor)       },
                       { label: 'Audit logging',             sub: 'Record all admin actions to audit log', value: auditLogging, onChange: () => setAuditLogging(!auditLogging) },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
@@ -1121,9 +1109,7 @@ const ProfilePage = (): JSX.Element => {
                   <p className="mb-4 text-sm font-semibold text-slate-200">Platform Switches</p>
                   <div className="space-y-3">
                     {[
-                      { label: 'Maintenance mode',     sub: 'Take the platform offline for all users',        value: maintenanceMode,    onChange: () => setMaintenanceMode(!maintenanceMode),       danger: true  },
                       { label: 'New registrations',    sub: 'Allow new buyers and vendors to sign up',        value: newRegistrations,   onChange: () => setNewRegistrations(!newRegistrations),     danger: false },
-                      { label: 'Auto-approve vendors', sub: 'Skip manual review for new vendor applications', value: autoApproveVendors, onChange: () => setAutoApproveVendors(!autoApproveVendors), danger: false },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
                         <div>
