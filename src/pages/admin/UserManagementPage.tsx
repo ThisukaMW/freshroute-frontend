@@ -37,6 +37,105 @@ const statusColors: Record<UserStatus, string> = {
   SUSPENDED: "bg-red-500/20 text-red-400",
 };
 
+// ---------------------------------------------------------------------------
+// Role -> accent theme. This is the one place personality lives: each role
+// gets a consistent color identity that shows up in the avatar, badge and
+// stat icons, so at a glance you know what kind of account you're looking at.
+// ---------------------------------------------------------------------------
+const roleAccent: Record<
+  UserRole,
+  { text: string; soft: string; ring: string; grad: string; label: string }
+> = {
+  BUYER: {
+    text: "text-sky-400",
+    soft: "bg-sky-500/10",
+    ring: "ring-sky-500/30",
+    grad: "from-sky-400 to-sky-600",
+    label: "Buyer",
+  },
+  SELLER: {
+    text: "text-emerald-400",
+    soft: "bg-emerald-500/10",
+    ring: "ring-emerald-500/30",
+    grad: "from-emerald-400 to-emerald-600",
+    label: "Seller",
+  },
+  DRIVER: {
+    text: "text-amber-400",
+    soft: "bg-amber-500/10",
+    ring: "ring-amber-500/30",
+    grad: "from-amber-400 to-amber-600",
+    label: "Driver",
+  },
+  ADMIN: {
+    text: "text-violet-400",
+    soft: "bg-violet-500/10",
+    ring: "ring-violet-500/30",
+    grad: "from-violet-400 to-violet-600",
+    label: "Admin",
+  },
+  FIELD_ADMIN: {
+    text: "text-violet-400",
+    soft: "bg-violet-500/10",
+    ring: "ring-violet-500/30",
+    grad: "from-violet-400 to-violet-600",
+    label: "Field Admin",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Small inline icon set (no new dependency — matches the SVGs already used
+// elsewhere in this file).
+// ---------------------------------------------------------------------------
+const IconMail = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9 6 9-6M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" />
+  </svg>
+);
+const IconPhone = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h2.28a1 1 0 01.97.76l1.1 4.4a1 1 0 01-.5 1.13L7.1 10.4a12 12 0 006.5 6.5l1.1-1.75a1 1 0 011.13-.5l4.4 1.1a1 1 0 01.76.97V19a2 2 0 01-2 2h-1C10.4 21 3 13.6 3 5z" />
+  </svg>
+);
+const IconPin = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s7-6.6 7-12a7 7 0 10-14 0c0 5.4 7 12 7 12z" />
+    <circle cx="12" cy="10" r="2.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconCalendar = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path strokeLinecap="round" d="M16 3v4M8 3v4M3 10h18" />
+  </svg>
+);
+const IconPackage = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" />
+  </svg>
+);
+const IconBag = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12l1 13H5L6 7zM9 7a3 3 0 016 0" />
+  </svg>
+);
+const IconStar = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" {...p}>
+    <path d="M12 2l2.9 6.4 7 .7-5.3 4.7 1.6 6.9L12 17l-6.2 3.7 1.6-6.9L2.1 9l7-.7L12 2z" />
+  </svg>
+);
+const IconWallet = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <rect x="3" y="6" width="18" height="14" rx="2" />
+    <path strokeLinecap="round" d="M3 10h18M16 14h2" />
+  </svg>
+);
+const IconX = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+
 const ConfirmationModal: React.FC<{
   dialog: ConfirmDialog;
   onConfirm: () => void;
@@ -45,8 +144,6 @@ const ConfirmationModal: React.FC<{
   if (!dialog.isOpen) return null;
 
   const isSuspend = dialog.action === "SUSPEND";
-
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -94,16 +191,70 @@ const ConfirmationModal: React.FC<{
   );
 };
 
+// ---------------------------------------------------------------------------
+// Info row — now icon-led so each fact is scannable at a glance instead of
+// reading as an undifferentiated list of label/value pairs.
+// ---------------------------------------------------------------------------
 const InfoRow = ({
+  icon: Icon,
   label,
   value,
 }: {
+  icon: (p: React.SVGProps<SVGSVGElement>) => React.ReactElement;
   label: string;
   value: React.ReactNode;
 }) => (
-  <div className="flex justify-between border-b border-slate-800 pb-2">
-    <span className="text-slate-400">{label}</span>
-    <span className="text-white font-medium">{value}</span>
+  <div className="flex items-start gap-3 py-2.5">
+    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-slate-400">
+      <Icon className="h-4 w-4" />
+    </div>
+    <div className="min-w-0">
+      <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-sm font-medium text-white truncate">{value}</div>
+    </div>
+  </div>
+);
+
+// Stat tile — used for the buyer/seller performance numbers. Gives them
+// visual weight as headline figures rather than burying them in a table row.
+const StatTile = ({
+  icon: Icon,
+  value,
+  label,
+  accent,
+}: {
+  icon: (p: React.SVGProps<SVGSVGElement>) => React.ReactElement;
+  value: React.ReactNode;
+  label: string;
+  accent: { text: string; soft: string };
+}) => (
+  <div className="rounded-xl border border-white/5 bg-slate-800/60 p-4">
+    <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${accent.soft} ${accent.text}`}>
+      <Icon className="h-4 w-4" />
+    </div>
+    <div className="text-xl font-semibold text-white leading-none">{value}</div>
+    <div className="mt-1 text-xs text-slate-400">{label}</div>
+  </div>
+);
+
+const SkeletonModal = () => (
+  <div className="animate-pulse">
+    <div className="flex flex-col items-center py-8">
+      <div className="h-24 w-24 rounded-full bg-slate-800" />
+      <div className="mt-4 h-5 w-40 rounded bg-slate-800" />
+      <div className="mt-3 h-5 w-20 rounded-full bg-slate-800" />
+    </div>
+    <div className="px-8 pb-8 space-y-6">
+      <div className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-10 rounded-lg bg-slate-800/70" />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-20 rounded-xl bg-slate-800/70" />
+        <div className="h-20 rounded-xl bg-slate-800/70" />
+      </div>
+    </div>
   </div>
 );
 
@@ -118,204 +269,182 @@ const UserDetailsModal = ({
   loading: boolean;
   onClose: () => void;
 }) => {
+  const [visible, setVisible] = useState(false);
+
+  // Drive the enter/exit transition off a `visible` flag rather than mounting
+  // instantly, so the modal scales/fades in instead of just popping in.
+  useEffect(() => {
+    if (open) {
+      const raf = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setVisible(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
+
+  const accent = user ? roleAccent[user.role] : roleAccent.BUYER;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-
       {/* Background */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
+          visible ? "opacity-100" : "opacity-0"
+        }`}
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-2xl mx-4 rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden">
+      <div
+        className={`relative z-10 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl shadow-black/60 transition-all duration-200 ${
+          visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2"
+        }`}
+      >
+        {/* Accent top bar — the one signature flourish, colored by role */}
+        <div className={`h-1 w-full bg-gradient-to-r ${accent.grad}`} />
 
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-700">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-5 rounded-lg p-1.5 text-slate-500 hover:text-white hover:bg-white/10 transition"
+        >
+          <IconX className="h-5 w-5" />
+        </button>
 
-          <h2 className="text-2xl font-bold text-white">
-            User Details
-          </h2>
-
-        </div>
-
-        {/* Loading */}
         {loading ? (
-
-          <div className="p-12 text-center text-slate-400">
-
-            Loading user...
-
-          </div>
-
+          <SkeletonModal />
         ) : user ? (
-
           <>
             {/* Profile */}
-            <div className="flex flex-col items-center py-8">
-
-              <div className="w-24 h-24 rounded-full bg-emerald-600 flex items-center justify-center text-4xl font-bold text-white">
-
-                {user.name.charAt(0)}
-
+            <div className="flex flex-col items-center pt-8 pb-6">
+              <div
+                className={`flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br ${accent.grad} text-4xl font-bold text-white shadow-lg ring-4 ring-slate-900`}
+              >
+                {user.name.charAt(0).toUpperCase()}
               </div>
 
-              <h3 className="mt-4 text-2xl font-semibold text-white">
-
+              <h3 className="mt-4 text-2xl font-semibold text-white tracking-tight">
                 {user.name}
-
               </h3>
 
-              <span className="mt-2 rounded-full bg-emerald-500/20 px-4 py-1 text-emerald-400 text-sm">
-
-                {user.role}
-
-              </span>
-
+              <div className="mt-2 flex items-center gap-2">
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${accent.soft} ${accent.text}`}>
+                  {accent.label}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    user.status === "ACTIVE"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {user.status === "ACTIVE" ? "Active" : "Suspended"}
+                </span>
+              </div>
             </div>
 
             {/* Body */}
-            <div className="px-8 pb-8 space-y-8">
-
-              {/* Personal */}
+            <div className="px-8 pb-8 space-y-6">
+              {/* Contact */}
               <section>
-
-                <h4 className="text-lg font-semibold text-white mb-4">
-                  Personal Information
+                <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  Contact
                 </h4>
-
-                <div className="grid grid-cols-2 gap-y-4">
-
-                  <InfoRow label="Email" value={user.email} />
-
-                  <InfoRow label="Phone" value={user.phone ?? "-"} />
-
-                  <InfoRow label="City" value={user.city} />
-
-                  <InfoRow label="Address" value={user.address ?? "-"} />
-
-                </div>
-
-              </section>
-
-              {/* Account */}
-              <section>
-
-                <h4 className="text-lg font-semibold text-white mb-4">
-
-                  Account
-
-                </h4>
-
-                <div className="grid grid-cols-2 gap-y-4">
-
+                <div className="rounded-xl border border-white/5 divide-y divide-white/5 px-3">
+                  <InfoRow icon={IconMail} label="Email" value={user.email} />
+                  <InfoRow icon={IconPhone} label="Phone" value={user.phone || "Not provided"} />
+                  <InfoRow icon={IconPin} label="Address" value={user.address || "Not provided"} />
                   <InfoRow
-                    label="Status"
-                    value={
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          user.status === "ACTIVE"
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-red-500/20 text-red-400"
-                        }`}
-                      >
-                        {user.status}
-                      </span>
-                    }
-                  />
-
-                  <InfoRow
+                    icon={IconCalendar}
                     label="Joined"
                     value={
                       user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString()
-                        : "-"
+                        ? new Date(user.createdAt).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : "Unknown"
                     }
                   />
-
                 </div>
-
               </section>
 
-              {/* Seller */}
+              {/* Seller stats */}
               {user.role === "SELLER" && (
-
                 <section>
-
-                  <h4 className="text-lg font-semibold text-white mb-4">
-
-                    Seller Statistics
-
+                  <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    Seller performance
                   </h4>
-
-                  <div className="grid grid-cols-2 gap-y-4">
-
-                    <InfoRow label="Products" value={user.totalProducts ?? 0} />
-
-                    <InfoRow label="Orders" value={user.totalOrders ?? 0} />
-
-                    <InfoRow label="Rating" value={user.rating ?? "-"} />
-
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatTile icon={IconPackage} value={user.totalProducts ?? 0} label="Products listed" accent={accent} />
+                    <StatTile icon={IconBag} value={user.totalOrders ?? 0} label="Orders fulfilled" accent={accent} />
+                    <StatTile
+                      icon={IconStar}
+                      value={user.rating != null ? user.rating.toFixed(1) : "—"}
+                      label="Average rating"
+                      accent={accent}
+                    />
                   </div>
-
                 </section>
-
               )}
 
-              {/* Buyer */}
+              {/* Buyer stats */}
               {user.role === "BUYER" && (
-
                 <section>
-
-                  <h4 className="text-lg font-semibold text-white mb-4">
-
-                    Buyer Statistics
-
+                  <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    Buyer activity
                   </h4>
-
-                  <div className="grid grid-cols-2 gap-y-4">
-
-                    <InfoRow label="Orders" value={user.totalOrders ?? 0} />
-
-                    <InfoRow label="Total Spent" value={`Rs. ${user.totalSpent ?? 0}`} />
-
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatTile icon={IconBag} value={user.totalOrders ?? 0} label="Orders placed" accent={accent} />
+                    <StatTile
+                      icon={IconWallet}
+                      value={`Rs. ${(user.totalSpent ?? 0).toLocaleString()}`}
+                      label="Total spent"
+                      accent={accent}
+                    />
                   </div>
-
                 </section>
-
               )}
-
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 border-t border-slate-700 px-8 py-5">
-
+            <div className="flex justify-end gap-3 border-t border-slate-800 px-8 py-5">
               <button
                 onClick={onClose}
-                className="rounded-lg bg-slate-700 px-5 py-2 text-white hover:bg-slate-600"
+                className="rounded-lg bg-slate-800 px-5 py-2 text-sm font-medium text-white hover:bg-slate-700 transition"
               >
                 Close
               </button>
-
             </div>
-
           </>
         ) : (
-
-          <div className="p-10 text-center text-red-400">
-
-            Failed to load user.
-
+          <div className="flex flex-col items-center gap-3 p-14 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+              <IconX className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-medium text-red-400">Couldn't load this user</p>
+              <p className="mt-1 text-sm text-slate-500">Something went wrong fetching their details. Try again.</p>
+            </div>
           </div>
-
         )}
       </div>
-
     </div>
   );
 };
+
 // Roles that cannot be modified by the admin panel
 const PROTECTED_ROLES: UserRole[] = ["ADMIN", "FIELD_ADMIN"];
 
@@ -420,12 +549,12 @@ const UserManagementPage: React.FC = () => {
   const handleViewUser = async (id: string) => {
     try {
       setLoadingDetails(true);
-      setViewModalOpen(true); 
+      setViewModalOpen(true);
       const res = await fetch(`${API_BASE}/api/v1/users/${id}`);
       if (!res.ok) throw new Error("Failed to fetch user");
       const data = await res.json();
       setSelectedUser(data);
-   } catch (err) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load user";
       setError(message);
     } finally {
@@ -441,13 +570,12 @@ const UserManagementPage: React.FC = () => {
         user={selectedUser}
         loading={loadingDetails}
         onClose={() => {
-            setViewModalOpen(false);
-            setSelectedUser(null);
+          setViewModalOpen(false);
+          setSelectedUser(null);
         }}
       />
       <div className="min-h-screen bg-slate-950 p-6">
         <div className="space-y-4 max-w-5xl mx-auto">
-
           {/* HEADER */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h1 className="text-xl font-semibold text-slate-50">User Management</h1>
@@ -502,7 +630,6 @@ const UserManagementPage: React.FC = () => {
                   <tr>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Role</th>
-                    <th className="px-3 py-2">City</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Actions</th>
                   </tr>
@@ -510,13 +637,9 @@ const UserManagementPage: React.FC = () => {
                 <tbody className="divide-y divide-white/5">
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-white/5 transition">
-                      {/* ID */}
-                      {/*<td className="px-3 py-3 text-slate-400 font-mono text-xs">{user.id}</td>*/}
                       <td className="px-3 py-3 font-medium">{user.name}</td>
 
-                      {/* ROLE */}
                       <td className="px-3 py-3 capitalize">
-                        {/* Only show role editor for non-admin users */}
                         {!isProtected(user) && editingUserId === user.id ? (
                           <select
                             autoFocus
@@ -536,19 +659,14 @@ const UserManagementPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="px-3 py-3">{user.city ?? "—"}</td>
-
-                      {/* STATUS */}
                       <td className="px-3 py-3">
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[user.status]}`}>
                           {user.status}
                         </span>
                       </td>
 
-                      {/* ACTIONS */}
                       <td className="px-3 py-3">
                         {isProtected(user) ? (
-                          // Admin/Field Admin — no actions allowed
                           <span className="text-xs text-slate-600 italic">Protected</span>
                         ) : (
                           <div className="flex gap-3 text-xs flex-wrap">
@@ -558,13 +676,6 @@ const UserManagementPage: React.FC = () => {
                             >
                               View
                             </button>
-
-                            {/* <button
-                              onClick={() => setEditingUserId(user.id)}
-                              className="text-yellow-400 hover:text-yellow-300 transition"
-                            >
-                              Change role
-                            </button> */}
 
                             {user.status !== "ACTIVE" && (
                               <button

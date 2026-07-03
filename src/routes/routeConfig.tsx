@@ -34,6 +34,7 @@ const PaymentsPage = lazyPage("../pages/admin/PaymentsPage");
 const TransactionHistoryPage = lazyPage(
   "../pages/admin/TransactionHistoryPage",
 );
+const RefundPage = lazyPage("../pages/admin/RefundPage");
 const SystemSettingsPage = lazyPage("../pages/admin/SystemSettingsPage");
 const TruckCapacityPage = lazyPage("../pages/admin/TruckCapacityPage");
 const AddTruckPage = lazyPage("../pages/admin/AddTruckPage");
@@ -234,6 +235,15 @@ export const routeConfig: {
       element: (
         <MainLayout role="admin">
           <PaymentsPage />
+        </MainLayout>
+      ),
+    },
+    {
+      path: "/admin/refunds",
+      roles: ["admin"],
+      element: (
+        <MainLayout role="admin">
+          <RefundPage />
         </MainLayout>
       ),
     },

@@ -25,7 +25,7 @@ const CustomerDashboardPage = () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await apiClient.get('/dashboard/customer/summary')
+        const response = await apiClient.get(`/dashboard/customer/summary`)
         setSummary(response.data)
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Failed to load dashboard data.')

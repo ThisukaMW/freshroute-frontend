@@ -59,11 +59,11 @@ const ORDER_STATUS_CONFIG: Record<OrderStatus, { label: string; dot: string; tex
   CANCELLED:       { label: "Cancelled",       dot: "#6b7280", text: "#1f2937", bg: "#f3f4f6" },
 };
 
-const formatAmount = (amount: number, currency = "usd") =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(amount);
+const formatAmount = (amount: number) =>
+  `Rs. ${new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`;
 
 const formatDate = (d: string) =>
   new Date(d).toLocaleDateString("en-US", {
@@ -120,8 +120,11 @@ const TransactionHistoryPage = () => {
 
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
 
-        const data = await res.json();
-        setOrders(data);
+        const data: Order[] = await res.json();
+        const latest50 = [...data]
+          .sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime())
+          .slice(0, 50);
+        setOrders(latest50);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
@@ -260,7 +263,7 @@ const TransactionHistoryPage = () => {
 
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-semibold text-slate-100">
-                        {formatAmount(order.totalAmount, order.payment?.currency)}
+                        {formatAmount(order.totalAmount)}
                       </p>
                       <span
                         className="inline-block mt-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
@@ -317,14 +320,14 @@ const TransactionHistoryPage = () => {
                                 <span className="text-slate-600 ml-2 text-xs">({item.product.category})</span>
                               </div>
                               <span className="text-slate-300 font-medium">
-                                {formatAmount(item.totalPrice, order.payment?.currency)}
+                                {formatAmount(item.totalPrice)}
                               </span>
                             </div>
                           ))}
                         </div>
                         <div className="flex justify-end mt-2 pt-2 border-t border-slate-700/40">
                           <p className="text-sm font-semibold text-slate-100">
-                            Total: {formatAmount(order.totalAmount, order.payment?.currency)}
+                            Total: {formatAmount(order.totalAmount)}
                           </p>
                         </div>
                       </div>
@@ -340,7 +343,7 @@ const TransactionHistoryPage = () => {
                             <div>
                               <p className="text-xs text-slate-500">Amount</p>
                               <p className="text-sm text-slate-300">
-                                {formatAmount(order.payment.amount, order.payment.currency)}
+                                {formatAmount(order.payment.amount)}
                               </p>
                             </div>
                             {/* <div>
