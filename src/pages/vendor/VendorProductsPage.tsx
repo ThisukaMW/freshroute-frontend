@@ -10,28 +10,25 @@ const VendorProductsPage = () => {
 
   const { products } = useSelector((state: any) => state.sellerProducts);
 
-  // ✅ Add search and filter state
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
+  const [statusOpen, setStatusOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchSellerProducts() as any);
   }, [dispatch]);
 
-  // ✅ Filtered products
   const filteredProducts = products.filter((p: any) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.category.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "All statuses"
-        ? true
-        : statusFilter === "Active"
-          ? p.status === "APPROVED"
-          : statusFilter === "Inactive"
-            ? p.status === "REJECTED"
-            : true;
+      statusFilter === "All statuses" ? true
+      : statusFilter === "Active"    ? p.status === "APPROVED"
+      : statusFilter === "Inactive"  ? p.status === "REJECTED"
+      : statusFilter === "Pending"   ? p.status === "PENDING_APPROVAL"
+      : true;
 
     return matchesSearch && matchesStatus;
   });
@@ -69,7 +66,7 @@ const VendorProductsPage = () => {
       <section className="mt-6 rounded-2xl border border-white/10 bg-supply-deep/80 p-4 backdrop-blur-xl">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-2">
-            {/* ✅ Wired up search */}
+            {/* Search */}
             <input
               type="text"
               placeholder="Search products..."
@@ -77,18 +74,57 @@ const VendorProductsPage = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="w-56 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 outline-none ring-emerald-500/60 placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2"
             />
-            {/* ✅ Wired up status filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-100 outline-none ring-emerald-500/60 focus:border-emerald-500 focus:ring-2"
-            >
-              <option>All statuses</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+
+            {/* Custom status dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setStatusOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 outline-none hover:border-white/20 transition-colors"
+              >
+                {statusFilter}
+                <svg
+                  className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${statusOpen ? "rotate-180" : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {statusOpen && (
+                <>
+                  {/* backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setStatusOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-xl">
+                    {["All statuses", "Active", "Inactive", "Pending"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter(opt);
+                          setStatusOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 text-left text-xs transition-colors hover:bg-white/5 ${
+                          statusFilter === opt
+                            ? "text-emerald-400 bg-emerald-500/5"
+                            : "text-slate-300"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          {/* ✅ Shows filtered count */}
+
           <p className="text-xs text-slate-300">
             {filteredProducts.length} products
           </p>
@@ -104,24 +140,37 @@ const VendorProductsPage = () => {
                 <th className="px-3 py-2 font-medium">Stock</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Actions</th>
-                <th className="px-3 py-2 font-medium">Test</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {/* ✅ Use filteredProducts instead of products */}
               {filteredProducts.length > 0 ? (
                 filteredProducts.map((p: any) => (
                   <tr key={p.id} className="hover:bg-white/5">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400/70 via-emerald-500/60 to-accent-blue/60" />
+                        {/* Product image with gradient fallback */}
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            className="h-8 w-8 rounded-lg object-cover shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty("display", "block");
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400/70 via-emerald-500/60 to-accent-blue/60 shrink-0"
+                          style={{ display: p.imageUrl ? "none" : "block" }}
+                        />
                         <div>
                           <p className="text-xs font-medium text-slate-50">
                             {p.name}
                           </p>
-                          <p className="text-[11px] text-slate-400">
+                          {/* <p className="text-[11px] text-slate-400">
                             SKU: {p.id.slice(0, 8).toUpperCase()}
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                     </td>
@@ -159,9 +208,7 @@ const VendorProductsPage = () => {
                       <div className="flex gap-2 text-[11px]">
                         <button
                           className="text-emerald-300 hover:text-emerald-200 disabled:text-slate-500"
-                          onClick={() =>
-                            navigate(`/seller/products/${p.id}/edit`)
-                          }
+                          onClick={() => navigate(`/seller/products/${p.id}/edit`)}
                           disabled={p.status === "PENDING_APPROVAL"}
                         >
                           Edit
@@ -175,16 +222,11 @@ const VendorProductsPage = () => {
                         </button>
                       </div>
                     </td>
-                    <td>test</td>
                   </tr>
                 ))
               ) : (
-                // ✅ Empty state when no results
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-8 text-center text-slate-400"
-                  >
+                  <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
                     No products match your search
                   </td>
                 </tr>
