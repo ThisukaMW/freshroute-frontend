@@ -186,7 +186,7 @@ const CheckoutPage: React.FC = () => {
 
       // STEP 3: Clear cart and redirect
       setOrderCompleted(true);
-      dispatch(clearCart());
+      // dispatch(clearCart());
       window.location.href = checkoutUrl;
 
     } catch (err: unknown) {

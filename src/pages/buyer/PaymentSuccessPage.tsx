@@ -132,8 +132,8 @@ export default function PaymentSuccessPage() {
       const total = unitPrice * item.quantity;
       doc.text(item.product?.name || item.name || "Product", 22, y);
       doc.text(String(item.quantity), 122, y);
-      doc.text(`$${unitPrice.toFixed(2)}`, 140, y);
-      doc.text(`$${total.toFixed(2)}`, 170, y);
+      doc.text(`Rs. ${unitPrice.toFixed(2)}`, 140, y);
+      doc.text(`Rs. ${total.toFixed(2)}`, 170, y);
       y += 14;
     });
 
@@ -145,7 +145,7 @@ export default function PaymentSuccessPage() {
     doc.setTextColor(30, 30, 30);
     doc.text("Total Amount", 120, y + 14);
     doc.setTextColor(22, 163, 74);
-    doc.text(`$${Number(order?.totalAmount || 0).toFixed(2)}`, 170, y + 14);
+    doc.text(`Rs. ${Number(order?.totalAmount || 0).toFixed(2)}`, 170, y + 14);
 
     doc.setFillColor(245, 247, 245);
     doc.rect(0, 265, pageWidth, 30, "F");
@@ -318,7 +318,7 @@ export default function PaymentSuccessPage() {
                 borderRadius: 8,
                 padding: "11px 24px",
                 fontSize: 14,
-                fontWeight: 500,
+                fontWeight: 400,
                 cursor: "pointer",
               }}
             >
@@ -328,12 +328,12 @@ export default function PaymentSuccessPage() {
           <button
             onClick={() => navigate("/buyer/orders")}
             style={{
-              background: "transparent",
-              color: "#6b7280",
-              border: "0.5px solid #d1d5db",
+              background: "#059669",
+              color: "#fff",
               borderRadius: 8,
               padding: "11px 24px",
               fontSize: 14,
+              fontWeight: 400,
               cursor: "pointer",
             }}
           >
@@ -342,12 +342,12 @@ export default function PaymentSuccessPage() {
           <button
             onClick={() => navigate("/buyer/products")}
             style={{
-              background: "transparent",
-              color: "#6b7280",
-              border: "0.5px solid #d1d5db",
+              background: "#059669",
+              color: "#fff",
               borderRadius: 8,
               padding: "11px 24px",
               fontSize: 14,
+              fontWeight: 400,
               cursor: "pointer",
             }}
           >

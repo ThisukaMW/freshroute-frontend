@@ -15,8 +15,6 @@ const selectPendingProducts = createSelector(
 const formatLbs = (value: number | null | undefined) =>
   (value ?? 0).toLocaleString()
 
-const truckTypeLabel = (type: string | null | undefined) => type ?? '—'
-
 type Truck = {
   id: string
   operator?: string | null
@@ -318,34 +316,6 @@ const AdminDashboardPage = () => {
                     </div>
                   ))}
                 </div>
-
-                {/* <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Delivery efficiency</p>
-                    <p className="text-2xl font-semibold text-white">{truck.efficiency}%</p>
-                    <div className="mt-2 h-1.5 rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-emerald-400 transition-all duration-500"
-                        style={{ width: `${truck.efficiency}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Load balance</p>
-                    <div className="mt-2 flex items-center justify-between text-white">
-                      <div className="text-center">
-                        <p className="text-2xl font-semibold">{truck.loadBalance.left}%</p>
-                        <p className="text-[11px] text-slate-400">Left side</p>
-                      </div>
-                      <div className="h-12 w-px bg-white/10" />
-                      <div className="text-center">
-                        <p className="text-2xl font-semibold">{truck.loadBalance.right}%</p>
-                        <p className="text-[11px] text-slate-400">Right side</p>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-[11px] text-slate-500">Tilt risk: {truck.tiltRisk}</p>
-                  </div>
-                </div> */}
               </div>
             ))}
           </div>

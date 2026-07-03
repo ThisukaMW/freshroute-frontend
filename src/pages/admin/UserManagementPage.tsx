@@ -20,6 +20,18 @@ interface ConfirmDialog {
   action: "SUSPEND" | "ACTIVATE" | null;
 }
 
+interface UserDetails extends User {
+  email: string;
+  phone?: string;
+  address?: string;
+  createdAt?: string;
+
+  totalOrders?: number;
+  totalProducts?: number;
+  totalSpent?: number;
+  rating?: number;
+}
+
 const statusColors: Record<UserStatus, string> = {
   ACTIVE: "bg-emerald-500/20 text-emerald-400",
   SUSPENDED: "bg-red-500/20 text-red-400",
@@ -33,6 +45,8 @@ const ConfirmationModal: React.FC<{
   if (!dialog.isOpen) return null;
 
   const isSuspend = dialog.action === "SUSPEND";
+
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -80,6 +94,228 @@ const ConfirmationModal: React.FC<{
   );
 };
 
+const InfoRow = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) => (
+  <div className="flex justify-between border-b border-slate-800 pb-2">
+    <span className="text-slate-400">{label}</span>
+    <span className="text-white font-medium">{value}</span>
+  </div>
+);
+
+const UserDetailsModal = ({
+  open,
+  user,
+  loading,
+  onClose,
+}: {
+  open: boolean;
+  user: UserDetails | null;
+  loading: boolean;
+  onClose: () => void;
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+      {/* Background */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-2xl mx-4 rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="px-8 py-6 border-b border-slate-700">
+
+          <h2 className="text-2xl font-bold text-white">
+            User Details
+          </h2>
+
+        </div>
+
+        {/* Loading */}
+        {loading ? (
+
+          <div className="p-12 text-center text-slate-400">
+
+            Loading user...
+
+          </div>
+
+        ) : user ? (
+
+          <>
+            {/* Profile */}
+            <div className="flex flex-col items-center py-8">
+
+              <div className="w-24 h-24 rounded-full bg-emerald-600 flex items-center justify-center text-4xl font-bold text-white">
+
+                {user.name.charAt(0)}
+
+              </div>
+
+              <h3 className="mt-4 text-2xl font-semibold text-white">
+
+                {user.name}
+
+              </h3>
+
+              <span className="mt-2 rounded-full bg-emerald-500/20 px-4 py-1 text-emerald-400 text-sm">
+
+                {user.role}
+
+              </span>
+
+            </div>
+
+            {/* Body */}
+            <div className="px-8 pb-8 space-y-8">
+
+              {/* Personal */}
+              <section>
+
+                <h4 className="text-lg font-semibold text-white mb-4">
+                  Personal Information
+                </h4>
+
+                <div className="grid grid-cols-2 gap-y-4">
+
+                  <InfoRow label="Email" value={user.email} />
+
+                  <InfoRow label="Phone" value={user.phone ?? "-"} />
+
+                  <InfoRow label="City" value={user.city} />
+
+                  <InfoRow label="Address" value={user.address ?? "-"} />
+
+                </div>
+
+              </section>
+
+              {/* Account */}
+              <section>
+
+                <h4 className="text-lg font-semibold text-white mb-4">
+
+                  Account
+
+                </h4>
+
+                <div className="grid grid-cols-2 gap-y-4">
+
+                  <InfoRow
+                    label="Status"
+                    value={
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          user.status === "ACTIVE"
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-red-500/20 text-red-400"
+                        }`}
+                      >
+                        {user.status}
+                      </span>
+                    }
+                  />
+
+                  <InfoRow
+                    label="Joined"
+                    value={
+                      user.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString()
+                        : "-"
+                    }
+                  />
+
+                </div>
+
+              </section>
+
+              {/* Seller */}
+              {user.role === "SELLER" && (
+
+                <section>
+
+                  <h4 className="text-lg font-semibold text-white mb-4">
+
+                    Seller Statistics
+
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-y-4">
+
+                    <InfoRow label="Products" value={user.totalProducts ?? 0} />
+
+                    <InfoRow label="Orders" value={user.totalOrders ?? 0} />
+
+                    <InfoRow label="Rating" value={user.rating ?? "-"} />
+
+                  </div>
+
+                </section>
+
+              )}
+
+              {/* Buyer */}
+              {user.role === "BUYER" && (
+
+                <section>
+
+                  <h4 className="text-lg font-semibold text-white mb-4">
+
+                    Buyer Statistics
+
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-y-4">
+
+                    <InfoRow label="Orders" value={user.totalOrders ?? 0} />
+
+                    <InfoRow label="Total Spent" value={`Rs. ${user.totalSpent ?? 0}`} />
+
+                  </div>
+
+                </section>
+
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 border-t border-slate-700 px-8 py-5">
+
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-slate-700 px-5 py-2 text-white hover:bg-slate-600"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </>
+        ) : (
+
+          <div className="p-10 text-center text-red-400">
+
+            Failed to load user.
+
+          </div>
+
+        )}
+      </div>
+
+    </div>
+  );
+};
 // Roles that cannot be modified by the admin panel
 const PROTECTED_ROLES: UserRole[] = ["ADMIN", "FIELD_ADMIN"];
 
@@ -96,6 +332,9 @@ const UserManagementPage: React.FC = () => {
     userName: "",
     action: null,
   });
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     fetch("/api/v1/users")
@@ -178,10 +417,34 @@ const UserManagementPage: React.FC = () => {
 
   const isProtected = (user: User) => PROTECTED_ROLES.includes(user.role);
 
+  const handleViewUser = async (id: string) => {
+    try {
+      setLoadingDetails(true);
+      setViewModalOpen(true); 
+      const res = await fetch(`${API_BASE}/api/v1/users/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch user");
+      const data = await res.json();
+      setSelectedUser(data);
+   } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load user";
+      setError(message);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
   return (
     <>
       <ConfirmationModal dialog={confirmDialog} onConfirm={handleConfirm} onCancel={handleCancel} />
 
+      <UserDetailsModal
+        open={viewModalOpen}
+        user={selectedUser}
+        loading={loadingDetails}
+        onClose={() => {
+            setViewModalOpen(false);
+            setSelectedUser(null);
+        }}
+      />
       <div className="min-h-screen bg-slate-950 p-6">
         <div className="space-y-4 max-w-5xl mx-auto">
 
@@ -289,19 +552,19 @@ const UserManagementPage: React.FC = () => {
                           <span className="text-xs text-slate-600 italic">Protected</span>
                         ) : (
                           <div className="flex gap-3 text-xs flex-wrap">
-                            {/* <button
-                              onClick={() => (window.location.href = `/admin/users/${user.id}`)}
+                            <button
+                              onClick={() => handleViewUser(user.id)}
                               className="text-teal-400 hover:text-teal-300 transition"
                             >
                               View
-                            </button> */}
+                            </button>
 
-                            <button
+                            {/* <button
                               onClick={() => setEditingUserId(user.id)}
                               className="text-yellow-400 hover:text-yellow-300 transition"
                             >
                               Change role
-                            </button>
+                            </button> */}
 
                             {user.status !== "ACTIVE" && (
                               <button
