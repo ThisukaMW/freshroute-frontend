@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 type UserRole = "BUYER" | "SELLER" | "DRIVER" | "ADMIN" | "FIELD_ADMIN";
 type UserStatus = "ACTIVE" | "SUSPENDED";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "http://localhost:5009";
 
 interface User {
   id: string;
@@ -56,8 +56,8 @@ const ConfirmationModal: React.FC<{
           </h2>
           <p className="text-slate-400 text-sm leading-relaxed">
             {isSuspend
-              ? `Do you want to suspend user ${dialog.userId}? They will lose access to the platform.`
-              : `Do you want to activate user ${dialog.userId}? They will regain access to the platform.`}
+              ? `Do you want to suspend ${dialog.userName}? They will lose access to the platform.`
+              : `Do you want to activate ${dialog.userName}? They will regain access to the platform.`}
           </p>
           <p className={`text-xs font-medium mt-1 ${isSuspend ? "text-red-400" : "text-emerald-400"}`}>
             {dialog.userName}
@@ -195,7 +195,7 @@ const UserManagementPage: React.FC = () => {
               </svg>
               <input
                 type="text"
-                placeholder="Search by name or ID…"
+                placeholder="Search by name…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-slate-800 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-white/25 w-56"
@@ -237,7 +237,6 @@ const UserManagementPage: React.FC = () => {
               <table className="min-w-full text-left">
                 <thead className="border-b border-white/10 text-xs uppercase text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">ID</th>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Role</th>
                     <th className="px-3 py-2">City</th>
@@ -248,7 +247,8 @@ const UserManagementPage: React.FC = () => {
                 <tbody className="divide-y divide-white/5">
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-white/5 transition">
-                      <td className="px-3 py-3 text-slate-400 font-mono text-xs">{user.id}</td>
+                      {/* ID */}
+                      {/*<td className="px-3 py-3 text-slate-400 font-mono text-xs">{user.id}</td>*/}
                       <td className="px-3 py-3 font-medium">{user.name}</td>
 
                       {/* ROLE */}
@@ -289,12 +289,12 @@ const UserManagementPage: React.FC = () => {
                           <span className="text-xs text-slate-600 italic">Protected</span>
                         ) : (
                           <div className="flex gap-3 text-xs flex-wrap">
-                            <button
+                            {/* <button
                               onClick={() => (window.location.href = `/admin/users/${user.id}`)}
                               className="text-teal-400 hover:text-teal-300 transition"
                             >
                               View
-                            </button>
+                            </button> */}
 
                             <button
                               onClick={() => setEditingUserId(user.id)}

@@ -295,9 +295,9 @@ const SelectSellerPage = () => {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold">{seller.sellerName}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-300">
+                      {/* <p className="mt-0.5 text-[11px] text-slate-300">
                         {seller.rating.toFixed(1)}★ · {seller.deliveriesPerWeek}+ deliveries/week
-                      </p>
+                      </p> */}
                       {/* ✅ SHOW REMAINING QUANTITY (Total - Already in cart) */}
                       <p className="mt-1 text-[11px] font-medium">
                         {remainingStock === 0 ? (

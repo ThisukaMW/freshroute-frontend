@@ -238,7 +238,7 @@ const LandingPage = (): JSX.Element => {
                 {/* CTA buttons */}
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
-                    to="/signup/customer"
+                    to="/products"
                     className="rounded-full bg-primary-dark px-6 py-2.5 text-sm font-semibold text-supply-paper shadow-lg shadow-supply-teal/10 transition-all hover:bg-primary-dark/80 hover:shadow-supply-teal/25"
                   >
                     Start Ordering

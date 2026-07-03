@@ -305,12 +305,12 @@ useEffect(() => {
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
             
-                  <p className="mt-1 text-xs font-semibold text-supply-paper">
+                  {/* <p className="mt-1 text-xs font-semibold text-supply-paper">
                     Rs. {p.pricePerUnit}{' '}
                     <span className="font-normal text-slate-300">
                       / {p.unit} · <span className="text-supply-peach">4.5★</span>
                     </span>
-                  </p>
+                  </p> */}
                   <button
                     type="button"
                     onClick={() => handleBrowseSellers(p)}
