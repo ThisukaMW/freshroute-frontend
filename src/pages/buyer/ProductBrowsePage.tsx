@@ -277,15 +277,23 @@ useEffect(() => {
               {searchQuery && <span className="font-semibold"> for "{searchQuery}"</span>}
             </p>
             <select
+              aria-label="Sort products"
               value={sortBy}
               onChange={handleSortChange}
-              className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-supply-paper outline-none ring-supply-teal/60 focus:border-supply-teal focus:ring-2 hover:bg-white/10 transition-colors"
-            
+              className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-supply-paper outline-none ring-supply-teal/60 transition-colors hover:bg-white/10 focus:border-supply-teal focus:ring-2"
             >
-              <option value="recommended" className="bg-slate-900 text-supply-paper">Sort by: Recommended</option>
-              <option value="price-low-high" className="bg-slate-900 text-supply-paper">Price: Low to High</option>
-              <option value="price-high-low" className="bg-slate-900 text-supply-paper">Price: High to Low</option>
-              <option value="rating" className="bg-slate-900 text-supply-paper">Rating</option>
+              <option value="recommended" className="bg-slate-900 text-supply-paper">
+                Sort by: Recommended
+              </option>
+              <option value="price-low-high" className="bg-slate-900 text-supply-paper">
+                Price: Low to High
+              </option>
+              <option value="price-high-low" className="bg-slate-900 text-supply-paper">
+                Price: High to Low
+              </option>
+              <option value="rating" className="bg-slate-900 text-supply-paper">
+                Rating
+              </option>
             </select>
           </div>
 

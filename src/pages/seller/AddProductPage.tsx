@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createSellerProduct } from "../../api/endpoints/products";
+import { createSellerProduct, getProducts } from "../../api/endpoints/products";
 import { useAuth } from "../../hooks/useAuth";
 
 /* ---------- VALIDATION ---------- */
 interface FormErrors {
   name?: string;
+  productType?: string;
   category?: string;
   unit?: string;
   description?: string;
@@ -16,9 +17,12 @@ interface FormErrors {
 
 const MAX_IMAGE_SIZE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const OTHER_OPTION = "__OTHER__";
 
 function validate(fields: {
   name: string;
+  productType: string;
+  customProductType: string;
   category: string;
   unit: string;
   description: string;
@@ -34,6 +38,16 @@ function validate(fields: {
     errors.name = "Name must be at least 2 characters.";
   } else if (fields.name.trim().length > 100) {
     errors.name = "Name must be 100 characters or fewer.";
+  }
+
+  if (!fields.productType) {
+    errors.productType = "Please select a product type.";
+  } else if (fields.productType === OTHER_OPTION) {
+    if (!fields.customProductType.trim()) {
+      errors.productType = "Please type the new product type.";
+    } else if (fields.customProductType.trim().length > 100) {
+      errors.productType = "Product type must be 100 characters or fewer.";
+    }
   }
 
   if (!fields.category.trim()) {
@@ -86,24 +100,27 @@ const CustomSelect: React.FC<{
   value: string;
   options: SelectOption[];
   placeholder: string;
+  loading?: boolean;
   onChange: (val: string) => void;
   onBlur: () => void;
   hasError: boolean;
-}> = ({ value, options, placeholder, onChange, onBlur, hasError }) => {
+}> = ({ value, options, placeholder, loading, onChange, onBlur, hasError }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  // Close on outside click — only counts as a "blur" if this dropdown
+  // was actually open, so clicking into a DIFFERENT field doesn't
+  // mark this one as touched too.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (open && ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
         onBlur();
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [onBlur]);
+  }, [open, onBlur]);
 
   const selected = options.find((o) => o.value === value);
 
@@ -112,7 +129,7 @@ const CustomSelect: React.FC<{
   return (
     <div ref={ref} className="relative">
       <div
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => !loading && setOpen((o) => !o)}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setOpen((o) => !o); }}
@@ -128,13 +145,13 @@ const CustomSelect: React.FC<{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          cursor: "pointer",
+          cursor: loading ? "default" : "pointer",
           outline: "none",
           transition: "border-color 0.15s",
         }}
       >
         <span className={selected ? "text-slate-100" : "text-slate-500"}>
-          {selected ? selected.label : placeholder}
+          {loading ? "Loading product types..." : selected ? selected.label : placeholder}
         </span>
         <svg
           className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -144,16 +161,18 @@ const CustomSelect: React.FC<{
         </svg>
       </div>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0f1117] shadow-xl overflow-hidden">
+      {open && !loading && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0f1117] shadow-xl overflow-hidden max-h-56 overflow-y-auto">
           {options.map((opt) => (
             <div
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); onBlur(); }}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
               className={`px-3 py-2.5 text-sm cursor-pointer transition
                 ${opt.value === value
                   ? "bg-emerald-600/20 text-emerald-300"
-                  : "text-slate-300 hover:bg-white/5"
+                  : opt.value === OTHER_OPTION
+                    ? "text-emerald-300 border-t border-white/5 hover:bg-emerald-500/10"
+                    : "text-slate-300 hover:bg-white/5"
                 }`}
             >
               {opt.label}
@@ -165,12 +184,73 @@ const CustomSelect: React.FC<{
   );
 };
 
+/* ---------- RESULT MODAL ---------- */
+const ResultModal: React.FC<{
+  type: "success" | "pending" | "error";
+  title: string;
+  message: string;
+  onClose: () => void;
+}> = ({ type, title, message, onClose }) => {
+  const theme = {
+    success: {
+      ring: "border-emerald-500/30",
+      iconBg: "bg-emerald-500/15",
+      iconColor: "text-emerald-400",
+      button: "bg-emerald-600 hover:bg-emerald-500",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      ),
+    },
+    pending: {
+      ring: "border-amber-500/30",
+      iconBg: "bg-amber-500/15",
+      iconColor: "text-amber-400",
+      button: "bg-amber-600 hover:bg-amber-500",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      ),
+    },
+    error: {
+      ring: "border-red-500/30",
+      iconBg: "bg-red-500/15",
+      iconColor: "text-red-400",
+      button: "bg-red-600 hover:bg-red-500",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m0 3.75h.008M10.29 3.86L1.82 18a1.5 1.5 0 001.29 2.25h17.78A1.5 1.5 0 0022.18 18L13.71 3.86a1.5 1.5 0 00-2.42 0z" />
+      ),
+    },
+  }[type];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div
+        className={`w-full max-w-sm rounded-2xl border ${theme.ring} bg-[#0f1117] p-6 text-center shadow-2xl`}
+      >
+        <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${theme.iconBg}`}>
+          <svg className={`h-6 w-6 ${theme.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {theme.icon}
+          </svg>
+        </div>
+        <h2 className="mt-4 text-base font-semibold text-slate-50">{title}</h2>
+        <p className="mt-1.5 text-sm text-slate-400">{message}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`mt-5 w-full rounded-xl px-4 py-2 text-sm font-medium text-white transition ${theme.button}`}
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ---------- CONSTANTS ---------- */
 const CATEGORIES: SelectOption[] = [
-  { value: "Fruits", label: "🍎  Fruits" },
-  { value: "Vegetables", label: "🥦  Vegetables" },
-  { value: "Dairy", label: "🧀  Dairy" },
-  { value: "Bakery", label: "🍞  Bakery" },
+  { value: "Fruits", label: "  Fruits" },
+  { value: "Vegetables", label: "  Vegetables" },
+  { value: "Dairy", label: "  Dairy" },
+  { value: "Bakery", label: "  Bakery" },
 ];
 
 const UNITS: SelectOption[] = [
@@ -193,11 +273,46 @@ const AddProductPage: React.FC = () => {
   }, [authLoading, isAuthenticated, navigate]);
 
   const [name, setName] = useState("");
+  const [productType, setProductType] = useState(""); // dropdown value, or OTHER_OPTION
+  const [customProductType, setCustomProductType] = useState(""); // shown when "Other" is picked
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState<number | "">("");
   const [unit, setUnit] = useState("");
   const [stock, setStock] = useState<number | "">("");
   const [description, setDescription] = useState("");
+
+  // Product type options — distinct product names already in the catalog
+  const [productTypeOptions, setProductTypeOptions] = useState<SelectOption[]>([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const products = await getProducts();
+        if (cancelled) return;
+        const uniqueNames = Array.from(
+          new Set(
+            (products || [])
+              .map((p) => p.name?.trim())
+              .filter((n): n is string => !!n)
+          )
+        ).sort((a, b) => a.localeCompare(b));
+
+        setProductTypeOptions([
+          ...uniqueNames.map((n) => ({ label: n, value: n })),
+          { label: "+ Other (add a new type)", value: OTHER_OPTION },
+        ]);
+      } catch (err) {
+        console.error("❌ Failed to load product types:", err);
+        // Even if the fetch fails, still allow adding a new type
+        setProductTypeOptions([{ label: "+ Other (add a new type)", value: OTHER_OPTION }]);
+      } finally {
+        if (!cancelled) setLoadingTypes(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Single image
   const [image, setImage] = useState<File | null>(null);
@@ -206,10 +321,17 @@ const AddProductPage: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [resultModal, setResultModal] = useState<{
+    type: "success" | "pending" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   /* ---------- HELPERS ---------- */
   const currentFields = () => ({
     name,
+    productType,
+    customProductType,
     category,
     unit,
     description,
@@ -244,7 +366,7 @@ const AddProductPage: React.FC = () => {
     e.preventDefault();
 
     setTouched({
-      name: true, category: true, unit: true,
+      name: true, productType: true, category: true, unit: true,
       description: true, price: true, stock: true, image: true,
     });
 
@@ -252,10 +374,14 @@ const AddProductPage: React.FC = () => {
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
+    const isNewType = productType === OTHER_OPTION;
+    const finalProductType = isNewType ? customProductType.trim() : productType;
+
     setSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("name", name.trim());
+      formData.append("productType", finalProductType);
       formData.append("category", category.trim());
       formData.append("description", description);
       formData.append("price", String(price));
@@ -265,11 +391,27 @@ const AddProductPage: React.FC = () => {
 
       const response = await createSellerProduct(formData);
       console.log("✅ Product created:", response);
-      alert("Product created successfully!");
-      navigate("/seller/products");
+      setResultModal(
+        isNewType
+          ? {
+              type: "pending",
+              title: "Submitted for approval",
+              message:
+                "This is a new product type, so it's been sent to the admin for review. You'll see it on your Products page once it's reviewed.",
+            }
+          : {
+              type: "success",
+              title: "Product added",
+              message: "Your product has been listed successfully.",
+            }
+      );
     } catch (error: any) {
       console.error("❌ Error:", error);
-      alert(error?.response?.data?.message || "Failed to create product");
+      setResultModal({
+        type: "error",
+        title: "Couldn't add product",
+        message: error?.response?.data?.message || "Something went wrong. Please try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -306,12 +448,50 @@ const AddProductPage: React.FC = () => {
                 if (touched.name) setErrors(validate({ ...currentFields(), name: e.target.value }));
               }}
               onBlur={() => touch("name")}
-              placeholder="e.g. Red Apple"
+              placeholder="e.g. Organic Grapes"
               className={inputClass("name")}
               maxLength={101}
             />
             {touched.name && <FieldError message={errors.name} />}
             <p className="mt-0.5 text-right text-[10px] text-slate-500">{name.length}/100</p>
+          </div>
+
+          {/* PRODUCT TYPE — dropdown with "Other" */}
+          <div>
+            <label className="text-xs text-slate-200">
+              Product Type <span className="text-red-400">*</span>
+            </label>
+            <CustomSelect
+              value={productType}
+              options={productTypeOptions}
+              placeholder="Select product type"
+              loading={loadingTypes}
+              onChange={(val) => {
+                setProductType(val);
+                if (val !== OTHER_OPTION) setCustomProductType("");
+                setTouched((prev) => ({ ...prev, productType: true }));
+                setErrors(validate({ ...currentFields(), productType: val }));
+              }}
+              onBlur={() => touch("productType")}
+              hasError={!!(touched.productType && errors.productType)}
+            />
+
+            {productType === OTHER_OPTION && (
+              <input
+                value={customProductType}
+                onChange={(e) => {
+                  setCustomProductType(e.target.value);
+                  if (touched.productType)
+                    setErrors(validate({ ...currentFields(), customProductType: e.target.value }));
+                }}
+                onBlur={() => touch("productType")}
+                placeholder="Type the new product type, e.g. Grapes"
+                className={inputClass("productType") + " mt-2"}
+                maxLength={101}
+              />
+            )}
+
+            {touched.productType && <FieldError message={errors.productType} />}
           </div>
 
           {/* IMAGE — single */}
@@ -374,7 +554,8 @@ const AddProductPage: React.FC = () => {
                 placeholder="Select category"
                 onChange={(val) => {
                   setCategory(val);
-                  if (touched.category) setErrors(validate({ ...currentFields(), category: val }));
+                  setTouched((prev) => ({ ...prev, category: true }));
+                  setErrors(validate({ ...currentFields(), category: val }));
                 }}
                 onBlur={() => touch("category")}
                 hasError={!!(touched.category && errors.category)}
@@ -392,7 +573,8 @@ const AddProductPage: React.FC = () => {
                 placeholder="Select unit"
                 onChange={(val) => {
                   setUnit(val);
-                  if (touched.unit) setErrors(validate({ ...currentFields(), unit: val }));
+                  setTouched((prev) => ({ ...prev, unit: true }));
+                  setErrors(validate({ ...currentFields(), unit: val }));
                 }}
                 onBlur={() => touch("unit")}
                 hasError={!!(touched.unit && errors.unit)}
@@ -484,6 +666,18 @@ const AddProductPage: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {resultModal && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => {
+            setResultModal(null);
+            if (resultModal.type !== "error") navigate("/seller/products");
+          }}
+        />
+      )}
     </div>
   );
 };

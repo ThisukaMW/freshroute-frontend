@@ -8,9 +8,10 @@ type Unit = "kg" | "bunch" | "pack" | "piece";
 
 interface SellerProduct {
   id: string;
-  name: string;
+  name: string;         // seller's own label — SellerProduct.name — EDITABLE
+  productType: string;  // catalog type — Product.name — LOCKED
   category: Category;
-  price: number;
+  sellerPrice: number;
   unit: Unit;
   sellerStock: number;
   lowStockThreshold: number;
@@ -29,6 +30,7 @@ interface RootState {
 
 /* ---------- VALIDATION ---------- */
 interface FormErrors {
+  name?: string;
   price?: string;
   stock?: string;
   imageUrl?: string;
@@ -38,6 +40,7 @@ const MAX_IMAGE_SIZE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function validate(fields: {
+  name: string;
   price: number | null;
   stock: number | null;
   imageFile: File | null;
@@ -45,6 +48,15 @@ function validate(fields: {
   imageMode: "url" | "file";
 }): FormErrors {
   const errors: FormErrors = {};
+
+  // Product name (seller's own label)
+  if (!fields.name.trim()) {
+    errors.name = "Product name is required.";
+  } else if (fields.name.trim().length < 2) {
+    errors.name = "Name must be at least 2 characters.";
+  } else if (fields.name.trim().length > 100) {
+    errors.name = "Name must be 100 characters or fewer.";
+  }
 
   // Price
   if (fields.price === null || String(fields.price) === "") {
@@ -56,13 +68,13 @@ function validate(fields: {
   }
 
   // Stock
-if (fields.stock === null || String(fields.stock) === "") {
-  errors.stock = "Stock quantity is required.";
-} else if (!Number.isInteger(fields.stock) || fields.stock <= 0) {
-  errors.stock = "Stock must be a whole number greater than 0.";
-} else if (fields.stock > 100_000) {
-  errors.stock = "Stock quantity seems too high. Please double-check.";
-}
+  if (fields.stock === null || String(fields.stock) === "") {
+    errors.stock = "Stock quantity is required.";
+  } else if (!Number.isInteger(fields.stock) || fields.stock <= 0) {
+    errors.stock = "Stock must be a whole number greater than 0.";
+  } else if (fields.stock > 100_000) {
+    errors.stock = "Stock quantity seems too high. Please double-check.";
+  }
 
   // Image — only validate if something was provided
   if (fields.imageMode === "url" && fields.imageUrl) {
@@ -88,6 +100,58 @@ if (fields.stock === null || String(fields.stock) === "") {
 const FieldError: React.FC<{ message?: string }> = ({ message }) =>
   message ? <p className="mt-1 text-xs text-red-400">{message}</p> : null;
 
+/* ---------- RESULT MODAL ---------- */
+const ResultModal: React.FC<{
+  type: "success" | "error";
+  title: string;
+  message: string;
+  onClose: () => void;
+}> = ({ type, title, message, onClose }) => {
+  const theme = {
+    success: {
+      ring: "border-emerald-500/30",
+      iconBg: "bg-emerald-500/15",
+      iconColor: "text-emerald-400",
+      button: "bg-emerald-600 hover:bg-emerald-500",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      ),
+    },
+    error: {
+      ring: "border-red-500/30",
+      iconBg: "bg-red-500/15",
+      iconColor: "text-red-400",
+      button: "bg-red-600 hover:bg-red-500",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m0 3.75h.008M10.29 3.86L1.82 18a1.5 1.5 0 001.29 2.25h17.78A1.5 1.5 0 0022.18 18L13.71 3.86a1.5 1.5 0 00-2.42 0z" />
+      ),
+    },
+  }[type];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div
+        className={`w-full max-w-sm rounded-2xl border ${theme.ring} bg-[#0f1117] p-6 text-center shadow-2xl`}
+      >
+        <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${theme.iconBg}`}>
+          <svg className={`h-6 w-6 ${theme.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {theme.icon}
+          </svg>
+        </div>
+        <h2 className="mt-4 text-base font-semibold text-slate-50">{title}</h2>
+        <p className="mt-1.5 text-sm text-slate-400">{message}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`mt-5 w-full rounded-xl px-4 py-2 text-sm font-medium text-white transition ${theme.button}`}
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ---------- COMPONENT ---------- */
 const EditProductPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -103,6 +167,7 @@ const EditProductPage: React.FC = () => {
   const product = products.find((p) => p.id === id);
 
   const [name, setName] = useState<string>("");
+  const [productType, setProductType] = useState<string>("");
   const [category, setCategory] = useState<Category>("Fruits");
   const [price, setPrice] = useState<number | null>(null);
   const [unit, setUnit] = useState<Unit>("kg");
@@ -113,6 +178,11 @@ const EditProductPage: React.FC = () => {
   const [imageMode, setImageMode] = useState<"url" | "file">("url");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resultModal, setResultModal] = useState<{
+    type: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Validation state
   const [errors, setErrors] = useState<FormErrors>({});
@@ -121,8 +191,9 @@ const EditProductPage: React.FC = () => {
   useEffect(() => {
     if (product) {
       setName(product.name || "");
+      setProductType(product.productType || "");
       setCategory(product.category || "Fruits");
-      setPrice(product.price ?? null);
+      setPrice(product.sellerPrice ?? null);
       setUnit(product.unit || "kg");
       setStock(product.sellerStock ?? null);
       setDescription(product.description || null);
@@ -133,6 +204,7 @@ const EditProductPage: React.FC = () => {
 
   /* ---------- HELPERS ---------- */
   const currentFields = () => ({
+    name,
     price,
     stock,
     imageFile,
@@ -178,7 +250,7 @@ const EditProductPage: React.FC = () => {
     if (!product || !id) return;
 
     // Touch all editable fields
-    setTouched({ price: true, stock: true, imageUrl: true });
+    setTouched({ name: true, price: true, stock: true, imageUrl: true });
 
     const validationErrors = validate(currentFields());
     setErrors(validationErrors);
@@ -189,14 +261,24 @@ const EditProductPage: React.FC = () => {
 
     try {
       const updateData: Record<string, any> = {};
+      if (name.trim() !== "") updateData.name = name.trim();
       if (price !== null) updateData.price = price;
       if (stock !== null) updateData.stock = stock;
       if (imageUrl !== null) updateData.imageUrl = imageUrl;
 
-      dispatch(updateProduct({ productId: id, productData: updateData }));
-      navigate("/seller/products");
+      await dispatch(updateProduct({ productId: id, productData: updateData })).unwrap();
+      setResultModal({
+        type: "success",
+        title: "Product updated",
+        message: "Your changes have been saved.",
+      });
     } catch (err: any) {
-      setError(err?.message || "Failed to update product");
+      setResultModal({
+        type: "error",
+        title: "Couldn't update product",
+        message: err?.message || "Something went wrong. Please try again.",
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -228,9 +310,9 @@ const EditProductPage: React.FC = () => {
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-slate-50">Edit product</h1>
           <p className="text-sm text-slate-400">
-            Update pricing, stock, and image for{" "}
-            <span className="font-semibold text-slate-200">{product.name}</span>.
-            Other details are locked after approval.
+            Update your listing's name, pricing, stock, and image for{" "}
+            <span className="font-semibold text-slate-200">{product.productType}</span>.
+            Product type and other catalog details are locked after approval.
           </p>
         </div>
 
@@ -247,8 +329,36 @@ const EditProductPage: React.FC = () => {
           noValidate
           className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl text-sm"
         >
-          {/* Locked: Name */}
-          <LockedField label="Product name" value={name} hint="Name is locked after approval." />
+          {/* Locked: Product Type */}
+          <LockedField
+            label="Product type"
+            value={productType}
+            hint="Product type is locked after approval."
+          />
+
+          {/* Editable: Product Name (seller's own label) */}
+          <div>
+            <label className="block text-xs font-medium text-slate-200">
+              Product name <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (touched.name) setErrors(validate({ ...currentFields(), name: e.target.value }));
+              }}
+              onBlur={() => touch("name")}
+              disabled={isDisabled}
+              placeholder="e.g. Organic Grapes"
+              maxLength={101}
+              className={inputClass("name")}
+            />
+            {touched.name && <FieldError message={errors.name} />}
+            <p className="mt-1 text-[11px] text-slate-500">
+              This is your own label for this listing — buyers see this, not the product type.
+            </p>
+          </div>
 
           {/* Locked: Category */}
           <LockedField label="Category" value={category} hint="Category is locked after approval." />
@@ -406,24 +516,23 @@ const EditProductPage: React.FC = () => {
                 Stock quantity <span className="text-red-400">*</span>
               </label>
               <input
-  type="number"
-  min={1}
-  step="1"
-  value={stock ?? ""}
-  onChange={(e) => {
-    const val = e.target.value === "" ? null : Number(e.target.value);
-    setStock(val);
+                type="number"
+                min={1}
+                step="1"
+                value={stock ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? null : Number(e.target.value);
+                  setStock(val);
 
-    if (touched.stock) {
-      setErrors(validate({ ...currentFields(), stock: val }));
-    }
-  }}
-  onBlur={() => touch("stock")}
-  disabled={isDisabled}
-  placeholder="1"
-  className={inputClass("stock")}
-/>
-
+                  if (touched.stock) {
+                    setErrors(validate({ ...currentFields(), stock: val }));
+                  }
+                }}
+                onBlur={() => touch("stock")}
+                disabled={isDisabled}
+                placeholder="1"
+                className={inputClass("stock")}
+              />
               {touched.stock && <FieldError message={errors.stock} />}
             </div>
           </div>
@@ -455,6 +564,18 @@ const EditProductPage: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {resultModal && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => {
+            setResultModal(null);
+            if (resultModal.type === "success") navigate("/seller/products");
+          }}
+        />
+      )}
     </div>
   );
 };
