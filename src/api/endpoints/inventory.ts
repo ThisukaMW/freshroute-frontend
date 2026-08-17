@@ -15,11 +15,17 @@ export interface StockHistoryEntry {
 
 export interface ProductInventory {
   id: string
-  name: string
+  name: string           // seller's own label
+  productType: string    // catalog type — locked
+  category: string
+  unit: string
+  description?: string | null
+  sellerPrice: number
   sellerStock: number
   aggregateStock: number
   lowStockThreshold: number
   status: string
+  imageUrl?: string | null
 }
 
 export interface InventoryStats {
@@ -162,7 +168,12 @@ export const getProductStockHistory = async (
 }
 
 export const validateCartStock = async (
-  cartItems: Array<{ productId: string; quantity: number }>
+  cartItems: Array<{
+  productId: string
+  quantity: number
+  sellerId?: string
+  cartQuantity?: number
+}>
 ): Promise<CartValidationResult> => {
   try {
     const response = await apiClient.post('/inventory/validate-cart', { cartItems })

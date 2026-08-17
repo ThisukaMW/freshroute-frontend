@@ -13,6 +13,25 @@ export interface Product {
 }
 
 /**
+ * Shape returned by GET /products/seller/my-products
+ * — one entry per SellerProduct row belonging to the logged-in seller.
+ */
+export interface SellerProductListItem {
+  id: string;                 // Product ID — used for edit/status routes
+  name: string;                // seller's own label (SellerProduct.name)
+  productType: string;         // catalog type (Product.name) — locked
+  category: string;
+  unit: string;
+  description?: string | null;
+  sellerPrice: number;
+  sellerStock: number;
+  lowStockThreshold: number;
+  aggregateStock: number;
+  status: string;
+  imageUrl?: string | null;
+}
+
+/**
  * Fetch all products from backend
  */
 export const getProducts = async (): Promise<Product[]> => {
@@ -64,6 +83,7 @@ export const getProductBySellers = async (
 
 /**
  * Create a new product for seller
+ * (FormData includes: name, productType, category, description, price, unit, stock, images)
  */
 export const createSellerProduct = async (
   productData: any,
@@ -78,7 +98,8 @@ export const createSellerProduct = async (
 };
 
 /**
- * Update seller product - only price, stock, imageUrl are editable
+ * Update seller product — editable: name, price, stock, imageUrl
+ * (category, unit, description, and productType are locked after approval)
  */
 export const updateSellerProduct = async (
   productId: string,
@@ -91,7 +112,7 @@ export const updateSellerProduct = async (
       productData,
     );
     console.log("✅ Product updated:", response.data);
-    // Response structure: { message, data: { id, name, sellerPrice, sellerStock, ... } }
+    // Response structure: { message, data: { id, name, productType, sellerPrice, sellerStock, ... } }
     return response.data?.data || response.data;
   } catch (error) {
     console.error(`❌ Failed to update product ${productId}:`, error);
@@ -102,7 +123,7 @@ export const updateSellerProduct = async (
 /**
  * Get all products for logged-in seller
  */
-export const getSellerProducts = async (): Promise<Product[]> => {
+export const getSellerProducts = async (): Promise<SellerProductListItem[]> => {
   try {
     console.log("🔄 Fetching seller products...");
     const response = await apiClient.get("/products/seller/my-products");

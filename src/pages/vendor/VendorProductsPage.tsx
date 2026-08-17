@@ -168,9 +168,11 @@ const VendorProductsPage = () => {
                           <p className="text-xs font-medium text-slate-50">
                             {p.name}
                           </p>
-                          {/* <p className="text-[11px] text-slate-400">
-                            SKU: {p.id.slice(0, 8).toUpperCase()}
-                          </p> */}
+                          {p.productType && (
+                            <p className="text-[11px] text-slate-400">
+                              {p.productType}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -209,16 +211,17 @@ const VendorProductsPage = () => {
                         <button
                           className="text-emerald-300 hover:text-emerald-200 disabled:text-slate-500"
                           onClick={() => navigate(`/seller/products/${p.id}/edit`)}
-                          disabled={p.status === "PENDING_APPROVAL"}
+                          disabled={p.status === "PENDING_APPROVAL" || p.status === "REJECTED"}
+                          title={p.status === "REJECTED" ? "Rejected products can't be edited" : undefined}
                         >
                           Edit
                         </button>
                         <button
                           className="text-slate-400 hover:text-slate-200 disabled:text-slate-600"
                           onClick={() => dispatch(toggleStatus(p.id))}
-                          disabled={p.status === "PENDING_APPROVAL"}
+                          disabled={p.status === "PENDING_APPROVAL" || p.status === "REJECTED"}
                         >
-                          {p.status === "APPROVED" ? "Deactivate" : "Activate"}
+                          {/* {p.status === "APPROVED" ? "Deactivate" : "Activate"} */}
                         </button>
                       </div>
                     </td>
