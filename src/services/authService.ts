@@ -16,6 +16,8 @@ export interface CustomerRegisterInput {
   phone?: string;
   city?: string;
   address?: string;
+  latitude?: number
+  longitude?: number
 }
 
 // Data needed to sign up a new vendor.
@@ -78,11 +80,12 @@ export interface PendingRegistrationResponse {
 // Sends customer registration data to the backend. No token until admin approves.
 export const registerCustomer = async (
   input: CustomerRegisterInput
-): Promise<PendingRegistrationResponse> => {
-  const { data } = await client.post<PendingRegistrationResponse>(
+): Promise<AuthResponse> => {
+  const { data } = await client.post<AuthResponse>(
     '/auth/customer/register',
     input
   );
+  LocalStorageService.set('fr_token', data.token);
   return data;
 };
 

@@ -33,6 +33,7 @@ interface NotificationContextType {
   clearAll: () => void;
   deleteNotification: (id: string) => Promise<void>;
   deleteAll: () => Promise<void>;   
+  addNotification: (notification: Notification) => void;
 }
 
 /* base API path for all notification requests */
@@ -81,9 +82,14 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     if (!token) return;
     try {
       const data = await apiFetch<Notification[]>("/", token);
-      setNotifications(data);
+      setNotifications(prev => {
+        const localOnly = prev.filter(n => n.data?.type === "CART_REMINDER");
+        const serverIds = new Set(data.map(n => n.id));
+        const uniqueLocal = localOnly.filter(n => !serverIds.has(n.id));
+        return [...uniqueLocal, ...data];
+      });
     } catch {
-      /* silently fail — no crash if fetch fails */
+      /* silently fail */
     }
   }, [token]);
 
@@ -154,6 +160,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   /* clears all notifications from local state only — no API call */
   const clearAll = useCallback(() => setNotifications([]), []);
 
+  /* adds a local-only notification — no API call */
+  const addNotification = useCallback((notification: Notification) => {
+    setNotifications((prev) => [notification, ...prev]);
+  }, []);
+
   /* bundles everything into one box — only re-creates when something changes */
   const value = useMemo(
     () => ({
@@ -166,6 +177,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       clearAll,
       deleteNotification,
       deleteAll,
+      addNotification,
     }),
     [notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead, clearAll]
   );

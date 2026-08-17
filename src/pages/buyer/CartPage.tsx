@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
   getCart,
@@ -23,8 +23,7 @@ import {
   showWarningToast,
   showErrorToast,
 } from "../../utils/toastNotification";
-import PromoCodeInput from "../../components/checkout/PromoCodeInput";
-
+//import PromoCodeInput from "../../components/checkout/PromoCodeInput";
 type RootState = any;
 
 interface StockIssue {
@@ -36,6 +35,7 @@ interface StockIssue {
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   const reduxCart = useSelector((state: RootState) => state.cart);
@@ -51,7 +51,7 @@ const CartPage: React.FC = () => {
     null,
   );
   const [expiryRefresh, setExpiryRefresh] = useState(0); // Force re-render for expiry timer
-  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
+  //const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // ✅ Check authentication and sync cart when auth is ready
@@ -156,6 +156,13 @@ const CartPage: React.FC = () => {
     setTax(newTax);
     setTotal(newTotal);
   }, [items, discount]);
+
+  // Auto-proceed to checkout if navigated from notification
+  useEffect(() => {
+    if (location.state?.proceedToCheckout && items.length > 0 && !loading) {
+      navigate("/buyer/checkout");
+    }
+  }, [location.state, items, loading]);
 
   const handleRemoveItem = async (productId: string, sellerId: string) => {
     dispatch(removeItemLocal({ productId, sellerId }));
@@ -517,42 +524,22 @@ const CartPage: React.FC = () => {
             })}
           </div>
 
-          {/* Promo Code Input */}
-          <PromoCodeInput
-            onApply={(discountAmount, code) => {
-              setDiscount(discountAmount);
-              setAppliedPromoCode(code);
-              syncCartFromDB(); // Refresh cart to get updated discount
-            }}
-            appliedCode={appliedPromoCode || undefined}
-          />
+      
 
           {/* Pricing Summary */}
           <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl text-sm text-slate-100">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>Rs.{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Tax (10%):</span>
-              <span>${tax.toFixed(2)}</span>
+              <span>Rs.{tax.toFixed(2)}</span>
             </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-emerald-400">
-                <div className="flex items-center gap-2">
-                  <span>Discount:</span>
-                  {appliedPromoCode && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40">
-                      {appliedPromoCode}
-                    </span>
-                  )}
-                </div>
-                <span>-${discount.toFixed(2)}</span>
-              </div>
-            )}
+            
             <div className="border-t border-white/10 pt-2 flex justify-between font-semibold text-lg">
               <span>Total:</span>
-              <span className="text-primary">${total.toFixed(2)}</span>
+              <span className="text-primary">Rs.{total.toFixed(2)}</span>
             </div>
           </div>
 

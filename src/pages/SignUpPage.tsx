@@ -1,6 +1,4 @@
 // SignUpPage.tsx
-// Handles both customer AND vendor registration in one file.
-// The URL param :role decides which form to show — /signup/customer or /signup/vendor.
 
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState } from 'react'
@@ -8,39 +6,55 @@ import type { JSX } from 'react'
 import Navbar from '../components/Navbar'
 import { registerCustomer, registerVendor } from '../services/authService'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../hooks/useAuth'
+import { useDispatch } from 'react-redux'
+import { setBuyerProfile } from '../store/slices/userSlice'
+import { setCredentials } from '../store/slices/authSlice'
+import MapAddressPicker from '../components/MapAddressPicker'
 
-// Returns true if the email looks valid (has an @ and a dot after it).
-const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-// Scores how strong a password is from 0 (terrible) to 4 (strong).
-// Also returns a label ("Weak" / "Fair" / "Good" / "Strong") and a colour for the strength bar.
-const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+// ─── Validation helpers ───────────────────────────────────────────
+
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+const isValidPersonName = (v: string) => /^[A-Za-z\s]+$/.test(v.trim()) && v.trim().length > 0
+const isValidLocalPhone = (v: string) => /^\d{9}$/.test(v)
+
+const getPasswordStrength = (pwd: string) => {
   let score = 0
-  if (pwd.length >= 8)            score++ // Long enough.
-  if (/[A-Z]/.test(pwd))          score++ // Has an uppercase letter.
-  if (/[0-9]/.test(pwd))          score++ // Has a number.
-  if (/[^A-Za-z0-9]/.test(pwd))   score++ // Has a special character.
+  if (pwd.length >= 8)          score++
+  if (/[A-Z]/.test(pwd))        score++
+  if (/[0-9]/.test(pwd))        score++
+  if (/[^A-Za-z0-9]/.test(pwd)) score++
   if (score <= 1) return { score, label: 'Weak',   color: 'bg-red-500'    }
   if (score === 2) return { score, label: 'Fair',   color: 'bg-yellow-500' }
   if (score === 3) return { score, label: 'Good',   color: 'bg-blue-500'   }
   return             { score, label: 'Strong', color: 'bg-emerald-500' }
 }
 
-// Returns a list of things wrong with the password (empty list = password is fine).
-const validatePassword = (pwd: string): string[] => {
-  const errors: string[] = []
-  if (pwd.length < 8)             errors.push('At least 8 characters')
-  if (!/[A-Z]/.test(pwd))         errors.push('At least 1 uppercase letter')
-  if (!/[0-9]/.test(pwd))         errors.push('At least 1 number')
-  if (!/[^A-Za-z0-9]/.test(pwd))  errors.push('At least 1 special character (!@#$...)')
-  return errors
+const getPasswordErrors = (pwd: string): string[] => {
+  const e: string[] = []
+  if (pwd.length < 8)            e.push('At least 8 characters')
+  if (!/[A-Z]/.test(pwd))        e.push('At least 1 uppercase letter')
+  if (!/[0-9]/.test(pwd))        e.push('At least 1 number')
+  if (!/[^A-Za-z0-9]/.test(pwd)) e.push('At least 1 special character (!@#$...)')
+  return e
 }
 
-// Shared Tailwind class strings so every input looks the same.
-const inputClass  = 'w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 pr-10 text-sm text-slate-50 outline-none placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 ring-emerald-500/60'
-const selectClass = 'w-full rounded-xl border border-white/10 bg-brand-background/60 px-3 py-2 text-sm text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 ring-emerald-500/60'
+// ─── Shared styles ────────────────────────────────────────────────
 
-// Shows an eye icon — open eye when show=true (password visible), slashed eye when show=false.
+const base = 'w-full rounded-xl border bg-white/5 px-3 py-2 text-sm text-slate-50 outline-none placeholder:text-slate-500 transition-colors'
+const cls = {
+  input:  `${base} border-white/10 focus:border-emerald-500 focus:ring-2 ring-emerald-500/60`,
+  error:  `${base} border-red-500/70 focus:border-red-500 focus:ring-2 ring-red-500/40`,
+  ok:     `${base} border-emerald-500/60 focus:border-emerald-500 focus:ring-2 ring-emerald-500/40`,
+}
+
+const Hint = ({ ok, msg }: { ok: boolean; msg: string }) => (
+  <p className={`text-[10px] mt-0.5 ${ok ? 'text-emerald-400' : 'text-red-400'}`}>
+    {ok ? '✓' : '✕'} {msg}
+  </p>
+)
+
 const EyeIcon = ({ show }: { show: boolean }) => show ? (
   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
@@ -52,6 +66,146 @@ const EyeIcon = ({ show }: { show: boolean }) => show ? (
   </svg>
 )
 
+// ─── NameField ────────────────────────────────────────────────────
+
+interface NameFieldProps {
+  value: string
+  onChange: (v: string) => void
+  onBlur: () => void
+  touched: boolean
+  label?: string
+  placeholder?: string
+  required?: boolean
+}
+
+const NameField = ({
+  value, onChange, onBlur, touched,
+  label = 'Full name', placeholder = 'John Perera', required = false,
+}: NameFieldProps) => {
+  const isEmpty  = value.trim().length === 0
+  const isValid  = isValidPersonName(value)
+  const hasError = touched && (isEmpty || !isValid)
+  const hasOk    = touched && !isEmpty && isValid
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-medium text-slate-200">
+        {label} {required && <span className="text-red-400">*</span>}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className={hasError ? cls.error : hasOk ? cls.ok : cls.input}
+        placeholder={placeholder}
+        autoComplete="name"
+      />
+      {touched && isEmpty  && <Hint ok={false} msg={`${label} is required`} />}
+      {touched && !isEmpty && !isValid && <Hint ok={false} msg="Only letters and spaces allowed" />}
+      {hasOk && <Hint ok={true} msg="Looks good" />}
+    </div>
+  )
+}
+
+// ─── PhoneField ───────────────────────────────────────────────────
+
+interface PhoneFieldProps {
+  value: string
+  onChange: (v: string) => void
+  onBlur: () => void
+  touched: boolean
+  label?: string
+  required?: boolean
+}
+
+const PhoneField = ({
+  value, onChange, onBlur, touched,
+  label = 'Phone number', required = false,
+}: PhoneFieldProps) => {
+  const isEmpty  = value.length === 0
+  const isValid  = isValidLocalPhone(value)
+  const hasError = touched && !isEmpty && !isValid
+  const hasOk    = touched && isValid
+
+  const borderCls = hasError
+    ? 'border-red-500/70 ring-2 ring-red-500/40'
+    : hasOk
+    ? 'border-emerald-500/60 ring-2 ring-emerald-500/40'
+    : 'border-white/10 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/60'
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-medium text-slate-200">
+        {label} {required && <span className="text-red-400">*</span>}
+      </label>
+      <div className={`flex rounded-xl overflow-hidden border transition-all ${borderCls}`}>
+        <span className="flex items-center px-3 bg-white/10 text-sm text-slate-300 border-r border-white/10 select-none whitespace-nowrap">
+          🇱🇰 +94
+        </span>
+        <input
+          type="tel"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, '').slice(0, 9)
+            onChange(digits)
+          }}
+          onBlur={onBlur}
+          placeholder="771234567"
+          className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-50 outline-none placeholder:text-slate-500"
+          autoComplete="tel-national"
+        />
+        {hasOk    && <span className="flex items-center pr-3 text-emerald-400 text-xs select-none">✓</span>}
+        {hasError && <span className="flex items-center pr-3 text-red-400 text-xs select-none">✕</span>}
+      </div>
+      {hasError && <Hint ok={false} msg="Enter exactly 9 digits (e.g. 771234567)" />}
+      {hasOk    && <Hint ok={true}  msg={`+94${value}`} />}
+    </div>
+  )
+}
+
+// ─── EmailField ───────────────────────────────────────────────────
+
+interface EmailFieldProps {
+  value: string
+  onChange: (v: string) => void
+  onBlur: () => void
+  touched: boolean
+  placeholder?: string
+}
+
+const EmailField = ({
+  value, onChange, onBlur, touched, placeholder = 'you@example.com',
+}: EmailFieldProps) => {
+  const isEmpty  = value.trim().length === 0
+  const isValid  = isValidEmail(value)
+  const hasError = touched && (isEmpty || !isValid)
+  const hasOk    = touched && !isEmpty && isValid
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-medium text-slate-200">
+        Email <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="email"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className={hasError ? cls.error : hasOk ? cls.ok : cls.input}
+        placeholder={placeholder}
+        autoComplete="email"
+      />
+      {touched && isEmpty  && <Hint ok={false} msg="Email is required" />}
+      {touched && !isEmpty && !isValid && <Hint ok={false} msg="Enter a valid email address" />}
+      {hasOk && <Hint ok={true} msg="Looks good" />}
+    </div>
+  )
+}
+
+// ─── PasswordField ────────────────────────────────────────────────
+
 interface PasswordFieldProps {
   value: string
   onChange: (v: string) => void
@@ -60,13 +214,12 @@ interface PasswordFieldProps {
   label?: string
 }
 
-// A reusable password input with a show/hide toggle, a strength bar, and error hints.
-// showHints controls whether the error list is visible (only shown after the user starts typing).
-const PasswordField = ({ value, onChange, showHints, setShowHints, label = 'Password' }: PasswordFieldProps) => {
-  // Controls whether the password text is visible or hidden.
-  const [showPassword, setShowPassword] = useState(false)
-  const strength       = getPasswordStrength(value)
-  const passwordErrors = validatePassword(value)
+const PasswordField = ({
+  value, onChange, showHints, setShowHints, label = 'Password',
+}: PasswordFieldProps) => {
+  const [show, setShow] = useState(false)
+  const strength = getPasswordStrength(value)
+  const errors   = getPasswordErrors(value)
 
   return (
     <div className="space-y-1">
@@ -75,51 +228,42 @@ const PasswordField = ({ value, onChange, showHints, setShowHints, label = 'Pass
       </label>
       <div className="relative">
         <input
-          type={showPassword ? 'text' : 'password'}
+          type={show ? 'text' : 'password'}
           value={value}
-          // Turns on the hint list as soon as the user starts typing.
           onChange={(e) => { onChange(e.target.value); setShowHints(true) }}
-          required
-          className={inputClass}
+          className={cls.input}
           placeholder="Create a strong password"
         />
-        {/* Toggles the password visibility when clicked. tabIndex=-1 keeps it out of tab order. */}
         <button
           type="button"
-          onClick={() => setShowPassword(!showPassword)}
+          onClick={() => setShow(!show)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >
-          <EyeIcon show={showPassword} />
+          <EyeIcon show={show} />
         </button>
       </div>
-
-      {/* Only shows the strength bar and hints once the user has typed something. */}
       {value && (
         <div className="mt-1 space-y-1.5">
-          {/* Four small bar segments — filled up to the current strength score. */}
           <div className="flex items-center gap-2">
             <div className="flex flex-1 gap-1">
-              {[1, 2, 3, 4].map((i) => (
+              {[1,2,3,4].map((i) => (
                 <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= strength.score ? strength.color : 'bg-white/10'}`} />
               ))}
             </div>
             <span className={`text-[10px] font-medium ${
-              strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-yellow-400' : strength.score === 3 ? 'text-blue-400' : 'text-emerald-400'
+              strength.score <= 1 ? 'text-red-400' :
+              strength.score === 2 ? 'text-yellow-400' :
+              strength.score === 3 ? 'text-blue-400' : 'text-emerald-400'
             }`}>{strength.label}</span>
           </div>
-          {/* Shows each failing rule as a red error. Hidden until showHints is true. */}
-          {showHints && passwordErrors.length > 0 && (
+          {showHints && errors.length > 0 && (
             <ul className="space-y-0.5">
-              {passwordErrors.map((err) => (
-                <li key={err} className="flex items-center gap-1 text-[10px] text-red-400"><span>✕</span> {err}</li>
-              ))}
+              {errors.map((e) => <li key={e} className="text-[10px] text-red-400">✕ {e}</li>)}
             </ul>
           )}
-          {/* Shows a green success message when all rules pass. */}
-          {passwordErrors.length === 0 && (
-            <p className="flex items-center gap-1 text-[10px] text-emerald-400"><span>✓</span> Password looks great!</p>
+          {errors.length === 0 && (
+            <p className="text-[10px] text-emerald-400">✓ Password looks great!</p>
           )}
         </div>
       )}
@@ -127,10 +271,16 @@ const PasswordField = ({ value, onChange, showHints, setShowHints, label = 'Pass
   )
 }
 
-// A "confirm password" input that shows a green tick when it matches and a red error when it doesn't.
-const ConfirmPasswordField = ({ value, onChange, password }: { value: string; onChange: (v: string) => void; password: string }) => {
-  // Controls whether the confirm password text is visible or hidden.
-  const [showPassword, setShowPassword] = useState(false)
+// ─── ConfirmPasswordField ─────────────────────────────────────────
+
+const ConfirmPasswordField = ({
+  value, onChange, onBlur, password, touched,
+}: { value: string; onChange: (v: string) => void; onBlur: () => void; password: string; touched: boolean }) => {
+  const [show, setShow] = useState(false)
+  const hasError = touched && value.length > 0 && value !== password
+  const hasOk    = touched && value.length > 0 && value === password
+  const isEmpty  = touched && value.length === 0
+
   return (
     <div className="space-y-1">
       <label className="block text-xs font-medium text-slate-200">
@@ -138,75 +288,82 @@ const ConfirmPasswordField = ({ value, onChange, password }: { value: string; on
       </label>
       <div className="relative">
         <input
-          type={showPassword ? 'text' : 'password'}
+          type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          required
-          className={inputClass}
+          onBlur={onBlur}
+          className={hasError ? cls.error : hasOk ? cls.ok : cls.input}
           placeholder="Repeat your password"
         />
         <button
           type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          onClick={() => setShow(!show)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
           tabIndex={-1}
         >
-          <EyeIcon show={showPassword} />
+          <EyeIcon show={show} />
         </button>
       </div>
-      {/* Red error if the two passwords don't match yet. */}
-      {value && value !== password && <p className="mt-1 text-[10px] text-red-400">✕ Passwords do not match</p>}
-      {/* Green tick once they match. */}
-      {value && value === password  && <p className="mt-1 text-[10px] text-emerald-400">✓ Passwords match</p>}
+      {isEmpty   && <Hint ok={false} msg="Please confirm your password" />}
+      {hasError  && <Hint ok={false} msg="Passwords do not match" />}
+      {hasOk     && <Hint ok={true}  msg="Passwords match" />}
     </div>
   )
 }
 
-// A simple dropdown for picking a city. Only shows the four cities FreshRoute operates in.
-const CitySelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-  <div className="space-y-1">
-    <label className="block text-xs font-medium text-slate-200">City</label>
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
-      <option>Colombo</option>
-      <option>Kandy</option>
-      <option>Galle</option>
-      <option>Jaffna</option>
-    </select>
-  </div>
-)
 
-// The sign-up form for a new customer. Validates all fields before calling the API.
-// onSuccess = called when registration works (navigates to pending-approval).
-// onError   = called when something goes wrong (shows a toast + inline error).
-const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (msg: string) => void }) => {
-  const [fullName, setFullName]                   = useState('')
-  const [email, setEmail]                         = useState('')
-  const [phone, setPhone]                         = useState('')
-  const [city, setCity]                           = useState('Colombo')
-  const [address, setAddress]                     = useState('')
-  const [password, setPassword]                   = useState('')
-  const [confirmPassword, setConfirmPassword]     = useState('')
-  const [loading, setLoading]                     = useState(false)
-  const [showPasswordHints, setShowPasswordHints] = useState(false)
+// ─── CustomerForm ─────────────────────────────────────────────────
 
-  const passwordErrors = validatePassword(password)
+const CustomerForm = ({ onSuccess, onError }: {
+  onSuccess: (data: { token: string; user: any; redirectTo: string }) => void
+  onError: (msg: string) => void
+}) => {
+  const [fullName, setFullName]       = useState('')
+  const [email, setEmail]             = useState('')
+  const [phoneLocal, setPhoneLocal]   = useState('')
+  const [city, setCity]               = useState('Colombo')
+  const [address, setAddress]         = useState('')
+  const [coords, setCoords]           = useState<{ lat: number; lng: number } | null>(null)
+  const [password, setPassword]       = useState('')
+  const [confirmPwd, setConfirmPwd]   = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [showPwdHints, setShowPwdHints] = useState(false)
 
-  // Validates all fields and sends the registration data to the backend.
-  // Stops early and calls onError with a message if any field is wrong.
+  const [touched, setTouched] = useState({
+    fullName: false, email: false, phone: false, address: false, confirmPwd: false,
+  })
+  const touch = (f: keyof typeof touched) => setTouched((p) => ({ ...p, [f]: true }))
+  const touchAll = () => setTouched({ fullName: true, email: true, phone: true, address: true, confirmPwd: true })
+
+  const validate = (): string | null => {
+    if (!fullName.trim())                             return 'Full name is required'
+    if (!isValidPersonName(fullName))                 return 'Name can only contain letters and spaces'
+    if (!email.trim())                                return 'Email is required'
+    if (!isValidEmail(email))                         return 'Enter a valid email address'
+    if (!address.trim())                              return 'Address is required'
+    if (phoneLocal && !isValidLocalPhone(phoneLocal)) return 'Phone must be exactly 9 digits after +94'
+    if (getPasswordErrors(password).length > 0)       return 'Password does not meet the requirements'
+    if (!confirmPwd.trim())                           return 'Please confirm your password'
+    if (password !== confirmPwd)                      return 'Passwords do not match'
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!fullName.trim())             { onError('Full name is required');              return }
-    if (!email.trim())                { onError('Email is required');                  return }
-    if (!isValidEmail(email))         { onError('Please enter a valid email address'); return }
-    if (!address.trim())              { onError('Address is required');                return }  
-    if (passwordErrors.length > 0)    { onError('Please fix password requirements'); setShowPasswordHints(true); return }
-    if (password !== confirmPassword) { onError('Passwords do not match');             return }
+    touchAll()
+    setShowPwdHints(true)
+
+    const err = validate()
+    if (err) { onError(err); return }
 
     setLoading(true)
     try {
-      await registerCustomer({ name: fullName, email, password, phone, city, address })
-      onSuccess() // Registration worked — go to the pending approval page.
+      const phone = phoneLocal ? `+94${phoneLocal}` : ''
+      const data  = await registerCustomer({
+        name: fullName, email, password, phone, city, address,
+        latitude: coords?.lat, longitude: coords?.lng,
+      })
+      onSuccess(data)
     } catch (err: any) {
       onError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
     } finally {
@@ -215,82 +372,108 @@ const CustomerForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: 
   }
 
   return (
-    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-      {/* Full name — spans both columns on desktop. */}
-      <div className="space-y-1 md:col-span-2">
-        <label className="block text-xs font-medium text-slate-200">Full name <span className="text-red-400">*</span></label>
-        <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={inputClass} placeholder="John Perera" />
+    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
+      <div className="md:col-span-2">
+        <NameField value={fullName} onChange={setFullName} onBlur={() => touch('fullName')} touched={touched.fullName} required placeholder="John Perera" />
       </div>
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Email <span className="text-red-400">*</span></label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} placeholder="you@example.com" />
-        {/* Inline email format error shown while the user is typing. */}
-        {email && !isValidEmail(email) && <p className="text-[10px] text-red-400">✕ Please enter a valid email address</p>}
+      <EmailField value={email} onChange={setEmail} onBlur={() => touch('email')} touched={touched.email} />
+      <PhoneField value={phoneLocal} onChange={setPhoneLocal} onBlur={() => touch('phone')} touched={touched.phone} />
+      <div className="md:col-span-2 space-y-1">
+        <label className="block text-xs font-medium text-slate-200">
+          Address <span className="text-red-400">*</span>
+        </label>
+        <MapAddressPicker
+          address={address}
+          onChange={({ address: a, city: c, lat, lng }) => {
+            setAddress(a)
+            if (c) setCity(c)
+            setCoords({ lat, lng })
+            touch('address')
+          }}
+        />
+        {touched.address && !address.trim() && (
+          <p className="text-[10px] mt-0.5 text-red-400">✕ Address is required</p>
+        )}
       </div>
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Phone number</label>
-        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="+94 71 234 5678" />
-      </div>
-      <CitySelect value={city} onChange={setCity} />
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Address<span className="text-red-400">*</span></label>
-        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required className={inputClass} placeholder="No. 12, Flower Road" />
-      </div>
-      <PasswordField value={password} onChange={setPassword} showHints={showPasswordHints} setShowHints={setShowPasswordHints} />
-      <ConfirmPasswordField value={confirmPassword} onChange={setConfirmPassword} password={password} />
+      <PasswordField value={password} onChange={setPassword} showHints={showPwdHints} setShowHints={setShowPwdHints} />
+      <ConfirmPasswordField value={confirmPwd} onChange={setConfirmPwd} onBlur={() => touch('confirmPwd')} password={password} touched={touched.confirmPwd} />
       <div className="mt-2 flex items-start gap-2 md:col-span-2">
         <input type="checkbox" required className="mt-1 h-3.5 w-3.5 rounded border-slate-600/80 bg-brand-background text-emerald-400" />
-        <p className="text-xs text-slate-300">I agree to the <button type="button" className="text-emerald-400 underline">Terms & Conditions</button> of FreshRoute.</p>
+        <p className="text-xs text-slate-300">
+          I agree to the <button type="button" className="text-emerald-400 underline">Terms & Conditions</button> of FreshRoute.
+        </p>
       </div>
       <div className="md:col-span-2">
-        {/* Submit button is disabled while loading or while the password still has errors. */}
         <button
           type="submit"
-          disabled={loading || passwordErrors.length > 0 || password !== confirmPassword}
+          disabled={loading}
           className="mt-3 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? 'Creating account...' : 'Create Customer Account'}
+          {loading ? 'Creating account…' : 'Create Customer Account'}
         </button>
       </div>
     </form>
   )
 }
 
-// The sign-up form for a new vendor. Similar to CustomerForm but with business-specific fields.
-// onSuccess = called when registration works (navigates to pending-approval).
-// onError   = called when something goes wrong (shows a toast + inline error).
+// ─── VendorForm ───────────────────────────────────────────────────
+
 const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (msg: string) => void }) => {
-  const [businessName, setBusinessName]           = useState('')
-  const [ownerName, setOwnerName]                 = useState('')
-  const [email, setEmail]                         = useState('')
-  const [phone, setPhone]                         = useState('')
-  const [businessAddress, setBusinessAddress]     = useState('')
-  const [city, setCity]                           = useState('Colombo')
-  const [password, setPassword]                   = useState('')
-  const [confirmPassword, setConfirmPassword]     = useState('')
-  const [agreedToPolicy, setAgreedToPolicy]       = useState(false)
-  const [loading, setLoading]                     = useState(false)
-  const [showPasswordHints, setShowPasswordHints] = useState(false)
+  const [businessName, setBusinessName]   = useState('')
+  const [ownerName, setOwnerName]         = useState('')
+  const [email, setEmail]                 = useState('')
+  const [phoneLocal, setPhoneLocal]       = useState('')
+  const [businessAddress, setBusinessAddress] = useState('')
+  const [coords, setCoords]               = useState<{ lat: number; lng: number } | null>(null)
+  const [city, setCity]                   = useState('Colombo')
+  const [password, setPassword]           = useState('')
+  const [confirmPwd, setConfirmPwd]       = useState('')
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false)
+  const [loading, setLoading]             = useState(false)
+  const [showPwdHints, setShowPwdHints]   = useState(false)
 
-  const passwordErrors = validatePassword(password)
+  const [touched, setTouched] = useState({
+    businessName: false, ownerName: false, email: false,
+    phone: false, businessAddress: false, confirmPwd: false,
+  })
+  const touch = (f: keyof typeof touched) => setTouched((p) => ({ ...p, [f]: true }))
+  const touchAll = () => setTouched({
+    businessName: true, ownerName: true, email: true,
+    phone: true, businessAddress: true, confirmPwd: true,
+  })
 
-  // Validates all vendor-specific fields and sends registration data to the backend.
-  // Stops early and calls onError if any required field is missing or invalid.
+  const validate = (): string | null => {
+    if (!businessName.trim())                             return 'Business name is required'
+    if (!ownerName.trim())                                return 'Owner name is required'
+    if (!isValidPersonName(ownerName))                    return 'Owner name can only contain letters and spaces'
+    if (!email.trim())                                    return 'Email is required'
+    if (!isValidEmail(email))                             return 'Enter a valid email address'
+    if (!businessAddress.trim())                          return 'Business address is required'
+    if (phoneLocal && !isValidLocalPhone(phoneLocal))     return 'Phone must be exactly 9 digits after +94'
+    if (getPasswordErrors(password).length > 0)           return 'Password does not meet the requirements'
+    if (!confirmPwd.trim())                               return 'Please confirm your password'
+    if (password !== confirmPwd)                          return 'Passwords do not match'
+    if (!agreedToPolicy)                                  return 'You must agree to the vendor policy'
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!businessName.trim())         { onError('Business name is required');           return }
-    if (!ownerName.trim())            { onError('Owner name is required');              return }
-    if (!email.trim())                { onError('Email is required');                   return }
-    if (!isValidEmail(email))         { onError('Please enter a valid email address');  return }
-    if (!businessAddress.trim())      { onError('Business address is required');        return }
-    if (passwordErrors.length > 0)    { onError('Please fix password requirements'); setShowPasswordHints(true); return }
-    if (password !== confirmPassword) { onError('Passwords do not match');              return }
-    if (!agreedToPolicy)              { onError('You must agree to the vendor policy'); return }
+    touchAll()
+    setShowPwdHints(true)
+
+    const err = validate()
+    if (err) { onError(err); return }
 
     setLoading(true)
     try {
-      await registerVendor({ businessName, ownerName, email, phone, password, confirmPassword, businessAddress, city, agreedToPolicy })
-      onSuccess() // Registration worked — go to the pending approval page.
+      const phone = phoneLocal ? `+94${phoneLocal}` : ''
+      await registerVendor({
+        businessName, ownerName, email, phone, password, confirmPassword: confirmPwd,
+        businessAddress, city, agreedToPolicy,
+        latitude: coords?.lat, longitude: coords?.lng,
+      })
+      onSuccess()
     } catch (err: any) {
       onError(err?.response?.data?.message ?? 'Registration failed. Please try again.')
     } finally {
@@ -299,66 +482,99 @@ const VendorForm = ({ onSuccess, onError }: { onSuccess: () => void; onError: (m
   }
 
   return (
-    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+    <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
+      {/* Business name — plain input, no letter restriction */}
       <div className="space-y-1">
         <label className="block text-xs font-medium text-slate-200">Business name <span className="text-red-400">*</span></label>
-        <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required className={inputClass} placeholder="Green Market" />
+        <input
+          type="text"
+          value={businessName}
+          onChange={(e) => setBusinessName(e.target.value)}
+          onBlur={() => touch('businessName')}
+          className={touched.businessName && !businessName.trim() ? cls.error : touched.businessName && businessName.trim() ? cls.ok : cls.input}
+          placeholder="Green Market"
+        />
+        {touched.businessName && !businessName.trim() && <Hint ok={false} msg="Business name is required" />}
+        {touched.businessName &&  businessName.trim() && <Hint ok={true}  msg="Looks good" />}
       </div>
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Owner full name <span className="text-red-400">*</span></label>
-        <input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required className={inputClass} placeholder="Kamal Perera" />
+
+      <NameField value={ownerName} onChange={setOwnerName} onBlur={() => touch('ownerName')} touched={touched.ownerName} label="Owner full name" placeholder="Kamal Perera" required />
+      <EmailField value={email} onChange={setEmail} onBlur={() => touch('email')} touched={touched.email} placeholder="store@example.com" />
+      <PhoneField value={phoneLocal} onChange={setPhoneLocal} onBlur={() => touch('phone')} touched={touched.phone} />
+
+      <div className="md:col-span-2 space-y-1">
+        <label className="block text-xs font-medium text-slate-200">
+          Business address <span className="text-red-400">*</span>
+        </label>
+        <MapAddressPicker
+          address={businessAddress}
+          onChange={({ address: a, city: c, lat, lng }) => {
+            setBusinessAddress(a)
+            if (c) setCity(c)
+            setCoords({ lat, lng })
+            touch('businessAddress')
+          }}
+        />
+        {touched.businessAddress && !businessAddress.trim() && (
+          <p className="text-[10px] mt-0.5 text-red-400">✕ Business address is required</p>
+        )}
       </div>
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Email <span className="text-red-400">*</span></label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} placeholder="store@example.com" />
-        {email && !isValidEmail(email) && <p className="text-[10px] text-red-400">✕ Please enter a valid email address</p>}
-      </div>
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-200">Phone number</label>
-        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="+94 77 123 4567" />
-      </div>
-      {/* Business address — spans both columns on desktop. */}
-      <div className="space-y-1 md:col-span-2">
-        <label className="block text-xs font-medium text-slate-200">Business address <span className="text-red-400">*</span></label>
-        <input type="text" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} required className={inputClass} placeholder="No. 45, Market Street, Colombo" />
-      </div>
-      <CitySelect value={city} onChange={setCity} />
-      <div /> {/* empty spacer to push city to left col only */}
-      <PasswordField value={password} onChange={setPassword} showHints={showPasswordHints} setShowHints={setShowPasswordHints} />
-      <ConfirmPasswordField value={confirmPassword} onChange={setConfirmPassword} password={password} />
+
+      <PasswordField value={password} onChange={setPassword} showHints={showPwdHints} setShowHints={setShowPwdHints} />
+      <ConfirmPasswordField value={confirmPwd} onChange={setConfirmPwd} onBlur={() => touch('confirmPwd')} password={password} touched={touched.confirmPwd} />
+
       <div className="mt-2 flex items-start gap-2 md:col-span-2">
-        {/* Vendor must tick the policy checkbox — it's tracked in state, not just a HTML required attribute. */}
-        <input type="checkbox" checked={agreedToPolicy} onChange={(e) => setAgreedToPolicy(e.target.checked)} className="mt-1 h-3.5 w-3.5 rounded border-slate-600/80 bg-brand-background text-emerald-400" />
-        <p className="text-xs text-slate-300">I agree to the FreshRoute Vendor Policy and understand that orders and payouts are managed by the platform.</p>
+        <input
+          type="checkbox"
+          checked={agreedToPolicy}
+          onChange={(e) => setAgreedToPolicy(e.target.checked)}
+          className="mt-1 h-3.5 w-3.5 rounded border-slate-600/80 bg-brand-background text-emerald-400"
+        />
+        <p className="text-xs text-slate-300">
+          I agree to the FreshRoute Vendor Policy and understand that orders and payouts are managed by the platform.
+        </p>
       </div>
       <div className="md:col-span-2">
         <button
           type="submit"
-          disabled={loading || passwordErrors.length > 0 || password !== confirmPassword}
+          disabled={loading}
           className="mt-3 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? 'Registering...' : 'Register Vendor Account'}
+          {loading ? 'Registering…' : 'Register Vendor Account'}
         </button>
       </div>
     </form>
   )
 }
 
-// The main page component. Reads :role from the URL to decide which form to show.
+// ─── SignUpPage ───────────────────────────────────────────────────
+
 const SignUpPage = (): JSX.Element => {
-  const { role }      = useParams<{ role: string }>()  // "customer" or "vendor" from the URL.
+  const { role }      = useParams<{ role: string }>()
   const navigate      = useNavigate()
   const { showToast } = useToast()
+  const dispatch      = useDispatch()
+  const { login }     = useAuth()
   const isVendor      = role === 'vendor'
   const [error, setError] = useState('')
 
-  // Shows the error message both inline on the page and as a toast popup.
   const handleError = (msg: string) => { setError(msg); showToast(msg, 'error') }
+  const handleVendorSuccess = () => { navigate('/pending-approval') }
+  const handleBuyerSuccess  = (data: { token: string; user: any; redirectTo: string }) => {
+    dispatch(setCredentials({ user: { id: data.user.id, email: data.user.email, name: data.user.name }, token: data.token }))
+    // 🔧 FIX: use the real values that came back from signup instead of hardcoded blanks
+    dispatch(setBuyerProfile({
+      name:    data.user.name,
+      email:   data.user.email,
+      phone:   data.user.phone   ?? '',
+      city:    data.user.city    ?? 'Colombo',
+      address: data.user.address ?? '',
+    }))
+    login(data.token, { id: data.user.id, name: data.user.name, email: data.user.email, role: 'buyer' })
+    showToast(`Welcome to FreshRoute, ${data.user.name}! 🎉`)
+    navigate(data.redirectTo)
+  }
 
-  // On success, go to the pending-approval waiting page.
-  const handleSuccess = () => { navigate('/pending-approval') }
-
-  // If someone visits /signup/something-random, send them back to /signup to pick a valid role.
   if (role !== 'customer' && role !== 'vendor') {
     navigate('/signup')
     return <></>
@@ -379,28 +595,29 @@ const SignUpPage = (): JSX.Element => {
                 : 'Create an account to order from local vendors through FreshRoute.'}
             </p>
           </div>
-          {/* Warning banner reminding the user that admin approval is needed before they can log in. */}
-          <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-            ⏳ All new accounts require admin approval before you can log in.
-          </div>
-          {/* Extra info banner shown only on the vendor form. */}
+
+          {isVendor && (
+            <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+              ⏳ Vendor accounts require admin approval before you can log in.
+            </div>
+          )}
           {isVendor && (
             <div className="mb-5 rounded-2xl border border-supply-teal/40 bg-gradient-to-r from-supply-teal/20 via-supply-peach/20 to-supply-orange/20 p-3 text-[11px] text-supply-paper/80 backdrop-blur-xl">
               Fill in your business details to get started as a vendor on FreshRoute.
             </div>
           )}
-          {/* Inline error banner — shown when validation or the API call fails. */}
+
           {error && (
             <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
               {error}
             </div>
           )}
-          {/* Shows the vendor form or customer form based on the URL param. */}
+
           {isVendor
-            ? <VendorForm   onSuccess={handleSuccess} onError={handleError} />
-            : <CustomerForm onSuccess={handleSuccess} onError={handleError} />
+            ? <VendorForm   onSuccess={handleVendorSuccess} onError={handleError} />
+            : <CustomerForm onSuccess={handleBuyerSuccess}  onError={handleError} />
           }
-          {/* Links to switch between the customer and vendor forms. */}
+
           <p className="mt-4 text-center text-xs text-slate-400">
             {isVendor ? 'Want to order instead? ' : 'Want to sell instead? '}
             <Link to={isVendor ? '/signup/customer' : '/signup/vendor'} className="font-medium text-emerald-400 hover:text-emerald-300">

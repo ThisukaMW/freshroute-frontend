@@ -219,12 +219,6 @@ const SignInPage = (): JSX.Element => {
               )}
 
               <form className="space-y-4" onSubmit={handleSubmit}>
-                {/* Email input — border turns red when there's an error. */}
-                {error && (
-                  <div className="rounded-lg bg-red-500/20 border border-red-500/50 p-3">
-                    <p className="text-xs text-red-300">❌ {error}</p>
-                  </div>
-                )}
 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-slate-200">
@@ -308,9 +302,6 @@ const SignInPage = (): JSX.Element => {
                   {loading ? "Signing in..." : "Sign In"}
                 </button>
 
-                {error && (
-                  <p className="text-center text-xs text-red-400">{error}</p>
-                )}
               </form>
 
               <p className="mt-4 text-center text-xs text-slate-500">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+/*import { useState } from 'react'
 import RatingModal from './RatingModal'
 
 // TEMPORARY DEMO COMPONENT
@@ -11,16 +11,16 @@ const RatingDemoButton = () => {
 
   return (
     <>
-      {/* Button that opens the rating modal */}
-      <button
+      {/* Button that opens the rating modal */
+    /*<button
         onClick={() => setOpen(true)}
         className="rounded-xl bg-gradient-to-r from-emerald-600 to-supply-teal px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
       >
         ★ Rate your order
       </button>
 
-      {/* ✅ Fixed: products prop is now provided — was causing the TypeScript error */}
-      <RatingModal
+      {/* ✅ Fixed: products prop is now provided — was causing the TypeScript error */
+      /*<RatingModal
         isOpen={open}
         onClose={() => setOpen(false)}
         orderId="demo-order-id"
@@ -36,4 +36,4 @@ const RatingDemoButton = () => {
   )
 }
 
-export default RatingDemoButton
+export default RatingDemoButton*/

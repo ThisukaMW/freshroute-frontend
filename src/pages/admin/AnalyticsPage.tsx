@@ -16,10 +16,13 @@ import type { Period, AdminAnalyticsData } from '../../api/endpoints/adminAnalyt
 
 // Turns a raw number into a readable money string like "Rs. 1.2M" or "Rs. 500K"
 const formatRevenue = (v: number): string => {
-  if (v >= 1_000_000) return `Rs. ${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000)     return `Rs. ${(v / 1_000).toFixed(0)}K`
-  return `Rs. ${v}`
+  if (v >= 1_000_000) return `Rs. ${(v / 1_000_000).toFixed(2)}M`
+  if (v >= 1_000)     return `Rs. ${(v / 1_000).toFixed(2)}K`
+  return `Rs. ${v.toFixed(2)}`
 }
+
+// Rounds any number to 2 decimal places for display
+const round2 = (v: number): number => Math.round(v * 100) / 100
 
 // Custom popup that shows when you hover over any chart — displays the label and values nicely
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -37,8 +40,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {p.name}:{' '}
           <span className="font-semibold">
             {p.dataKey === 'revenue'     ? formatRevenue(p.value)
-            : p.dataKey === 'aov'        ? `Rs. ${p.value}`
-            : p.dataKey === 'refundRate' ? `${p.value}%`
+            : p.dataKey === 'aov'        ? `Rs. ${round2(p.value).toFixed(2)}`
+            : p.dataKey === 'refundRate' ? `${round2(p.value).toFixed(2)}%`
             : p.value.toLocaleString()}
           </span>
         </p>
@@ -118,20 +121,20 @@ const AnalyticsPage = (): JSX.Element => {
   // Add up all failed transaction counts across transactionTrend
   const totalFailed  = data?.transactionTrend.reduce((s, d) => s + d.failed,     0) ?? 0
 
-  // Calculate the average order value (AOV) by summing all AOVs and dividing by count
+  // Calculate the average order value (AOV) by summing all AOVs and dividing by count — rounded to 2 decimals
   const avgAov = data?.aovTrend.length
-    ? Math.round(data.aovTrend.reduce((s, d) => s + d.aov, 0) / data.aovTrend.length)
+    ? round2(data.aovTrend.reduce((s, d) => s + d.aov, 0) / data.aovTrend.length)
     : 0
 
-  // Calculate the average refund rate as a percentage string like "2.3"
+  // Calculate the average refund rate as a percentage string like "2.34", rounded to 2 decimals
   const avgRefund = data?.aovTrend.length
-    ? (data.aovTrend.reduce((s, d) => s + d.refundRate, 0) / data.aovTrend.length).toFixed(1)
-    : '0.0'
+    ? (data.aovTrend.reduce((s, d) => s + d.refundRate, 0) / data.aovTrend.length).toFixed(2)
+    : '0.00'
 
-  // Calculate what % of all transactions were successful — avoids dividing by zero
+  // Calculate what % of all transactions were successful — avoids dividing by zero, rounded to 2 decimals
   const successRate = (totalSuccess + totalFailed) > 0
-    ? ((totalSuccess / (totalSuccess + totalFailed)) * 100).toFixed(1)
-    : '0.0'
+    ? ((totalSuccess / (totalSuccess + totalFailed)) * 100).toFixed(2)
+    : '0.00'
 
   return (
     <div className="space-y-6 pb-8">
@@ -174,7 +177,7 @@ const AnalyticsPage = (): JSX.Element => {
               },
               {
                 label: 'Avg Order Value',
-                value: `Rs. ${avgAov.toLocaleString()}`,
+                value: `Rs. ${avgAov.toFixed(2)}`,
                 sub: 'Per transaction',
                 color: 'text-sky-400',
                 bg: 'bg-sky-400/10 border-sky-400/20',
@@ -318,7 +321,7 @@ const AnalyticsPage = (): JSX.Element => {
                         {/* Each slice gets its own color from the data */}
                         {(data?.categoryBreakdown ?? []).map((c) => <Cell key={c.name} fill={c.color} />)}
                       </Pie>
-                      <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12, color: '#ffffff' }} itemStyle={{ color: '#ffffff' }} />
+                      <Tooltip formatter={(v: any) => `${round2(v).toFixed(2)}%`} contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12, color: '#ffffff' }} itemStyle={{ color: '#ffffff' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -330,7 +333,7 @@ const AnalyticsPage = (): JSX.Element => {
                         <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
                         <span className="text-xs text-slate-300">{c.name}</span>
                       </div>
-                      <span className="text-xs font-semibold text-slate-200">{c.value}%</span>
+                      <span className="text-xs font-semibold text-slate-200">{round2(c.value).toFixed(2)}%</span>
                     </div>
                   ))}
                 </div>
@@ -350,7 +353,7 @@ const AnalyticsPage = (): JSX.Element => {
                       <Pie data={data?.paymentBreakdown ?? []} dataKey="value" cx="50%" cy="50%" innerRadius={36} outerRadius={60} paddingAngle={2}>
                         {(data?.paymentBreakdown ?? []).map((c) => <Cell key={c.name} fill={c.color} />)}
                       </Pie>
-                      <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12 }} />
+                      <Tooltip formatter={(v: any) => `${round2(v).toFixed(2)}%`} contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -361,7 +364,7 @@ const AnalyticsPage = (): JSX.Element => {
                         <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
                         <span className="text-xs text-slate-300">{c.name}</span>
                       </div>
-                      <span className="text-xs font-semibold text-slate-200">{c.value}%</span>
+                      <span className="text-xs font-semibold text-slate-200">{round2(c.value).toFixed(2)}%</span>
                     </div>
                   ))}
                 </div>
@@ -406,7 +409,7 @@ const AnalyticsPage = (): JSX.Element => {
         <div className="mb-4">
           <p className="text-sm font-semibold text-slate-50">Average Order Value & Refund Rate</p>
           <p className="text-xs text-slate-400">
-            Avg AOV: Rs. {avgAov.toLocaleString()} · Avg refund rate: {avgRefund}%
+            Avg AOV: Rs. {avgAov.toFixed(2)} · Avg refund rate: {avgRefund}%
           </p>
         </div>
         {loading ? <Skeleton className="h-56" /> : (
@@ -416,9 +419,9 @@ const AnalyticsPage = (): JSX.Element => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="label" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                 {/* Left Y axis for Rs. values */}
-                <YAxis yAxisId="aov" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `Rs.${v}`} width={64} />
+                <YAxis yAxisId="aov" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `Rs.${round2(v).toFixed(2)}`} width={64} />
                 {/* Right Y axis for % refund rate */}
-                <YAxis yAxisId="ref" orientation="right" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                <YAxis yAxisId="ref" orientation="right" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(v) => `${round2(v).toFixed(2)}%`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
                 <Line yAxisId="aov" type="monotone" dataKey="aov"        name="Avg Order Value" stroke="#38bdf8" strokeWidth={2} dot={false} />

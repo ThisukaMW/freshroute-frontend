@@ -10,6 +10,9 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { Button } from "../../common/Button/Button";
 import NotificationBell from "../../NotificationBell";
+import { useNotificationContext } from "../../../context/NotificationContext";
+import { usePendingApprovalsContext } from "../../../context/PendingApprovalsContext";
+import DeliveryRatingListener from "../../DeliveryRatingListener";
 
 /* role must be one of these three */
 type Role = "buyer" | "seller" | "admin";
@@ -60,7 +63,6 @@ const navByRole: Record<Role, NavItem[]> = {
 const profileNavByRole: Record<Role, { to: string; label: string }[]> = {
   buyer: [
     { to: "/profile", label: "Personal Info" },
-    { to: "/profile?tab=orders", label: "Orders" },
     { to: "/profile?tab=address", label: "Delivery Address" },
     { to: "/profile?tab=password", label: "Password" },
     { to: "/profile?tab=settings", label: "Settings" },
@@ -88,6 +90,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
   /* nav and profile links for the current role */
   const navItems = navByRole[role] ?? [];
+  const { notifications } = useNotificationContext();
+  const { pendingCount: pendingApprovalsCount } = usePendingApprovalsContext();
   const profileNavItems = profileNavByRole[role] ?? [];
 
   /* true when mobile drawer is open */
@@ -124,22 +128,31 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
       {/* role-based nav links — highlights the active page */}
       <nav className="space-y-1 text-sm">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === `/${role}`} /* stops dashboard staying active on sub-routes */
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              [
-                "flex items-center justify-between rounded-xl px-3 py-2 transition",
-                isActive ? "bg-primary/15 text-primary-light" : "text-slate-300 hover:bg-slate-900/60",
-              ].join(" ")
-            }
-          >
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const isApprovals = item.to === "/admin/approvals";
+          const showBadge = isApprovals && pendingApprovalsCount > 0;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === `/${role}`}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  "flex items-center justify-between rounded-xl px-3 py-2 transition",
+                  isActive ? "bg-primary/15 text-primary-light" : "text-slate-300 hover:bg-slate-900/60",
+                ].join(" ")
+              }
+            >
+              <span>{item.label}</span>
+              {showBadge && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/20 border border-red-500/30 px-1.5 text-[10px] font-bold text-red-400">
+                  {pendingApprovalsCount}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
     </>
   );
@@ -150,7 +163,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
       {/* desktop sidebar — visible on md+ screens only */}
       {!hideSidebar && (
-        <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-brand-muted/60 bg-gradient-to-bl from-brand-background/90 via-supply-teal/60 to-supply-teal/45 px-4 py-6 md:flex">
+        <aside className="hidden w-64 flex-shrink-0 flex-col overflow-y-auto border-r border-brand-muted/60 bg-gradient-to-bl from-brand-background/90 via-supply-teal/60 to-supply-teal/45 px-4 py-6 md:flex">
           {sidebarContent()}
 
           {/* profile section at bottom of sidebar */}
@@ -223,7 +236,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
           {/* drawer panel — slides in from left */}
           <aside
-            className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-white/10 bg-brand-background/95 px-4 py-6 transition-transform duration-300 ${
+            className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col overflow-y-auto border-r border-white/10 bg-brand-background/95 px-4 py-6 transition-transform duration-300 ${
               navDrawerOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -288,9 +301,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
           {/* right side — date, notification bell, logout */}
           <div className="flex flex-1 items-center justify-end gap-3">
-            <span className="hidden text-xs text-slate-400 md:inline">
-              {new Date().toLocaleDateString()} · Prototype UI
-            </span>
             <NotificationBell />
             <Button variant="ghost" onClick={logout}>Logout</Button>
           </div>
@@ -306,6 +316,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
         </main>
 
       </div>
+
+      {/* Global listener — pops the rating modal when an order gets delivered */}
+      {role === "buyer" && <DeliveryRatingListener />}
     </div>
   );
 };

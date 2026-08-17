@@ -14,6 +14,7 @@ import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
 import { getReservationStatus } from "../../utils/reservationUtils";
 import type { RootState, AppDispatch } from "../../store";
+import { useNotificationContext } from "../../context/NotificationContext";
 
 interface Address {
   address: string;
@@ -30,11 +31,23 @@ interface CheckoutState {
   error: string | null;
 }
 
+// Helper: correctly parse a price value that may come as a number,
+// a decimal string ("1.5"), or a string with a currency prefix ("Rs. 1.5").
+// Strips everything except digits and the decimal point, then parses as a float.
+const parsePrice = (price: unknown): number => {
+  const cleaned = String(price).replace(/[^0-9.]/g, "");
+  const parsed = parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCurrency = (value: number): string =>
+  value.toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const items = useSelector((state: RootState) => state.cart.items);
-
+  const { addNotification } = useNotificationContext();
   const [state, setState] = useState<CheckoutState>({
     currentStep: 1,
     deliveryAddress: {
@@ -208,6 +221,27 @@ const CheckoutPage: React.FC = () => {
         state.specialInstructions
       );
 
+      console.log("✅ Order created:", orderResponse);
+
+      // Build item summary string
+      const itemSummary = items
+        .map((item: any) => `${item.name} × ${item.quantity}`)
+        .join(", ");
+
+      addNotification({
+        id: `order-confirmed-${Date.now()}`,
+        title: "Order placed successfully! 🎉",
+        body: `Your order has been confirmed. Items: ${itemSummary}. Total: Rs. ${cartTotals.total.toLocaleString("en-LK")}. Delivery: ${state.deliveryTimeSlot?.toLowerCase()}.`,
+        read: false,
+        createdAt: new Date().toISOString(),
+        data: { type: "ORDER_PLACED" },
+      });
+
+      // Clear cart and redirect to order confirmation
+      dispatch(clearCart());
+      navigate("/buyer/order-confirmation", {
+        state: { orderId: orderResponse.id },
+      });
       // STEP 2: Create Stripe checkout session
       const paymentRes = await api.post("/payments", {
         orderId: orderResponse?.id,
@@ -319,11 +353,7 @@ const CheckoutPage: React.FC = () => {
                 {renderReservationBadge(item)}
               </div>
               <p className="text-sm font-medium shrink-0 ml-3">
-                Rs.{" "}
-                {(
-                  (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                  item.quantity
-                ).toLocaleString("en-LK")}
+                Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
               </p>
             </div>
           ))}
@@ -393,11 +423,7 @@ const CheckoutPage: React.FC = () => {
                   {renderReservationBadge(item)}
                 </div>
                 <span>
-                  Rs.{" "}
-                  {(
-                    (parseInt(String(item.price).replace(/\D/g, ""), 10) || 0) *
-                    item.quantity
-                  ).toLocaleString("en-LK")}
+                  Rs. {formatCurrency(parsePrice(item.price) * item.quantity)}
                 </span>
               </div>
             ))}

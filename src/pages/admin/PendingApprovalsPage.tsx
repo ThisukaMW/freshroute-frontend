@@ -1,20 +1,20 @@
-// Admin page where admins can approve or reject users waiting to join the platform
-
 import { useEffect, useState } from "react";
+import { usePendingApprovalsContext } from "../../context/PendingApprovalsContext";
 import { LocalStorageService } from "../../services/storage/LocalStorageService";
 
-// The 3 possible roles a user can have on the platform
-type UserRole = "BUYER" | "SELLER" | "DRIVER";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// Shape of a single pending user object coming from the API
+type UserRole   = "SELLER" | "DRIVER";
+type RoleFilter = "ALL" | UserRole;
+type PageTab    = "accounts" | "products";
+
 interface PendingUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
-  city: string | null;
+  city?: string | null;
   createdAt: string;
-  // Only sellers have this extra profile info — buyers and drivers won't have it
   sellerProfile?: {
     id: string;
     businessName: string;
@@ -23,25 +23,36 @@ interface PendingUser {
   } | null;
 }
 
-// Filter options for the tabs — either show all users or only one specific role
-type RoleFilter = "ALL" | UserRole;
-
-// Converts an ISO date string into a human-friendly "3h ago" or "2d ago" style string
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime(); // difference in milliseconds
-  const m = Math.floor(diff / 60000); // convert ms to minutes
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60); // convert minutes to hours
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`; // convert hours to days
+interface PendingProduct {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  unit: string;
+  stock: number;
+  imageUrl: string | null;
+  createdAt: string;
+  seller: {
+    user: { name: string; email: string };
+    businessName?: string;
+  };
 }
 
-// Lookup table — given a role, get its emoji, display label, text color, and background color
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 const roleConfig: Record<UserRole, { emoji: string; label: string; color: string; bg: string }> = {
-  BUYER:  { emoji: "🛒", label: "Buyer",  color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/20" },
-  SELLER: { emoji: "🏪", label: "Seller", color: "text-sky-400",     bg: "bg-sky-500/15 border-sky-500/20"         },
-  DRIVER: { emoji: "🚚", label: "Driver", color: "text-violet-400",  bg: "bg-violet-500/15 border-violet-500/20"   },
+  SELLER: { emoji: "🏪", label: "Seller", color: "text-sky-400",    bg: "bg-sky-500/15 border-sky-500/20"       },
+  DRIVER: { emoji: "🚚", label: "Driver", color: "text-violet-400", bg: "bg-violet-500/15 border-violet-500/20" },
 };
 
 const getRoleConfig = (role: string) =>
@@ -62,51 +73,42 @@ const REJECT_REASONS = [
   "Other (specify below)",
 ];
 
-// ─── Reject Modal ─────────────────────────────────────────────────────────────
+const PRODUCT_REJECT_REASONS = [
+  "Images are missing or low quality",
+  "Incorrect or misleading product description",
+  "Price appears incorrect",
+  "Product does not meet platform guidelines",
+  "Duplicate product already exists",
+  "Other (specify below)",
+];
 
-// Popup dialog that appears when admin clicks Reject — lets them pick a reason before confirming
+// ─── Reject Modal (shared for both users and products) ────────────────────────
+
 const RejectModal = ({
-  user,         // the user being rejected
-  onConfirm,    // called with the final reason string when admin confirms
-  onCancel,     // called when admin clicks Cancel or closes the modal
-  isSubmitting, // true while the reject API call is in progress
+  title, subtitle, reasons, onConfirm, onCancel, isSubmitting,
 }: {
-  user: PendingUser;
+  title: string;
+  subtitle: string;
+  reasons: string[];
   onConfirm: (reason: string) => void;
   onCancel: () => void;
   isSubmitting: boolean;
 }) => {
-  // Tracks which reason button the admin clicked
   const [selectedReason, setSelectedReason] = useState("");
-
-  // Holds the typed text if admin picks "Other (specify below)"
-  const [customReason, setCustomReason] = useState("");
-
-  // True when the admin picked the "Other" option — shows the textarea
-  const isOther = selectedReason === "Other (specify below)";
-
-  // The actual reason string to send to the API — custom text if Other, otherwise the selected button
+  const [customReason, setCustomReason]     = useState("");
+  const isOther     = selectedReason === "Other (specify below)";
   const finalReason = isOther ? customReason.trim() : selectedReason;
-
-  // Confirm button is only enabled if a reason is selected AND if Other, at least 6 characters typed
-  const canSubmit = selectedReason && (!isOther || customReason.trim().length > 5);
+  const canSubmit   = selectedReason && (!isOther || customReason.trim().length > 5);
 
   return (
-    // Dark full-screen overlay behind the modal
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-gray-950 p-6 space-y-5 shadow-2xl">
-
-        {/* Who is being rejected */}
         <div>
-          <h2 className="text-base font-semibold text-slate-50">Reject Registration</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            You are rejecting <span className="text-slate-200 font-medium">{user.name}</span> ({user.email}). Please select a reason.
-          </p>
+          <h2 className="text-base font-semibold text-slate-50">{title}</h2>
+          <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
         </div>
-
-        {/* One button for each pre-written reason — clicking selects it and highlights it red */}
         <div className="space-y-2">
-          {REJECT_REASONS.map((reason) => (
+          {reasons.map((reason) => (
             <button
               key={reason}
               onClick={() => setSelectedReason(reason)}
@@ -120,19 +122,15 @@ const RejectModal = ({
             </button>
           ))}
         </div>
-
-        {/* Only shows up if admin picked "Other" — free text area to type a custom reason */}
         {isOther && (
           <textarea
             value={customReason}
             onChange={(e) => setCustomReason(e.target.value)}
-            placeholder="Describe the reason for rejection..."
+            placeholder="Describe the reason..."
             rows={3}
             className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-red-500/40 resize-none"
           />
         )}
-
-        {/* Cancel and Confirm buttons at the bottom */}
         <div className="flex gap-3">
           <button
             onClick={onCancel}
@@ -142,7 +140,6 @@ const RejectModal = ({
             Cancel
           </button>
           <button
-            // Only fires if canSubmit is true — passes the final reason up to the parent
             onClick={() => canSubmit && onConfirm(finalReason)}
             disabled={!canSubmit || isSubmitting}
             className="flex-1 rounded-xl bg-red-500/20 border border-red-500/30 px-4 py-2.5 text-sm font-medium text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -155,40 +152,60 @@ const RejectModal = ({
   );
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Confirm Approve Modal (shared for both users and products) ───────────────
 
-const PendingApprovalsPage = () => {
-  // Full list of pending users fetched from the API
-  const [users, setUsers] = useState<PendingUser[]>([]);
+const ConfirmApproveModal = ({
+  title, subtitle, onConfirm, onCancel, isSubmitting,
+}: {
+  title: string;
+  subtitle: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-gray-950 p-6 space-y-5 shadow-2xl">
+        <div>
+          <h2 className="text-base font-semibold text-slate-50">{title}</h2>
+          <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 transition-all disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            className="flex-1 rounded-xl bg-teal-500/20 border border-teal-500/30 px-4 py-2.5 text-sm font-medium text-teal-400 hover:bg-teal-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Approving..." : "Confirm Approve"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-  // True while the initial fetch is happening — shows skeleton loaders
-  const [loading, setLoading] = useState(true);
+// ─── Accounts Section (pending seller/driver registrations) ───────────────────
 
-  // Holds error message string if any API call fails
-  const [error, setError] = useState<string | null>(null);
+const AccountsSection = ({ token, onCountChange }: { token: string | null; onCountChange: (n: number) => void }) => {
+  const [users, setUsers]                 = useState<PendingUser[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [approvingId, setApprovingId]     = useState<string | null>(null);
+  const [approvedIds, setApprovedIds]     = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds]     = useState<Set<string>>(new Set());
+  const [rejectTarget, setRejectTarget]   = useState<PendingUser | null>(null);
+  const [approveTarget, setApproveTarget] = useState<PendingUser | null>(null);
+  const [isRejecting, setIsRejecting]     = useState(false);
+  const [roleFilter, setRoleFilter]       = useState<RoleFilter>("ALL");
+  const { refreshPendingCount }           = usePendingApprovalsContext();
 
-  // Stores the ID of the user currently being approved — shows "Approving..." on their button
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-
-  // Set of user IDs that were just approved — used to briefly show the green "Approved!" badge
-  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
-
-  // Set of user IDs that were just rejected — used to briefly show the red "Rejected" badge
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
-
-  // The user whose reject modal is currently open — null means modal is closed
-  const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
-
-  // True while the reject API call is in progress — disables the confirm button
-  const [isRejecting, setIsRejecting] = useState(false);
-
-  // Which role tab is active — "ALL", "BUYER", "SELLER", or "DRIVER"
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
-
-  // Get the admin's auth token from local storage to attach to API requests
-  const token = LocalStorageService.get("fr_token");
-
-  // Fetches all users waiting for approval from the backend API
   const fetchPending = async () => {
     try {
       setLoading(true);
@@ -202,8 +219,9 @@ const PendingApprovalsPage = () => {
         throw new Error(body.message || "Failed to fetch pending users");
       }
       const data = await res.json();
-      // Use empty array as fallback if data.data is missing
-      setUsers(data.data ?? []);
+      const list: PendingUser[] = data.data ?? data ?? [];
+      setUsers(list);
+      onCountChange(list.length);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -211,67 +229,62 @@ const PendingApprovalsPage = () => {
     }
   };
 
-  // Fetch pending users once when the page first loads
   useEffect(() => { fetchPending(); }, []);
 
-  // Sends an approve request for one user, then removes them from the list after a short delay
   const handleApprove = async (userId: string) => {
-    setApprovingId(userId); // mark this user as being approved right now
+    setApprovingId(userId);
     try {
       const res = await fetch(`/api/v1/admin/users/${userId}/approve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to approve user");
-
-      // Add to approvedIds so their card turns green with "Approved!" badge
       setApprovedIds((prev) => new Set(prev).add(userId));
-
-      // After 1.5 seconds, remove the user from the list entirely (they're done)
+      refreshPendingCount();
       setTimeout(() => {
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-        setApprovedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(userId); // clean up approvedIds too
+        setUsers((prev) => {
+          const next = prev.filter((u) => u.id !== userId);
+          onCountChange(next.length);
           return next;
         });
+        setApprovedIds((prev) => { const n = new Set(prev); n.delete(userId); return n; });
       }, 1500);
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setApprovingId(null); // no longer in the middle of approving
+      setApprovingId(null);
     }
   };
 
-  // Called by the modal when admin clicks "Confirm Reject" with a reason — sends reject to API
+  const handleApproveConfirm = () => {
+    if (!approveTarget) return;
+    const target = approveTarget;
+    setApproveTarget(null);
+    handleApprove(target.id);
+  };
+
   const handleRejectConfirm = async (reason: string) => {
-    if (!rejectTarget) return; // safety check — do nothing if no target is set
+    if (!rejectTarget) return;
     setIsRejecting(true);
     try {
       const res = await fetch(`/api/v1/admin/users/${rejectTarget.id}/reject`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason }), // send the rejection reason to the backend
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
       });
       if (!res.ok) throw new Error("Failed to reject user");
-
-      // Add to rejectedIds so their card turns red with "Rejected" badge
-      setRejectedIds((prev) => new Set(prev).add(rejectTarget.id));
-
-      // After 1.5 seconds, remove the user from the list entirely
+      const rejectedId = rejectTarget.id;
+      setRejectedIds((prev) => new Set(prev).add(rejectedId));
+      refreshPendingCount();
       setTimeout(() => {
-        setUsers((prev) => prev.filter((u) => u.id !== rejectTarget.id));
-        setRejectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(rejectTarget.id);
+        setUsers((prev) => {
+          const next = prev.filter((u) => u.id !== rejectedId);
+          onCountChange(next.length);
           return next;
         });
+        setRejectedIds((prev) => { const n = new Set(prev); n.delete(rejectedId); return n; });
       }, 1500);
-
-      setRejectTarget(null); // close the modal
+      setRejectTarget(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -279,62 +292,45 @@ const PendingApprovalsPage = () => {
     }
   };
 
-  // Returns only the users that match the selected role tab (or all if "ALL" is selected)
   const filtered = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
-
-  // Counts how many pending users exist for a specific role — used in the tab labels
   const countByRole = (role: UserRole) => users.filter((u) => u.role === role).length;
-
-  // Data for each filter tab button — label includes the live count in brackets
   const filterTabs: { key: RoleFilter; label: string }[] = [
     { key: "ALL",    label: `All (${users.length})` },
-    { key: "BUYER",  label: `Buyers (${countByRole("BUYER")})` },
     { key: "SELLER", label: `Sellers (${countByRole("SELLER")})` },
     { key: "DRIVER", label: `Drivers (${countByRole("DRIVER")})` },
   ];
 
   return (
     <>
-      {/* Reject modal — only renders when rejectTarget is not null */}
       {rejectTarget && (
         <RejectModal
-          user={rejectTarget}
+          title="Reject Registration"
+          subtitle={`You are rejecting ${rejectTarget.name} (${rejectTarget.email}). Please select a reason.`}
+          reasons={REJECT_REASONS}
           onConfirm={handleRejectConfirm}
-          onCancel={() => setRejectTarget(null)} // clicking Cancel clears the target, closing the modal
+          onCancel={() => setRejectTarget(null)}
           isSubmitting={isRejecting}
         />
       )}
 
-      <div className="space-y-6">
+      {approveTarget && (
+        <ConfirmApproveModal
+          title="Approve Registration"
+          subtitle={`Are you sure you want to approve ${approveTarget.name} (${approveTarget.email})? This will grant them account access.`}
+          onConfirm={handleApproveConfirm}
+          onCancel={() => setApproveTarget(null)}
+          isSubmitting={approvingId === approveTarget.id}
+        />
+      )}
 
-        {/* ── Header — title and total pending count badge ── */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-50">Pending Approvals</h1>
-            <p className="mt-0.5 text-sm text-slate-400">
-              {loading
-                ? "Loading..."
-                : users.length === 0
-                ? "No users awaiting approval"
-                : `${users.length} user${users.length !== 1 ? "s" : ""} awaiting approval`}
-            </p>
-          </div>
-          {/* Only show the amber badge if there are pending users */}
-          {users.length > 0 && (
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400">
-              {users.length} pending
-            </span>
-          )}
-        </div>
-
-        {/* ── Error banner — only appears if something went wrong ── */}
+      <div className="space-y-4">
         {error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
             <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
-        {/* ── Role filter tabs — All / Buyers / Sellers / Drivers ── */}
+        {/* Role filter tabs */}
         <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
           {filterTabs.map((tab) => (
             <button
@@ -351,25 +347,21 @@ const PendingApprovalsPage = () => {
           ))}
         </div>
 
-        {/* ── User list — skeleton / empty state / actual cards ── */}
         {loading ? (
-          // Show 3 pulsing placeholder boxes while data is loading
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          // Show empty state if no users match the current filter
           <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/3 py-20 gap-4">
             <span className="text-5xl opacity-40">✅</span>
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-400">No pending approvals</p>
+              <p className="text-sm font-medium text-slate-400">No pending account approvals</p>
               <p className="text-xs text-slate-500 mt-1">All registrations have been reviewed.</p>
             </div>
           </div>
         ) : (
-          // Render a card for each filtered user
           <div className="space-y-3">
             {filtered.map((user) => {
               const config = getRoleConfig(user.role);
@@ -380,33 +372,25 @@ const PendingApprovalsPage = () => {
               return (
                 <div
                   key={user.id}
-                  // Card border/background changes to green if approved, red if rejected
                   className={`rounded-2xl border px-5 py-4 transition-all ${
-                    isApproved
-                      ? "border-emerald-500/40 bg-emerald-500/10"
-                      : isRejected
-                      ? "border-red-500/40 bg-red-500/10"
-                      : "border-white/10 bg-white/3 hover:bg-white/5"
+                    isApproved ? "border-emerald-500/40 bg-emerald-500/10"
+                    : isRejected ? "border-red-500/40 bg-red-500/10"
+                    : "border-white/10 bg-white/3 hover:bg-white/5"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
-
-                    {/* Left side — avatar initial, name, role badge, email, seller info, time */}
                     <div className="flex items-start gap-4">
-                      {/* Avatar circle showing first letter of user's name */}
                       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500/30 to-sky-500/20 text-sm font-bold text-teal-300">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-slate-100">{user.name}</p>
-                          {/* Role badge with the right emoji and color from roleConfig */}
                           <span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${config.bg} ${config.color}`}>
                             {config.emoji} {config.label}
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{user.email}</p>
-                        {/* Only shows for sellers — displays business name and address */}
                         {user.sellerProfile && (
                           <p className="text-xs text-slate-500 mt-1">
                             🏪 {user.sellerProfile.businessName} · {user.sellerProfile.businessAddress}
@@ -418,40 +402,23 @@ const PendingApprovalsPage = () => {
                         </div>
                       </div>
                     </div>
-
-                    {/* Right side — action buttons or status badge */}
                     <div className="flex-shrink-0 flex items-center gap-2">
                       {isApproved ? (
-                        // Green "Approved!" badge shown briefly after approving
                         <span className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-400">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                           Approved!
                         </span>
                       ) : isRejected ? (
-                        // Red "Rejected" badge shown briefly after rejecting
                         <span className="flex items-center gap-1.5 rounded-xl bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                           Rejected
                         </span>
                       ) : (
-                        // Default state — show both Reject and Approve buttons
                         <>
-                          <button
-                            onClick={() => setRejectTarget(user)} // opens the modal for this user
-                            disabled={isApproving}
-                            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
+                          <button onClick={() => setRejectTarget(user)} disabled={isApproving} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             Reject
                           </button>
-                          <button
-                            onClick={() => handleApprove(user.id)}
-                            disabled={isApproving}
-                            className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
+                          <button onClick={() => setApproveTarget(user)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             {isApproving ? "Approving..." : "Approve"}
                           </button>
                         </>
@@ -463,15 +430,315 @@ const PendingApprovalsPage = () => {
             })}
           </div>
         )}
-
-        {/* Footer count — only shows when there are filtered results (If on the "Sellers" tab with 2 sellers out of 7 total, it shows "Showing 2 of 7 pending users")*/}
         {filtered.length > 0 && (
           <p className="text-center text-[11px] text-slate-600">
-            Showing {filtered.length} of {users.length} pending user{users.length !== 1 ? "s" : ""}
+            Showing {filtered.length} of {users.length} pending account{users.length !== 1 ? "s" : ""}
           </p>
         )}
       </div>
     </>
+  );
+};
+
+// ─── Products Section (pending product listings) ──────────────────────────────
+
+const ProductsSection = ({ token, onCountChange }: { token: string | null; onCountChange: (n: number) => void }) => {
+  const [products, setProducts]           = useState<PendingProduct[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [approvingId, setApprovingId]     = useState<string | null>(null);
+  const [approvedIds, setApprovedIds]     = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds]     = useState<Set<string>>(new Set());
+  const [rejectTarget, setRejectTarget]   = useState<PendingProduct | null>(null);
+  const [approveTarget, setApproveTarget] = useState<PendingProduct | null>(null);
+  const [isRejecting, setIsRejecting]     = useState(false);
+  const { refreshPendingCount }           = usePendingApprovalsContext();
+
+  const fetchPendingProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/v1/products/pending", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch pending products");
+      const data = await res.json();
+      const list: PendingProduct[] = Array.isArray(data) ? data : data.data ?? [];
+      setProducts(list);
+      onCountChange(list.length);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPendingProducts(); }, []);
+
+  const handleApprove = async (productId: string) => {
+    setApprovingId(productId);
+    try {
+      const res = await fetch(`/api/v1/products/${productId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "APPROVED" }),
+      });
+      if (!res.ok) throw new Error("Failed to approve product");
+      setApprovedIds((prev) => new Set(prev).add(productId));
+      refreshPendingCount();
+      setTimeout(() => {
+        setProducts((prev) => {
+          const next = prev.filter((p) => p.id !== productId);
+          onCountChange(next.length);
+          return next;
+        });
+        setApprovedIds((prev) => { const n = new Set(prev); n.delete(productId); return n; });
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleApproveConfirm = () => {
+    if (!approveTarget) return;
+    const target = approveTarget;
+    setApproveTarget(null);
+    handleApprove(target.id);
+  };
+
+  const handleRejectConfirm = async (reason: string) => {
+    if (!rejectTarget) return;
+    setIsRejecting(true);
+    try {
+      const res = await fetch(`/api/v1/products/${rejectTarget.id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REJECTED", reason }),
+      });
+      if (!res.ok) throw new Error("Failed to reject product");
+      const rejectedId = rejectTarget.id;
+      setRejectedIds((prev) => new Set(prev).add(rejectedId));
+      refreshPendingCount();
+      setTimeout(() => {
+        setProducts((prev) => {
+          const next = prev.filter((p) => p.id !== rejectedId);
+          onCountChange(next.length);
+          return next;
+        });
+        setRejectedIds((prev) => { const n = new Set(prev); n.delete(rejectedId); return n; });
+      }, 1500);
+      setRejectTarget(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  return (
+    <>
+      {rejectTarget && (
+        <RejectModal
+          title="Reject Product"
+          subtitle={`Rejecting "${rejectTarget.name}" by ${rejectTarget.seller.user.name}. Please select a reason.`}
+          reasons={PRODUCT_REJECT_REASONS}
+          onConfirm={handleRejectConfirm}
+          onCancel={() => setRejectTarget(null)}
+          isSubmitting={isRejecting}
+        />
+      )}
+
+      {approveTarget && (
+        <ConfirmApproveModal
+          title="Approve Product"
+          subtitle={`Are you sure you want to approve "${approveTarget.name}" by ${approveTarget.seller.user.name}? It will become visible to buyers.`}
+          onConfirm={handleApproveConfirm}
+          onCancel={() => setApproveTarget(null)}
+          isSubmitting={approvingId === approveTarget.id}
+        />
+      )}
+
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/3 py-20 gap-4">
+            <span className="text-5xl opacity-40">✅</span>
+            <div className="text-center">
+              <p className="text-sm font-medium text-slate-400">No pending product approvals</p>
+              <p className="text-xs text-slate-500 mt-1">All submitted products have been reviewed.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {products.map((product) => {
+              const isApproved  = approvedIds.has(product.id);
+              const isRejected  = rejectedIds.has(product.id);
+              const isApproving = approvingId === product.id;
+              return (
+                <div
+                  key={product.id}
+                  className={`rounded-2xl border px-5 py-4 transition-all ${
+                    isApproved ? "border-emerald-500/40 bg-emerald-500/10"
+                    : isRejected ? "border-red-500/40 bg-red-500/10"
+                    : "border-white/10 bg-white/3 hover:bg-white/5"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border border-white/10 bg-white/5">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-xl">📦</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-100">{product.name}</p>
+                          <span className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold bg-violet-500/15 border-violet-500/20 text-violet-400">
+                            📋 Product
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          🏪 {product.seller.user.name} · {product.seller.user.email}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                          <span>🏷️ {product.category}</span>
+                          <span>Rs. {product.price.toFixed(2)} / {product.unit}</span>
+                          <span>📦 Stock: {product.stock}</span>
+                          <span>🕐 Submitted {relativeTime(product.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      {isApproved ? (
+                        <span className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-400">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                          Approved!
+                        </span>
+                      ) : isRejected ? (
+                        <span className="flex items-center gap-1.5 rounded-xl bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          Rejected
+                        </span>
+                      ) : (
+                        <>
+                          <button onClick={() => setRejectTarget(product)} disabled={isApproving} className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+                            Reject
+                          </button>
+                          <button onClick={() => setApproveTarget(product)} disabled={isApproving} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-xs font-medium text-teal-400 transition-all hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50">
+                            {isApproving ? "Approving..." : "Approve"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {products.length > 0 && (
+          <p className="text-center text-[11px] text-slate-600">
+            Showing {products.length} pending product{products.length !== 1 ? "s" : ""}
+          </p>
+        )}
+      </div>
+    </>
+  );
+};
+
+// ─── Top-level page (tab switcher) ─────────────────────────────────────────────
+
+const PendingApprovalsPage = () => {
+  const [activeTab, setActiveTab]       = useState<PageTab>("accounts");
+  const [accountCount, setAccountCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const token = LocalStorageService.get("fr_token");
+  const totalPending = accountCount + productCount;
+
+  return (
+    <div className="space-y-6">
+
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-50">Pending Approvals</h1>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {totalPending === 0
+              ? "Nothing awaiting approval"
+              : `${totalPending} item${totalPending !== 1 ? "s" : ""} awaiting approval`}
+          </p>
+        </div>
+        {totalPending > 0 && (
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400">
+            {totalPending} pending
+          </span>
+        )}
+      </div>
+
+      {/* Top-level tab switcher — Accounts vs Products, each showing its own count */}
+      <div className="flex gap-1 rounded-2xl border border-white/10 bg-white/3 p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("accounts")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all ${
+            activeTab === "accounts"
+              ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          👤 Accounts
+          {accountCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              activeTab === "accounts" ? "bg-teal-500/30 text-teal-300" : "bg-white/10 text-slate-400"
+            }`}>
+              {accountCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("products")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all ${
+            activeTab === "products"
+              ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          📦 Products
+          {productCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              activeTab === "products" ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-slate-400"
+            }`}>
+              {productCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab content — both sections stay mounted so they both fetch (and
+          report their counts) on initial page load, not just when clicked.
+          The inactive one is hidden with CSS instead of unmounted. */}
+      <div className={activeTab === "accounts" ? "" : "hidden"}>
+        <AccountsSection token={token} onCountChange={setAccountCount} />
+      </div>
+      <div className={activeTab === "products" ? "" : "hidden"}>
+        <ProductsSection token={token} onCountChange={setProductCount} />
+      </div>
+    </div>
   );
 };
 
