@@ -1,7 +1,7 @@
 // SignUpPage.tsx
 
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import type { JSX } from 'react'
 import Navbar from '../components/Navbar'
 import { registerCustomer, registerVendor } from '../services/authService'

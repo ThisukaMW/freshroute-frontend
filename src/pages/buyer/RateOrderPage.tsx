@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+/*import React, { useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -115,8 +115,8 @@ const RateOrderPage = (): JSX.Element => {
   return (
     <div className="mx-auto max-w-xl space-y-6 py-6 text-slate-100">
 
-      {/* Header */}
-      <header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
+      {/* Header */
+      /*<header className="rounded-3xl border border-white/10 bg-slate-950/40 px-5 py-6">
         <p className="text-xs font-medium uppercase tracking-[0.25em] text-supply-peach">Feedback</p>
         <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Rate your order</h1>
         <p className="mt-1 text-sm text-slate-300">
@@ -126,8 +126,8 @@ const RateOrderPage = (): JSX.Element => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
 
-        {/* Star rating cards */}
-        <div className="space-y-3">
+        {/* Star rating cards */
+       /* <div className="space-y-3">
           {categories.map(cat => {
             const activeVal = hoveredStar?.id === cat.id ? hoveredStar.star : cat.rating
             return (
@@ -169,8 +169,8 @@ const RateOrderPage = (): JSX.Element => {
           })}
         </div>
 
-        {/* Written review */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 space-y-2">
+        {/* Written review */
+        /*<div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 space-y-2">
           <label className="block text-sm font-semibold text-supply-paper">
             Written review
             <span className="ml-2 text-[10px] font-normal text-slate-500 normal-case">optional</span>
@@ -186,15 +186,15 @@ const RateOrderPage = (): JSX.Element => {
           <p className="text-right text-[10px] text-slate-600">{review.length}/500</p>
         </div>
 
-        {/* Error */}
-        {error && (
+        {/* Error */
+       /* {error && (
           <div className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3">
             <p className="text-xs text-red-400 text-center">{error}</p>
           </div>
         )}
 
-        {/* Progress indicator */}
-        <div className="flex gap-1.5">
+        {/* Progress indicator */
+       /* <div className="flex gap-1.5">
           {categories.map(cat => (
             <div
               key={cat.id}
@@ -209,8 +209,8 @@ const RateOrderPage = (): JSX.Element => {
           {categories.filter(c => c.rating > 0).length < categories.length && ' — only overall is required'}
         </p>
 
-        {/* Submit */}
-        <button
+        {/* Submit */
+       /* <button
           type="submit"
           disabled={loading || overall === 0}
           className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -228,4 +228,4 @@ const RateOrderPage = (): JSX.Element => {
   )
 }
 
-export default RateOrderPage
+export default RateOrderPage*/

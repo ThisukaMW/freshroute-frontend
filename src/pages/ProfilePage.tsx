@@ -20,12 +20,8 @@ type SellerTab = 'profile' | 'business' | 'password' | 'settings'
 type AdminTab  = 'profile' | 'password' | 'settings'
 type Tab       = BuyerTab | SellerTab | AdminTab
 
-type AuditEntry = {
-  id: number; action: string; target: string; time: string; type: 'approve' | 'suspend' | 'reject' | 'config'
-}
 type Product = { name: string; price: string; status: 'APPROVED' | 'PENDING_APPROVAL' }
 type SavedAddress = { id: string; label: string; address: string; city: string; lat?: number; lng?: number; isDefault: boolean }
-type HealthCard = { label: string; value: string; good: boolean }
 type StatsData = {
   totalOrders?: number; delivered?: number; memberSince?: string;
   totalProducts?: number; totalUsers?: number; activeVendors?: number;
@@ -250,14 +246,8 @@ const ProfilePage = (): JSX.Element => {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null) // null = closed, 'new' = adding
   const [addrLabel, setAddrLabel]                = useState('')
   const [businessName, setBusinessName]       = useState(sellerProfile?.businessName    ?? '')
-  const [businessAddress, setBusinessAddress] = useState(sellerProfile?.businessAddress ?? '')
-  const [businessCoords, setBusinessCoords]   = useState<{ lat: number; lng: number } | null>(null)
   const [adminName, setAdminName]             = useState(user?.name ?? 'Super Admin')
   const [adminPhone, setAdminPhone]           = useState('')
-
-  // Seller approval
-  const [isApproved, setIsApproved] = useState<boolean | null>(null)
-  const [userStatus, setUserStatus] = useState<string>('ACTIVE')
 
   // Notification preferences — fetched from / saved to the backend so the
   // toggles here actually control whether notification.service.ts sends
@@ -278,30 +268,14 @@ const ProfilePage = (): JSX.Element => {
   // Real data
   const [products,        setProducts]        = useState<Product[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
-  const [auditLog,        setAuditLog]        = useState<AuditEntry[]>([])
-  const [auditLoading,    setAuditLoading]    = useState(false)
-  const [healthCards,     setHealthCards]     = useState<HealthCard[]>([])
-  const [healthLoading,   setHealthLoading]   = useState(false)
   const [statsData,       setStatsData]       = useState<StatsData | null>(null)
 
   // ── Fetches ──
 
-  const hasFetchedStatus   = useRef(false)
   const hasFetchedProducts = useRef(false)
-  const hasFetchedAuditLog = useRef(false)
-  const hasFetchedHealth   = useRef(false)
   const hasFetchedStats    = useRef(false)
   const hasFetchedAddresses = useRef(false)
   const hasFetchedNotifPrefs = useRef(false)
-
-  useEffect(() => {
-    if (role !== 'seller' || hasFetchedStatus.current) return
-    hasFetchedStatus.current = true
-    const token = localStorage.getItem('fr_token')
-    if (!token) return
-    fetch(`${API}/status`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d) { setIsApproved(d.isApproved); setUserStatus(d.status) } }).catch(() => {})
-  }, [role])
 
   useEffect(() => {
     if (role !== 'seller' || hasFetchedProducts.current) return
@@ -311,26 +285,6 @@ const ProfilePage = (): JSX.Element => {
     setProductsLoading(true)
     fetch(`${API}/products`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null).then(d => { if (d?.products) setProducts(d.products) }).catch(() => {}).finally(() => setProductsLoading(false))
-  }, [role])
-
-  useEffect(() => {
-    if (role !== 'admin' || hasFetchedAuditLog.current) return
-    hasFetchedAuditLog.current = true
-    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
-    if (!token) return
-    setAuditLoading(true)
-    fetch(`${API}/audit-log`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d?.auditLog) setAuditLog(d.auditLog) }).catch(() => {}).finally(() => setAuditLoading(false))
-  }, [role])
-
-  useEffect(() => {
-    if (role !== 'admin' || hasFetchedHealth.current) return
-    hasFetchedHealth.current = true
-    const token = localStorage.getItem('fr_token')?.replace(/"/g, '')
-    if (!token) return
-    setHealthLoading(true)
-    fetch(`${API}/health`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d?.healthCards) setHealthCards(d.healthCards) }).catch(() => {}).finally(() => setHealthLoading(false))
   }, [role])
 
   useEffect(() => {
@@ -525,14 +479,11 @@ const ProfilePage = (): JSX.Element => {
         const res  = await fetch(`${API}/business`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            businessName, businessAddress, city,
-            latitude: businessCoords?.lat, longitude: businessCoords?.lng,
-          }),
+          body: JSON.stringify({ businessName }),
         })
         const data = await res.json()
         if (!res.ok) { showToast(data.message ?? 'Failed to update business info', 'error'); setSaved(false); return }
-        dispatch(updateSellerProfile({ businessName, businessAddress }))
+        dispatch(updateSellerProfile({ businessName }))
         showToast('Business info updated successfully')
       } else if (activeTab === 'password') {
         const currentPwd = (document.getElementById('current-password') as HTMLInputElement)?.value?.trim()
@@ -591,12 +542,6 @@ const ProfilePage = (): JSX.Element => {
     Pending:          'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
     APPROVED:         'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
     PENDING_APPROVAL: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
-  }
-  const auditStyles: Record<string, string> = {
-    approve: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    suspend: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
-    reject:  'text-red-400    bg-red-400/10    border-red-400/20',
-    config:  'text-sky-400    bg-sky-400/10    border-sky-400/20',
   }
 
   const saveLabel =
@@ -719,13 +664,6 @@ const ProfilePage = (): JSX.Element => {
             <p className="text-sm font-semibold text-slate-50">{displayName}</p>
             <p className="text-[11px] text-slate-400 truncate">{displayEmail}</p>
           </div>
-          <div className="flex gap-2 flex-wrap justify-center">
-            <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">{roleLabel}</span>
-            {role === 'admin' && <span className="rounded-full bg-sky-500/10 px-3 py-0.5 text-[10px] font-semibold text-sky-400 border border-sky-500/20">Super</span>}
-            {role === 'seller' && isApproved === true  && <span className="rounded-full bg-emerald-500/10 px-3 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">✓ Approved</span>}
-            {role === 'seller' && isApproved === false && userStatus !== 'SUSPENDED' && <span className="rounded-full bg-yellow-500/10 px-3 py-0.5 text-[10px] font-semibold text-yellow-400 border border-yellow-500/20">⏳ Pending</span>}
-            {role === 'seller' && userStatus === 'SUSPENDED' && <span className="rounded-full bg-red-500/10 px-3 py-0.5 text-[10px] font-semibold text-red-400 border border-red-500/20">🚫 Suspended</span>}
-          </div>
         </div>
 
         {/* Nav tabs */}
@@ -822,54 +760,6 @@ const ProfilePage = (): JSX.Element => {
                 {saved ? '✓ Changes saved' : 'Save Changes'}
               </button>
             </div>
-
-            {/* Admin extras */}
-            {role === 'admin' && (
-              <>
-                <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Platform Health</p>
-                  {healthLoading ? (
-                    <p className="py-4 text-center text-sm text-slate-400">Loading platform health…</p>
-                  ) : healthCards.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-slate-400">No health data available.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {healthCards.map((c) => (
-                        <div key={c.label} className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 space-y-1">
-                          <p className={`text-lg font-bold ${c.good ? 'text-emerald-400' : 'text-yellow-400'}`}>{c.value}</p>
-                          <p className="text-sm font-medium text-slate-200">{c.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Recent Activity</p>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-4">
-                    {auditLoading ? (
-                      <p className="py-4 text-center text-sm text-slate-400">Loading activity…</p>
-                    ) : auditLog.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-slate-400">No recent activity.</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {auditLog.map((entry) => (
-                          <li key={entry.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-colors">
-                            <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold ${auditStyles[entry.type]}`}>
-                              {entry.type === 'approve' ? '✓' : entry.type === 'reject' ? '✕' : entry.type === 'suspend' ? '!' : '⚙'}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-100">{entry.action}</p>
-                              <p className="text-xs text-slate-400 truncate">{entry.target}</p>
-                            </div>
-                            <span className="text-xs text-slate-500">{entry.time}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         )}
 
@@ -886,17 +776,6 @@ const ProfilePage = (): JSX.Element => {
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300">Business name</label>
                   <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className={inputClass} placeholder="Green Market" />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-300">Business address</label>
-                  <MapAddressPicker
-                    address={businessAddress}
-                    onChange={({ address: a, city: c, lat, lng }) => {
-                      setBusinessAddress(a)
-                      if (c) setCity(c)
-                      setBusinessCoords({ lat, lng })
-                    }}
-                  />
                 </div>
               </div>
 
@@ -1040,7 +919,6 @@ const ProfilePage = (): JSX.Element => {
                     </div>
                   ))}
                   {role === 'seller' && [
-                    { key: 'newOrders', label: 'New orders',       sub: 'When a customer places an order'      },
                     { key: 'payouts',   label: 'Payout alerts',    sub: 'When earnings are transferred to you' },
                     { key: 'lowStock',  label: 'Low stock alerts', sub: 'When your product stock runs low'     },
                   ].map((item) => (
@@ -1130,23 +1008,25 @@ const ProfilePage = (): JSX.Element => {
             )}
 
             {/* Help & Support */}
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-3">
-              <p className="text-sm font-semibold text-slate-200">Help & Support</p>
-              <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                <p className="text-sm font-medium text-slate-100">Need help?</p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Our support team is available Mon–Fri, 9am–6pm.<br />
-                  support@freshroute.lk
-                </p>
+            {role !== 'admin' && (
+              <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5 space-y-3">
+                <p className="text-sm font-semibold text-slate-200">Help & Support</p>
+                <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                  <p className="text-sm font-medium text-slate-100">Need help?</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Our support team is available Mon–Fri, 9am–6pm.<br />
+                    support@freshroute.lk
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openSupportEmail}
+                  className="inline-block rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  Contact support
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={openSupportEmail}
-                className="inline-block rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                Contact support
-              </button>
-            </div>
+            )}
 
             {/* Danger zone */}
             <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-5 space-y-3">

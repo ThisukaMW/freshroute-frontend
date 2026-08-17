@@ -9,7 +9,7 @@ type Truck = {
   departure: string
   arrival: string
   route: string
-  type: string
+  type: string | null
   capacityLbs: number
   loadedLbs: number
   palletsLoaded: number
@@ -233,7 +233,7 @@ const AdminDashboardPage = () => {
                     <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{truck.operator}</p>
                     <p className="text-lg font-semibold text-white">{truck.route}</p>
                     <p className="text-xs text-slate-400">
-                      {truck.departure} · Arrival {truck.arrival} · {truck.type}
+                      {truck.departure} · Arrival {truck.arrival} · {truck.type ?? 'Unknown type'}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs">
@@ -276,7 +276,8 @@ const AdminDashboardPage = () => {
                     {
                       label: 'Reefer',
                       value:
-                        truck.type.toLowerCase().includes('refrigerat') || truck.type.toLowerCase().includes('reefer')
+                        (truck.type ?? '').toLowerCase().includes('refrigerat') ||
+                        (truck.type ?? '').toLowerCase().includes('reefer')
                           ? truck.temperature
                           : '—',
                     },

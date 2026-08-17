@@ -16,7 +16,9 @@ interface Rating {
   order: { orderNumber: string } | null
   sellerName?: string
   productName?: string
+  images?: string[] | null
 }
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +93,7 @@ const BuyerRatingsPage = (): JSX.Element => {
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem('fr_token')
-      const res   = await fetch(`http://localhost:5000/api/v1/rating/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/${id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -113,7 +115,7 @@ const BuyerRatingsPage = (): JSX.Element => {
   const handleEditSave = async (id: string) => {
     try {
       const token = localStorage.getItem('fr_token')
-      const res   = await fetch(`http://localhost:5000/api/v1/rating/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/${id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -278,6 +280,19 @@ const BuyerRatingsPage = (): JSX.Element => {
                     <p className="text-sm text-slate-300 border-t border-white/10 pt-3 leading-relaxed italic">
                       "{r.comment}"
                     </p>
+                  )}
+
+                  {r.images && r.images.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pt-1">
+                      {r.images.map((src, i) => (
+                        <img
+                          key={i}
+                          src={`${import.meta.env.VITE_API_URL}/${src}`}
+                          alt={`Review photo ${i + 1}`}
+                          className="h-16 w-16 flex-shrink-0 rounded-xl border border-white/10 object-cover"
+                        />
+                      ))}
+                    </div>
                   )}
 
                   <p className={`text-[10px] ${canEdit(r.createdAt) ? 'text-emerald-500' : 'text-slate-600'}`}>

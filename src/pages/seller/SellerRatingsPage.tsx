@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { JSX } from 'react'
-// import { useToast } from '../../context/ToastContext'
+import { useToast } from '../../context/ToastContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,42 +31,11 @@ interface IndividualRating {
   isFlagged: boolean
   buyer: { user: { name: string } }
   order: { orderNumber: string } | null
+  images?: string[] | null
 }
 
 type View = 'products' | 'detail'
 
-// ─── Dummy data ───────────────────────────────────────────────────────────────
-
-const DUMMY_PRODUCTS: ProductSummary[] = [
-  { id: 'prod-1', name: 'Heirloom Tomatoes', imageUrl: null, category: 'Vegetables', totalRatings: 12, averageRating: 4.5 },
-  { id: 'prod-2', name: 'Organic Bananas',   imageUrl: null, category: 'Fruits',     totalRatings: 8,  averageRating: 3.8 },
-  { id: 'prod-3', name: 'Kale Bunch',        imageUrl: null, category: 'Vegetables', totalRatings: 5,  averageRating: 4.9 },
-  { id: 'prod-4', name: 'Red Apples',        imageUrl: null, category: 'Fruits',     totalRatings: 0,  averageRating: 0   },
-]
-
-const DUMMY_STATS: Record<string, ProductStats> = {
-  'prod-1': { total: 12, averages: { overall: 4.5, delivery: 4.2, quality: 4.8, packaging: 4.0 }, distribution: { 5: 7, 4: 3, 3: 1, 2: 1, 1: 0 } },
-  'prod-2': { total: 8,  averages: { overall: 3.8, delivery: 4.0, quality: 3.6, packaging: 3.5 }, distribution: { 5: 2, 4: 3, 3: 2, 2: 1, 1: 0 } },
-  'prod-3': { total: 5,  averages: { overall: 4.9, delivery: 4.8, quality: 5.0, packaging: 4.6 }, distribution: { 5: 5, 4: 0, 3: 0, 2: 0, 1: 0 } },
-}
-
-const DUMMY_REVIEWS: Record<string, IndividualRating[]> = {
-  'prod-1': [
-    { id: 'r1', rating: 5, deliveryRating: 5, productQualityRating: 5, packagingRating: 4, comment: 'Super fresh! Arrived in perfect condition. Will definitely order again.', createdAt: new Date().toISOString(),                       isVerifiedPurchase: true,  isFlagged: false, buyer: { user: { name: 'Isuru Perera'  } }, order: { orderNumber: 'FR-1042' } },
-    { id: 'r2', rating: 4, deliveryRating: 4, productQualityRating: 4, packagingRating: 3, comment: 'Good quality but packaging could be better.',                          createdAt: new Date(Date.now() - 86400000).toISOString(),  isVerifiedPurchase: true,  isFlagged: false, buyer: { user: { name: 'Aruni Jayasena' } }, order: { orderNumber: 'FR-1038' } },
-    { id: 'r3', rating: 3, deliveryRating: 3, productQualityRating: 4, packagingRating: 3, comment: null,                                                                    createdAt: new Date(Date.now() - 172800000).toISOString(), isVerifiedPurchase: false, isFlagged: false, buyer: { user: { name: 'Demo Cafe'     } }, order: { orderNumber: 'FR-1035' } },
-    { id: 'r4', rating: 5, deliveryRating: 5, productQualityRating: 5, packagingRating: 5, comment: 'Best produce on FreshRoute! Highly recommend.',                         createdAt: new Date(Date.now() - 259200000).toISOString(), isVerifiedPurchase: true,  isFlagged: false, buyer: { user: { name: 'Kamal Silva'   } }, order: { orderNumber: 'FR-1030' } },
-  ],
-  'prod-2': [
-    { id: 'r5', rating: 4, deliveryRating: 4, productQualityRating: 4, packagingRating: 4, comment: 'Nice and ripe, good value for money.',   createdAt: new Date(Date.now() - 86400000).toISOString(),  isVerifiedPurchase: true, isFlagged: false, buyer: { user: { name: 'Nimal Fernando'  } }, order: { orderNumber: 'FR-1020' } },
-    { id: 'r6', rating: 3, deliveryRating: 4, productQualityRating: 3, packagingRating: 3, comment: 'A few were overripe on arrival.',         createdAt: new Date(Date.now() - 172800000).toISOString(), isVerifiedPurchase: true, isFlagged: false, buyer: { user: { name: 'Shalini De Silva' } }, order: { orderNumber: 'FR-1018' } },
-    { id: 'r7', rating: 5, deliveryRating: 5, productQualityRating: 5, packagingRating: 4, comment: 'Perfect bananas every time!',             createdAt: new Date(Date.now() - 345600000).toISOString(), isVerifiedPurchase: true, isFlagged: false, buyer: { user: { name: 'Rohan Mendis'    } }, order: { orderNumber: 'FR-1015' } },
-  ],
-  'prod-3': [
-    { id: 'r8', rating: 5, deliveryRating: 5, productQualityRating: 5, packagingRating: 5, comment: 'Absolutely fresh and crisp. Love it!',      createdAt: new Date().toISOString(),                       isVerifiedPurchase: true, isFlagged: false, buyer: { user: { name: 'Ayesha Rizvi' } }, order: { orderNumber: 'FR-1050' } },
-    { id: 'r9', rating: 5, deliveryRating: 5, productQualityRating: 5, packagingRating: 4, comment: "Best kale I've had. Super green and fresh.", createdAt: new Date(Date.now() - 86400000).toISOString(),  isVerifiedPurchase: true, isFlagged: false, buyer: { user: { name: 'Priya Nair'   } }, order: { orderNumber: 'FR-1048' } },
-  ],
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,7 +120,7 @@ const DimensionRow = ({ label, value }: { label: string; value: number }) => {
 
 const SellerRatingsPage = (): JSX.Element => {
   // const { showToast } = useToast()
-  const showToast = (msg: string) => console.log(msg) // stub
+  const { showToast } = useToast()
 
   const [view, setView]                       = useState<View>('products')
   const [products, setProducts]               = useState<ProductSummary[]>([])
@@ -163,24 +132,61 @@ const SellerRatingsPage = (): JSX.Element => {
   const [filter, setFilter]                   = useState<number | null>(null)
 
   useEffect(() => {
-    setTimeout(() => { setProducts(DUMMY_PRODUCTS); setLoading(false) }, 500)
+    const fetchProducts = async () => {
+      try {
+        const token = localStorage.getItem('fr_token')
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/my-seller-ratings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error('Failed to load')
+        const data = await res.json()
+        setProducts(data.products ?? [])
+      } catch {
+        showToast('Failed to load your products', 'error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
   }, [])
 
-  const handleProductClick = (product: ProductSummary) => {
+  const handleProductClick = async (product: ProductSummary) => {
     setSelectedProduct(product)
     setView('detail')
     setReviewsLoading(true)
     setFilter(null)
-    setTimeout(() => {
-      setProductStats(DUMMY_STATS[product.id] ?? null)
-      setReviews(DUMMY_REVIEWS[product.id] ?? [])
+
+    try {
+      const token = localStorage.getItem('fr_token')
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/product/${product.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to load reviews')
+      const data = await res.json()
+      setProductStats(data.stats ?? null)
+      setReviews(data.ratings ?? [])
+    } catch {
+      showToast('Failed to load reviews for this product', 'error')
+      setProductStats(null)
+      setReviews([])
+    } finally {
       setReviewsLoading(false)
-    }, 400)
+    }
   }
 
-  const handleFlag = (id: string) => {
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, isFlagged: true } : r))
-    showToast('Review flagged for admin review')
+  const handleFlag = async (id: string) => {
+    try {
+      const token = localStorage.getItem('fr_token')
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating/${id}/flag`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to flag')
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, isFlagged: true } : r))
+      showToast('Review flagged for admin review')
+    } catch {
+      showToast('Failed to flag review', 'error')
+    }
   }
 
   const filteredReviews  = filter ? reviews.filter(r => r.rating === filter) : reviews
@@ -478,6 +484,20 @@ const SellerRatingsPage = (): JSX.Element => {
                       </span>
                     )}
                   </div>
+
+                  {/* Photos */}
+                  {r.images && r.images.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto">
+                      {r.images.map((src, i) => (
+                        <img
+                          key={i}
+                          src={`${import.meta.env.VITE_API_URL}/${src}`}
+                          alt={`Review photo ${i + 1}`}
+                          className="h-16 w-16 flex-shrink-0 rounded-xl border border-white/10 object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {/* Comment */}
                   {r.comment && (

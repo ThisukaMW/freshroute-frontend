@@ -62,6 +62,7 @@ function getIcon(type: string): { emoji: string; bg: string } {
   if (type === "PRODUCT_SUBMITTED")   return { emoji: "📋", bg: "bg-violet-500/20"  };
   if (type === "PRODUCT_REVIEWED")    return { emoji: "🏷️", bg: "bg-emerald-500/20" };
   if (type === "CART_REMINDER")       return { emoji: "🛒", bg: "bg-amber-500/20" };
+  if (type === "ITEM_ADDED_TO_CART")  return { emoji: "🛒", bg: "bg-teal-500/20" };
   return                                     { emoji: "🔔", bg: "bg-teal-500/20"    };
 }
 
@@ -73,6 +74,7 @@ function getBadge(type: string): { label: string; color: string } {
   if (type === "PRODUCT_SUBMITTED")   return { label: "Product Review",  color: "text-violet-300  bg-violet-500/15"  };
   if (type === "PRODUCT_REVIEWED")    return { label: "Product Update",  color: "text-emerald-300 bg-emerald-500/15" };
   if (type === "CART_REMINDER")       return { label: "Ready to pay", color: "text-amber-300 bg-amber-500/15" };
+  if (type === "ITEM_ADDED_TO_CART")  return { label: "Cart", color: "text-teal-300 bg-teal-500/15" };
   return                                     { label: "System",        color: "text-slate-300   bg-slate-500/15"   };
 }
 

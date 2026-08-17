@@ -12,6 +12,7 @@ import { Button } from "../../common/Button/Button";
 import NotificationBell from "../../NotificationBell";
 import { useNotificationContext } from "../../../context/NotificationContext";
 import { usePendingApprovalsContext } from "../../../context/PendingApprovalsContext";
+import DeliveryRatingListener from "../../DeliveryRatingListener";
 
 /* role must be one of these three */
 type Role = "buyer" | "seller" | "admin";
@@ -313,6 +314,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
         </main>
 
       </div>
+
+      {/* Global listener — pops the rating modal when an order gets delivered */}
+      {role === "buyer" && <DeliveryRatingListener />}
     </div>
   );
 };

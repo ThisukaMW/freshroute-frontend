@@ -10,6 +10,7 @@ const ProductBrowsePage = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 })
   const [sortBy, setSortBy] = useState('recommended')
   const [searchQuery, setSearchQuery] = useState('')  // ← NEW: Search state
+  const [minRating, setMinRating] = useState<number | null>(null)  // ← NEW: Minimum rating state
   const [cartPopupOpen, setCartPopupOpen] = useState(false)
   
   const navigate = useNavigate()
@@ -37,6 +38,8 @@ useEffect(() => {
         imageUrl: product.imageUrl,
         description: product.description,
         sellerName: product.seller?.user?.name || 'Unknown Vendor',
+        averageRating: product.averageRating ?? 0,   // ← add
+        totalRatings: product.totalRatings ?? 0,     // ← add
       }))
       
       setProducts(formattedProducts)
@@ -88,6 +91,9 @@ useEffect(() => {
     // Filter by price range
     if (p.pricePerUnit < priceRange.min || p.pricePerUnit > priceRange.max) return false
     
+    // ← add this block
+    if (minRating !== null && (p.averageRating ?? 0) < minRating) return false
+
     // ✅ NEW: Filter by search query
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase()
@@ -111,7 +117,7 @@ useEffect(() => {
       case 'price-high-low':
         return b.pricePerUnit - a.pricePerUnit
       case 'rating':
-        return 0
+        return (b.averageRating ?? 0) - (a.averageRating ?? 0)   // ← was `return 0`
       default:
         return 0
     }
@@ -241,11 +247,21 @@ useEffect(() => {
             <p className="text-xs font-semibold text-supply-paper">Rating</p>
             <div className="mt-2 space-y-1 text-xs text-slate-300">
               <label className="flex items-center gap-2">
-                <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-500 bg-supply-charcoal text-supply-orange focus:ring-supply-orange" />
+                <input
+                  type="checkbox"
+                  checked={minRating === 4}
+                  onChange={() => setMinRating(minRating === 4 ? null : 4)}
+                  className="h-3.5 w-3.5 rounded border-slate-500 bg-supply-charcoal text-supply-orange focus:ring-supply-orange"
+                />
                 <span>4★ and above</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-500 bg-supply-charcoal text-supply-orange focus:ring-supply-orange" />
+                <input
+                  type="checkbox"
+                  checked={minRating === 3}
+                  onChange={() => setMinRating(minRating === 3 ? null : 3)}
+                  className="h-3.5 w-3.5 rounded border-slate-500 bg-supply-charcoal text-supply-orange focus:ring-supply-orange"
+                />
                 <span>3★ and above</span>
               </label>
             </div>
@@ -305,6 +321,24 @@ useEffect(() => {
                     />
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
+
+                  {/* ← new rating snippet goes here */}
+                  {p.totalRatings > 0 ? (
+                    <p className="mt-0.5 text-xs text-slate-300">
+                      <span className="text-supply-peach">{p.averageRating.toFixed(1)}★</span>
+                      <span className="text-slate-500"> ({p.totalRatings})</span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-slate-500 italic">No ratings yet</p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleBrowseSellers(p)}
+                    className="mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all bg-primary-dark text-supply-paper hover:bg-primary"
+                  >
+                    Browse Sellers
+                  </button>
             
                   {/* <p className="mt-1 text-xs font-semibold text-supply-paper">
                     Rs. {p.pricePerUnit}{' '}
