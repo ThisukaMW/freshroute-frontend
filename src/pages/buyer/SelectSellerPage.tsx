@@ -45,6 +45,7 @@ const SelectSellerPage = () => {
           id: item.id,
           sellerId: item.seller?.id,
           sellerName: item.seller?.businessName || 'Unknown Seller',
+          sellerProductName: item.name, // this seller's own label for this listing
           price: item.price,
           stock: item.stock,
           rating: item.seller?.averageRating ?? 0,
@@ -250,6 +251,7 @@ const handleAddToCart = async () => {
         </div>
         <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
           <div>
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">Product type</p>
             <p className="text-sm font-semibold text-supply-paper">{product.name}</p>
             <p className="mt-0.5 text-[11px] text-slate-300">
               Category: <span className="font-medium">{product.category || 'General'}</span>
@@ -292,16 +294,10 @@ const handleAddToCart = async () => {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold">{seller.sellerName}</p>
-                        {seller.ratingCount > 0 ? (
-                          <span className="text-[10px] text-amber-400 font-medium">
-                            {seller.rating.toFixed(1)}★ <span className="text-slate-500">({seller.ratingCount})</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 italic">New seller</span>
-                        )}
-                      </div>
+                      <p className="font-semibold">{seller.sellerName}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        Listed as: <span className="text-slate-300">{seller.sellerProductName}</span>
+                      </p>
                       <p className="mt-1 text-[11px] font-medium">
                         {remainingStock === 0 ? (
                           <span className="text-red-400">❌ Out of stock</span>
@@ -380,6 +376,9 @@ const handleAddToCart = async () => {
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-50">
                   <p className="font-semibold">
                     Selected seller: <span className="font-normal">{selectedSeller.sellerName}</span>
+                  </p>
+                  <p className="mt-0.5 text-slate-200">
+                    Listed as: {selectedSeller.sellerProductName}
                   </p>
                   <p className="mt-0.5">
                     {selectedSeller.ratingCount > 0

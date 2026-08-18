@@ -277,15 +277,23 @@ useEffect(() => {
               {searchQuery && <span className="font-semibold"> for "{searchQuery}"</span>}
             </p>
             <select
+              aria-label="Sort products"
               value={sortBy}
               onChange={handleSortChange}
-              className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-supply-paper outline-none ring-supply-teal/60 focus:border-supply-teal focus:ring-2 hover:bg-white/10 transition-colors"
-            
+              className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-supply-paper outline-none ring-supply-teal/60 transition-colors hover:bg-white/10 focus:border-supply-teal focus:ring-2"
             >
-              <option value="recommended" className="bg-slate-900 text-supply-paper">Sort by: Recommended</option>
-              <option value="price-low-high" className="bg-slate-900 text-supply-paper">Price: Low to High</option>
-              <option value="price-high-low" className="bg-slate-900 text-supply-paper">Price: High to Low</option>
-              <option value="rating" className="bg-slate-900 text-supply-paper">Rating</option>
+              <option value="recommended" className="bg-slate-900 text-supply-paper">
+                Sort by: Recommended
+              </option>
+              <option value="price-low-high" className="bg-slate-900 text-supply-paper">
+                Price: Low to High
+              </option>
+              <option value="price-high-low" className="bg-slate-900 text-supply-paper">
+                Price: High to Low
+              </option>
+              <option value="rating" className="bg-slate-900 text-supply-paper">
+                Rating
+              </option>
             </select>
           </div>
 
@@ -340,19 +348,7 @@ useEffect(() => {
                     Browse Sellers
                   </button>
             
-                  {/* <p className="mt-1 text-xs font-semibold text-supply-paper">
-                    Rs. {p.pricePerUnit}{' '}
-                    <span className="font-normal text-slate-300">
-                      / {p.unit} · <span className="text-supply-peach">4.5★</span>
-                    </span>
-                  </p> */}
-                  <button
-                    type="button"
-                    onClick={() => handleBrowseSellers(p)}
-                    className="mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all bg-primary-dark text-supply-paper hover:bg-primary"
-                  >
-                    Browse Sellers
-                  </button>
+                  
                 </div>
               ))}
             </div>

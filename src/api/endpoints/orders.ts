@@ -30,6 +30,13 @@ export interface OrderItem {
     price: number
     category?: string
     imageUrl?: string
+    seller?: {
+      id?: string
+      businessName?: string
+      user?: {
+        name?: string
+      }
+    }
   }
 }
 
