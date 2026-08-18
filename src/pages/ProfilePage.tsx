@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuthContext } from '../context/AuthContext'
 import MapAddressPicker from '../components/MapAddressPicker'
 
-const API = 'http://localhost:5000/api/v1/profile'
+const API = 'http://localhost:5000/api/v1/profile'  
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -223,7 +223,6 @@ const ProfilePage = (): JSX.Element => {
 
   // ── State ──
   const [saved, setSaved]         = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(localStorage.getItem(`${role}AvatarUrl`))
 
   const [name, setName]   = useState(
     role === 'seller' ? (sellerProfile?.ownerName ?? '') : (buyerProfile?.name ?? '')
@@ -319,20 +318,6 @@ const ProfilePage = (): JSX.Element => {
       .catch(() => { /* fall back to empty — toggles default to "on" below */ })
       .finally(() => setNotifPrefsLoading(false))
   }, [])
-
-  // ── Avatar ──
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const base64 = reader.result as string
-      setAvatarUrl(base64)
-      localStorage.setItem(`${role}AvatarUrl`, base64)
-    }
-    reader.readAsDataURL(file)
-  }
 
   // ── Saved addresses (multi-address) ──
 
@@ -643,22 +628,11 @@ const ProfilePage = (): JSX.Element => {
               className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${roleGradient} text-2xl font-bold text-white ring-2 ring-white/10 overflow-hidden`}
               role="img" aria-label={`Profile picture for ${displayName}`}
             >
-              {avatarUrl
-                ? <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
-                : displayName.charAt(0).toUpperCase()
-              }
+              {displayName.charAt(0).toUpperCase()}
             </div>
-            {role !== 'admin' && (
-              <label
-                className="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-slate-900 text-[9px] text-slate-300 hover:bg-slate-700 transition-colors"
-                title="Change profile picture" aria-label="Change profile picture"
-              >
-                ✎<input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-              </label>
-            )}
             {role === 'admin' && (
               <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-slate-900 bg-emerald-400" />
-            )}
+            )} 
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-50">{displayName}</p>
