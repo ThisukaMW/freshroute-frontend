@@ -33,6 +33,9 @@ const TIME_SLOT_LABEL: Record<string, string> = {
   EVENING: "Evening (6 PM – 10 PM)",
 };
 
+// How many of the most recent orders to show on this page
+const RECENT_ORDERS_LIMIT = 10;
+
 const stageIndex = (status: string) => STATUS_STAGES.indexOf(status as OrderStatus);
 
 const statusColor = (status: string) => {
@@ -43,6 +46,17 @@ const statusColor = (status: string) => {
   return "bg-white/10 text-slate-300";
 };
 
+// IMPORTANT: order.totalAmount is the total for the WHOLE order (all sellers
+// whose products are in it). A seller should never see that number as "their"
+// total — it will look wrong whenever an order mixes products from multiple
+// sellers. Always compute the seller's own subtotal from the items actually
+// shown to them.
+const sellerSubtotal = (order: SellerOrder) =>
+  order.items.reduce((sum: number, item: any) => sum + item.totalPrice, 0);
+
+const unitPrice = (item: any) =>
+  item.quantity > 0 ? item.totalPrice / item.quantity : item.totalPrice;
+
 // ============= ORDER DETAILS MODAL =============
 
 const OrderDetailsModal: React.FC<{
@@ -51,6 +65,7 @@ const OrderDetailsModal: React.FC<{
 }> = ({ order, onClose }) => {
   const stage = stageIndex(order.status);
   const validStage = stage >= 0;
+  const subtotal = sellerSubtotal(order);
 
   return (
     <div
@@ -70,6 +85,9 @@ const OrderDetailsModal: React.FC<{
             <h2 className="mt-1 text-xl font-semibold text-white">
               {order.orderNumber} · {order.buyer?.user?.name ?? "—"}
             </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Placed: {new Date(order.placedAt).toLocaleString()}
+            </p>
           </div>
           <button
             type="button"
@@ -133,9 +151,6 @@ const OrderDetailsModal: React.FC<{
           {order.specialInstructions && (
             <p className="mt-1 text-xs text-slate-400">Notes: {order.specialInstructions}</p>
           )}
-          <p className="mt-2 text-xs text-slate-500">
-            Placed: {new Date(order.placedAt).toLocaleString()}
-          </p>
         </div>
 
         {/* Buyer info */}
@@ -149,10 +164,10 @@ const OrderDetailsModal: React.FC<{
           )}
         </div>
 
-        {/* Line items */}
+        {/* Line items — only this seller's products */}
         <div className="mt-5">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-            Items
+            Your items in this order
           </p>
           <div className="mt-2 overflow-x-auto">
             <table className="min-w-full divide-y divide-white/5 text-left text-sm">
@@ -160,7 +175,8 @@ const OrderDetailsModal: React.FC<{
                 <tr>
                   <th className="px-3 py-2 font-medium">Product</th>
                   <th className="px-3 py-2 font-medium">Quantity</th>
-                  <th className="px-3 py-2 font-medium">Total</th>
+                  <th className="px-3 py-2 font-medium">Unit price</th>
+                  <th className="px-3 py-2 font-medium">Subtotal</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-slate-200">
@@ -169,6 +185,9 @@ const OrderDetailsModal: React.FC<{
                     <td className="px-3 py-2">{item.product.name}</td>
                     <td className="px-3 py-2">
                       {item.quantity} {item.product.unit}
+                    </td>
+                    <td className="px-3 py-2 text-slate-400">
+                      Rs. {unitPrice(item).toFixed(2)}
                     </td>
                     <td className="px-3 py-2 font-medium">
                       Rs. {item.totalPrice.toFixed(2)}
@@ -180,10 +199,11 @@ const OrderDetailsModal: React.FC<{
           </div>
         </div>
 
-        {/* Total */}
+        {/* Total — this seller's cut, NOT order.totalAmount (that's the
+            whole order across every seller involved) */}
         <div className="mt-4 flex justify-end border-t border-white/10 pt-4">
           <p className="text-base font-semibold text-white">
-            Total: Rs. {order.totalAmount.toFixed(2)}
+            Your total: Rs. {subtotal.toFixed(2)}
           </p>
         </div>
       </div>
@@ -193,14 +213,13 @@ const OrderDetailsModal: React.FC<{
 
 // ============= ORDER CARD =============
 
-// ============= ORDER CARD =============
-
 const OrderCard: React.FC<{
   order: SellerOrder;
   onOpen: () => void;
 }> = ({ order, onOpen }) => {
   const stage = stageIndex(order.status);
   const validStage = stage >= 0;
+  const subtotal = sellerSubtotal(order);
 
   return (
     <button
@@ -218,7 +237,7 @@ const OrderCard: React.FC<{
             {order.orderNumber} · {order.buyer?.user?.name ?? '—'}
           </p>
           <p className="text-xs text-slate-400">
-            {order.deliveryAddress} · Rs. {order.totalAmount.toFixed(2)}
+            {order.deliveryAddress} · Rs. {subtotal.toFixed(2)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -348,10 +367,16 @@ const OrdersPage: React.FC = () => {
     );
   }
 
-  const activeOrders = orders.filter(
+  // Only keep the most recent N orders (newest placedAt first) — everything
+  // below (active/past split, tables) is derived from this trimmed list.
+  const recentOrders = [...orders]
+    .sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime())
+    .slice(0, RECENT_ORDERS_LIMIT);
+
+  const activeOrders = recentOrders.filter(
     (o) => !["DELIVERED", "FAILED", "CANCELLED", "PAYMENT_FAILED"].includes(o.status)
   );
-  const pastOrders = orders.filter((o) =>
+  const pastOrders = recentOrders.filter((o) =>
     ["DELIVERED", "FAILED", "CANCELLED", "PAYMENT_FAILED"].includes(o.status)
   );
 
@@ -363,7 +388,7 @@ const OrdersPage: React.FC = () => {
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-supply-peach">Vendor fulfillment</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-50">Orders & tracking</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Live view of all orders containing your products.
+          Your {RECENT_ORDERS_LIMIT} most recent orders containing your products.
         </p>
       </header>
 
@@ -447,9 +472,9 @@ const OrdersPage: React.FC = () => {
                     <td className="px-3 py-2 font-semibold text-white">{order.orderNumber}</td>
                     <td className="px-3 py-2">{order.buyer?.user?.name ?? '—'}</td>
                     <td className="px-3 py-2">
-                      {order.items.map((i) => `${i.product.name} × ${i.quantity}`).join(", ")}
+                      {order.items.map((i: any) => `${i.product.name} × ${i.quantity}`).join(", ")}
                     </td>
-                    <td className="px-3 py-2">Rs. {order.totalAmount.toFixed(2)}</td>
+                    <td className="px-3 py-2">Rs. {sellerSubtotal(order).toFixed(2)}</td>
                     <td className="px-3 py-2">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] ${statusColor(order.status)}`}>
                         {STATUS_LABEL[order.status]}

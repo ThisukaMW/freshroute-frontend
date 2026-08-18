@@ -314,19 +314,7 @@ useEffect(() => {
                   </div>
                   <p className="text-sm font-medium text-supply-paper">{p.name}</p>
             
-                  {/* <p className="mt-1 text-xs font-semibold text-supply-paper">
-                    Rs. {p.pricePerUnit}{' '}
-                    <span className="font-normal text-slate-300">
-                      / {p.unit} · <span className="text-supply-peach">4.5★</span>
-                    </span>
-                  </p> */}
-                  <button
-                    type="button"
-                    onClick={() => handleBrowseSellers(p)}
-                    className="mt-2 inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-medium transition-all bg-primary-dark text-supply-paper hover:bg-primary"
-                  >
-                    Browse Sellers
-                  </button>
+                  
                 </div>
               ))}
             </div>
