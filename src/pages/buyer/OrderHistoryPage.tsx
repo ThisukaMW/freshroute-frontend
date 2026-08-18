@@ -127,6 +127,14 @@ const getPaymentStatusStyle = (status?: string | null): string => {
   }
 };
 
+// Pulls the seller's display name off an order item. Adjust this path if
+// your OrderItem type nests the seller relation differently than
+// item.product.seller.{businessName,user.name}.
+const getSellerName = (item: OrderItem): string => {
+  const seller = (item as any)?.product?.seller;
+  return seller?.businessName || seller?.user?.name || "—";
+};
+
 const isActiveOrder = (status: string): boolean =>
   status !== "DELIVERED" && status !== "CANCELLED" && status !== "FAILED";
 
@@ -347,6 +355,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               <thead className="text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-3 py-2 font-medium">Product</th>
+                  <th className="px-3 py-2 font-medium">Seller</th>
                   <th className="px-3 py-2 font-medium">Quantity</th>
                   <th className="px-3 py-2 font-medium">Unit Price</th>
                   <th className="px-3 py-2 font-medium">Total</th>
@@ -357,6 +366,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                   <tr key={`${order.id}-${item.productId}`}>
                     <td className="px-3 py-2">
                       {item.product?.name || "Product"}
+                    </td>
+                    <td className="px-3 py-2 text-slate-400">
+                      {getSellerName(item)}
                     </td>
                     <td className="px-3 py-2">
                       {item.quantity} {item.product?.unit || ""}
