@@ -71,14 +71,12 @@ export const getStripeDashboardUrl = (gatewayPaymentId: string | null | undefine
   return `${base}/search?query=${encodeURIComponent(gatewayPaymentId)}`;
 };
 
-export const initiateStripeRefund = async (refundId: string) => {
+export const initiateStripeRefund = async (refundId: string): Promise<{ checkoutUrl?: string; paymentId?: string; refundStatus?: string; createdFrom?: string }> => {
+  const response = await apiClient.post<{ checkoutUrl?: string; paymentId?: string; refundStatus?: string; createdFrom?: string }>(
+    `/admin/refunds/${refundId}/initiate`
+  );
 
-    const response = await apiClient.post(
-        `/admin/refunds/${refundId}/initiate`
-    );
-
-    return response.data;
-
+  return response.data;
 };
 
 export default {
