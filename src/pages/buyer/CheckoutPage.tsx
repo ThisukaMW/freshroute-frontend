@@ -245,7 +245,6 @@ const CheckoutPage: React.FC = () => {
       // STEP 2: Create Stripe checkout session
       const paymentRes = await api.post("/payments", {
         orderId: orderResponse?.id,
-        currency: "usd",
       });
 
       const { checkoutUrl } = paymentRes.data;

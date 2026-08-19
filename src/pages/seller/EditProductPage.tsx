@@ -260,11 +260,23 @@ const EditProductPage: React.FC = () => {
     setError(null);
 
     try {
-      const updateData: Record<string, any> = {};
-      if (name.trim() !== "") updateData.name = name.trim();
-      if (price !== null) updateData.price = price;
-      if (stock !== null) updateData.stock = stock;
-      if (imageUrl !== null) updateData.imageUrl = imageUrl;
+      let updateData: Record<string, any> | FormData;
+
+      if (imageMode === "file" && imageFile) {
+        const formData = new FormData();
+        if (name.trim() !== "") formData.append("name", name.trim());
+        if (price !== null) formData.append("price", String(price));
+        if (stock !== null) formData.append("stock", String(stock));
+        formData.append("images", imageFile);
+        updateData = formData;
+      } else {
+        const jsonData: Record<string, any> = {};
+        if (name.trim() !== "") jsonData.name = name.trim();
+        if (price !== null) jsonData.price = price;
+        if (stock !== null) jsonData.stock = stock;
+        if (imageMode === "url" && imageUrl !== null) jsonData.imageUrl = imageUrl;
+        updateData = jsonData;
+      }
 
       await dispatch(updateProduct({ productId: id, productData: updateData })).unwrap();
       setResultModal({

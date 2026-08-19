@@ -49,7 +49,7 @@ type EditableProductFields = {
 
 export const updateProduct = createAsyncThunk<
   { productId: string; updatedProduct: ProductInventory },
-  { productId: string; productData: EditableProductFields },
+  { productId: string; productData: EditableProductFields | FormData },
   { rejectValue: string }
 >(
   "sellerProducts/updateProduct",

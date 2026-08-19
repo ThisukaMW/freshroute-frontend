@@ -3,7 +3,6 @@ import axios from "axios";
 import AdminDateRangeBar, { defaultSinceDate, todayDateInput } from "../../components/admin/AdminDateRangeBar";
 import {
   getRefundById,
-  getStripeDashboardUrl,
   listRefunds,
   updateRefundStatus,
   initiateStripeRefund,
@@ -11,6 +10,8 @@ import {
   type RefundStatus,
 } from "../../api/endpoints/adminRefunds";
 import { formatDisplayDate } from "../../utils/adminDateFilters";
+
+const STRIPE_REFUNDS_URL = "https://dashboard.stripe.com/acct_1T6wuYLaLkoa6g6x/test/payments";
 
 const STATUS_STYLE: Record<string, { text: string; bg: string }> = {
   PENDING: { text: "#78350f", bg: "#fef3c7" },
@@ -45,7 +46,7 @@ const RefundDetailModal: React.FC<{
 }> = ({ refund, onClose, onUpdated }) => {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const stripeUrl = getStripeDashboardUrl(refund.order.payment?.gatewayPaymentId);
+  const [confirmationStatus, setConfirmationStatus] = useState<"PROCESSING" | "FAILED" | null>(null);
 
   const changeStatus = async (status: "PROCESSING" | "COMPLETED" | "FAILED") => {
     setBusy(true);
@@ -64,27 +65,29 @@ const RefundDetailModal: React.FC<{
   };
 
   const handleStripeRefund = async () => {
-  setBusy(true);
-  setActionError(null);
+    setBusy(true);
+    setActionError(null);
 
-  try {
-    await initiateStripeRefund(refund.id);
+    try {
+      const result = await initiateStripeRefund(refund.id);
 
-    // Reload refund details after Stripe refund succeeds
-    const updated = await getRefundById(refund.id);
+      if (result.checkoutUrl) {
+        window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
 
-    onUpdated(updated);
+      const updated = await getRefundById(refund.id);
+      onUpdated(updated);
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message ?? err.message
+        : "Failed to initiate Stripe refund";
 
-  } catch (err) {
-    const message = axios.isAxiosError(err)
-      ? (err.response?.data as { message?: string })?.message ?? err.message
-      : "Failed to initiate Stripe refund";
-
-    setActionError(message);
-  } finally {
-    setBusy(false);
-  }
-};
+      setActionError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const refundReason =
     refund.reason?.trim() ||
@@ -201,34 +204,23 @@ const RefundDetailModal: React.FC<{
           )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700/40">
-            {stripeUrl && (
-              <a
-                href={stripeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors"
-              >
-                Open Stripe payment portal
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            )}
-            {refund.status !== "REFUNDED" && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleStripeRefund}
-                className="rounded-lg bg-purple-600 hover:bg-purple-700 px-4 py-2 text-sm text-white disabled:opacity-50"
-              >
-                Initiate Stripe Refund
-            </button>
-            )}
+            <a
+              href={STRIPE_REFUNDS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              Open Stripe payment portal
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+            
             {refund.status === "PENDING" && (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => changeStatus("PROCESSING")}
+                onClick={() => setConfirmationStatus("PROCESSING")}
                 className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm text-sky-200 hover:bg-sky-500/20 disabled:opacity-50"
               >
                 Mark processing
@@ -249,7 +241,7 @@ const RefundDetailModal: React.FC<{
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => changeStatus("FAILED")}
+                onClick={() => setConfirmationStatus("FAILED")}
                 className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
               >
                 Mark failed
@@ -257,11 +249,56 @@ const RefundDetailModal: React.FC<{
             )}
           </div>
 
-          {!stripeUrl && (
-            <p className="text-xs text-slate-500">
-              No Stripe payment session linked to this order. Process the refund manually if payment was collected offline.
-            </p>
+          {confirmationStatus && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/70"
+                onClick={() => setConfirmationStatus(null)}
+                aria-label="Cancel status confirmation"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="refund-status-confirmation-title"
+                className="relative w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
+              >
+                <h3 id="refund-status-confirmation-title" className="text-base font-semibold text-slate-100">
+                  Confirm refund status change
+                </h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  Are you sure you want to mark order #{refund.order.orderNumber} as {confirmationStatus.toLowerCase()}?
+                </p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setConfirmationStatus(null)}
+                    className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      const status = confirmationStatus;
+                      setConfirmationStatus(null);
+                      await changeStatus(status);
+                    }}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                      confirmationStatus === "FAILED"
+                        ? "bg-red-600 hover:bg-red-500"
+                        : "bg-sky-600 hover:bg-sky-500"
+                    }`}
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
+
         </div>
       </div>
     </div>
@@ -328,7 +365,9 @@ const RefundPage: React.FC = () => {
   };
 
   const pendingCount = refunds.filter((r) => r.status === "PENDING").length;
-  const totalAmount = refunds.reduce((s, r) => s + r.amount, 0);
+  const totalAmount = refunds
+    .filter((r) => r.status === "PENDING" || r.status === "PROCESSING")
+    .reduce((s, r) => s + r.amount, 0);
 
   return (
     <div className="space-y-6 pb-10">
