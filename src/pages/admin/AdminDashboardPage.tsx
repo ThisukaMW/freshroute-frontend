@@ -1,19 +1,19 @@
-import { useSelector, useDispatch } from 'react-redux'
-import { createSelector } from '@reduxjs/toolkit'
 import { useEffect, useState } from 'react'
-import type { RootState } from '../../store'
-import { setProductStatus } from '../../store/slices/sellerProductsSlice'
-import { updateOrderStatus } from '../../store/slices/ordersSlice'
-
-const selectOrders = (state: RootState) => state.orders?.orders ?? []
-
-const selectPendingProducts = createSelector(
-  [(state: RootState) => state.sellerProducts?.products ?? []],
-  (products) => products.filter((p) => p.status === 'pending'),
-)
+import { useNavigate } from 'react-router-dom'
+import { useAuthContext } from '../../context/AuthContext'
 
 const formatLbs = (value: number | null | undefined) =>
   (value ?? 0).toLocaleString()
+
+type PendingProduct = {
+  id: string
+  name: string
+  category?: string | null
+  price?: number | null
+  unit?: string | null
+  createdAt: string
+  seller?: { user?: { name?: string | null } | null } | null
+}
 
 type Truck = {
   id: string
@@ -47,19 +47,13 @@ type Truck = {
   tiltRisk?: string | null
 }
 
-const statusStyles: Record<string, string> = {
-  Preparing: 'border-amber-500/40 bg-amber-500/20 text-amber-300',
-  'On the way': 'border-sky-500/40 bg-sky-500/20 text-sky-300',
-  Delivered: 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300',
-}
-
 const AdminDashboardPage = () => {
-  const orders = useSelector(selectOrders)
-  const pendingProducts = useSelector(selectPendingProducts)
-  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const { token } = useAuthContext()
 
   const [totalUsers, setTotalUsers] = useState<number>(0)
   const [activeVendors, setActiveVendors] = useState<number>(0)
+  const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([])
 
   useEffect(() => {
     fetch('/api/v1/users')
@@ -78,12 +72,29 @@ const AdminDashboardPage = () => {
       })
   }, [])
 
-  const todaysOrders = orders.length
-  const delivered = orders.filter((o: any) => o.status === 'Delivered').length
+  useEffect(() => {
+    if (!token) {
+      setPendingProducts([])
+      return
+    }
 
-  const recentOrders = [...orders]
-    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+    fetch('/api/v1/products/pending', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch pending products')
+        return res.json()
+      })
+      .then((data: PendingProduct[] | { data?: PendingProduct[] }) => {
+        const products = Array.isArray(data) ? data : data.data ?? []
+        setPendingProducts(
+          products
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 6),
+        )
+      })
+      .catch((error) => console.error('Failed to load pending products:', error))
+  }, [token])
 
   // ── Fleet: fetched from the API ────────────────────────────────────────────
   const [fleet, setFleet] = useState<Truck[]>([])
@@ -132,11 +143,10 @@ const AdminDashboardPage = () => {
         <h1 className="mt-2 text-2xl font-semibold text-supply-paper">Platform overview</h1>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {[
           { label: 'Total users', value: totalUsers, helper: 'Buyers + sellers + drivers + field admins' },
           { label: 'Active vendors', value: activeVendors, helper: 'Active seller accounts only' },
-          { label: 'Today orders', value: todaysOrders, helper: `${delivered} delivered` },
           { label: 'Revenue today', value: 'Rs. 540,000', helper: 'Platform gross' },
         ].map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
@@ -147,8 +157,8 @@ const AdminDashboardPage = () => {
         ))}
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+      <section>
+        <div className="w-full rounded-3xl border border-white/10 bg-slate-950/40 p-5">
           <h2 className="text-base font-semibold text-white">Pending product approvals</h2>
           <div className="mt-4 space-y-3 text-sm text-slate-300">
             {pendingProducts.length === 0 && (
@@ -161,76 +171,21 @@ const AdminDashboardPage = () => {
               >
                 <div>
                   <p className="font-semibold text-white">{p.name}</p>
-                  <p className="text-xs text-slate-400">Awaiting seller listing review</p>
+                  <p className="text-xs text-slate-400">
+                    {p.seller?.user?.name ?? 'Seller'} · Awaiting review
+                  </p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <button
-                    className="rounded-full bg-emerald-500/15 px-3 py-1 font-medium text-emerald-300 hover:bg-emerald-500/25"
-                    onClick={() => dispatch(setProductStatus({ id: p.id, status: 'active' }))}
+                    type="button"
+                    className="rounded-full bg-violet-500/15 px-3 py-1 font-medium text-violet-300 hover:bg-violet-500/25"
+                    onClick={() => navigate('/admin/approvals?tab=products')}
                   >
-                    Approve
-                  </button>
-                  <button
-                    className="rounded-full bg-red-500/10 px-3 py-1 font-medium text-red-300 hover:bg-red-500/20"
-                    onClick={() => dispatch(setProductStatus({ id: p.id, status: 'rejected' }))}
-                  >
-                    Reject
+                    Review product
                   </button>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">Recent orders</h2>
-            </div>
-          </div>
-          <div className="mt-3 overflow-x-auto text-xs">
-            <table className="min-w-full text-left text-slate-100">
-              <thead className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Order</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Total</th>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {recentOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-4 text-[11px] text-slate-400">
-                      No orders yet. Complete a buyer checkout to see live orders here.
-                    </td>
-                  </tr>
-                ) : (
-                  recentOrders.map((o: any) => (
-                    <tr key={o.id} className="hover:bg-white/5 transition">
-                      <td className="px-3 py-2 text-slate-300">{o.id}</td>
-                      <td className="px-3 py-2 font-medium text-white">{o.customerName}</td>
-                      <td className="px-3 py-2">Rs. {(o.total ?? 0).toLocaleString('en-LK')}</td>
-                      <td className="px-3 py-2 text-slate-400">
-                        {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="px-3 py-2">
-                        <select
-                          value={o.status}
-                          onChange={(e) => dispatch(updateOrderStatus({ id: o.id, status: e.target.value }))}
-                          className={`rounded-full border px-2 py-0.5 text-[11px] outline-none ${statusStyles[o.status] ?? 'border-white/10 bg-white/5 text-slate-100'}`}
-                        >
-                          <option>Preparing</option>
-                          <option>On the way</option>
-                          <option>Delivered</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
         </div>
       </section>

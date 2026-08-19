@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { usePendingApprovalsContext } from "../../context/PendingApprovalsContext";
 import { LocalStorageService } from "../../services/storage/LocalStorageService";
 
@@ -665,7 +666,10 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
 // ─── Top-level page (tab switcher) ─────────────────────────────────────────────
 
 const PendingApprovalsPage = () => {
-  const [activeTab, setActiveTab]       = useState<PageTab>("accounts");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab]       = useState<PageTab>(
+    searchParams.get("tab") === "products" ? "products" : "accounts"
+  );
   const [accountCount, setAccountCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const token = LocalStorageService.get("fr_token");
