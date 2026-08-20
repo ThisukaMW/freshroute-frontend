@@ -40,7 +40,13 @@ export interface AovTrendPoint {
   refundRate: number
 }
 
+export interface RevenueToday {
+  revenueToday: number
+  paidOrdersToday: number
+}
+
 export interface AdminAnalyticsData {
+  revenueToday:      RevenueToday
   revenueTrend:      RevenueTrendPoint[]
   revenueBySeller:   SellerRevenuePoint[]
   categoryBreakdown: CategoryPoint[]

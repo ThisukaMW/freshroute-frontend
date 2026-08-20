@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../../context/AuthContext'
+import { getAdminAnalytics } from '../../api/endpoints/adminAnalytics'
 
 const formatLbs = (value: number | null | undefined) =>
   (value ?? 0).toLocaleString()
+
+const formatRevenue = (value: number | null) =>
+  value == null ? '—' : `Rs. ${value.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 type PendingProduct = {
   id: string
@@ -54,6 +58,13 @@ const AdminDashboardPage = () => {
   const [totalUsers, setTotalUsers] = useState<number>(0)
   const [activeVendors, setActiveVendors] = useState<number>(0)
   const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([])
+  const [revenueToday, setRevenueToday] = useState<number | null>(null)
+
+  useEffect(() => {
+    getAdminAnalytics('daily')
+      .then((data) => setRevenueToday(data.revenueToday.revenueToday))
+      .catch((error) => console.error('Failed to load revenue today:', error))
+  }, [])
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/api/v1/users`, {
@@ -149,7 +160,7 @@ const AdminDashboardPage = () => {
         {[
           { label: 'Total users', value: totalUsers, helper: 'Buyers + sellers + drivers + field admins' },
           { label: 'Active vendors', value: activeVendors, helper: 'Active seller accounts only' },
-          { label: 'Revenue today', value: 'Rs. 540,000', helper: 'Platform gross' },
+          { label: 'Revenue today', value: formatRevenue(revenueToday), helper: 'Platform gross' },
         ].map((metric) => (
           <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
             <p className="text-xs text-slate-300">{metric.label}</p>
