@@ -466,7 +466,7 @@ const UserManagementPage: React.FC = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
-    fetch("/api/v1/users")
+    fetch(`${API_BASE}/api/v1/users`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch users");
         return res.json();
@@ -485,7 +485,7 @@ const UserManagementPage: React.FC = () => {
 
   const handleRoleChange = async (id: string, newRole: UserRole) => {
     try {
-      const res = await fetch(`/api/v1/users/${id}/role`, {
+      const res = await fetch(`${API_BASE}/api/v1/users/${id}/role`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),

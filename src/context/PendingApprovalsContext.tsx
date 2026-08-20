@@ -27,10 +27,10 @@ export const PendingApprovalsProvider = ({ children }: { children: React.ReactNo
     if (!token || user?.role?.toLowerCase() !== "admin") return;
     try {
         const [usersRes, productsRes] = await Promise.all([
-        fetch("/api/v1/admin/users/pending", {
+        fetch(`${import.meta.env.VITE_API_URL}/api/v1/admin/users/pending`, {
             headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("/api/v1/products/pending", {
+        fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/pending`, {
             headers: { Authorization: `Bearer ${token}` },
         }),
         ]);

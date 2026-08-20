@@ -56,7 +56,9 @@ const AdminDashboardPage = () => {
   const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([])
 
   useEffect(() => {
-    fetch('/api/v1/users')
+    fetch(`${import.meta.env.VITE_API_URL}/api/v1/users`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch users')
         return res.json()
@@ -78,7 +80,7 @@ const AdminDashboardPage = () => {
       return
     }
 
-    fetch('/api/v1/products/pending', {
+    fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/pending`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
@@ -101,7 +103,7 @@ const AdminDashboardPage = () => {
   const [fleetLoading, setFleetLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/v1/trucks')
+    fetch(`${import.meta.env.VITE_API_URL}/api/v1/trucks`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch fleet')
         return res.json()

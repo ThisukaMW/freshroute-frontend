@@ -211,7 +211,7 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/v1/admin/users/pending", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/admin/users/pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) throw new Error("Session expired. Please sign in again as admin.");
@@ -235,7 +235,7 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
   const handleApprove = async (userId: string) => {
     setApprovingId(userId);
     try {
-      const res = await fetch(`/api/v1/admin/users/${userId}/approve`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/admin/users/${userId}/approve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -268,7 +268,7 @@ const AccountsSection = ({ token, onCountChange }: { token: string | null; onCou
     if (!rejectTarget) return;
     setIsRejecting(true);
     try {
-      const res = await fetch(`/api/v1/admin/users/${rejectTarget.id}/reject`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/admin/users/${rejectTarget.id}/reject`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
@@ -459,7 +459,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/v1/products/pending", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch pending products");
@@ -479,7 +479,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
   const handleApprove = async (productId: string) => {
     setApprovingId(productId);
     try {
-      const res = await fetch(`/api/v1/products/${productId}/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/${productId}/status`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status: "APPROVED" }),
@@ -513,7 +513,7 @@ const ProductsSection = ({ token, onCountChange }: { token: string | null; onCou
     if (!rejectTarget) return;
     setIsRejecting(true);
     try {
-      const res = await fetch(`/api/v1/products/${rejectTarget.id}/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/${rejectTarget.id}/status`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ status: "REJECTED", reason }),

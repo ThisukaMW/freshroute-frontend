@@ -46,7 +46,7 @@ export function useFcm(authToken: string | null) {
 
         if (!fcmToken) return;
 
-        await fetch("/api/v1/notifications/fcm-token", {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/v1/notifications/fcm-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

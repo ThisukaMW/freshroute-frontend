@@ -34,7 +34,7 @@ const gridColors = [
 ];
 
 async function fetchFleet(): Promise<Truck[]> {
-  const res = await fetch("/api/v1/trucks");
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/trucks`);
   if (!res.ok) throw new Error(`Failed to fetch fleet (${res.status})`);
   return res.json();
 }
@@ -182,7 +182,7 @@ const TruckCapacityPage = () => {
     async (delta: number) => {
       if (!selectedTruck) return;
       try {
-        const res = await fetch(`/api/v1/trucks/${selectedTruck.id}/pallets`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/trucks/${selectedTruck.id}/pallets`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ delta }),
@@ -209,7 +209,7 @@ const TruckCapacityPage = () => {
     const { id, operator } = pendingDelete;
     setPendingDelete(null);
     try {
-      const res = await fetch(`/api/v1/trucks/${id}`, { method: "DELETE" });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/trucks/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
       setUserFleet((prev) => {
         const remaining = prev.filter((t) => t.id !== id);

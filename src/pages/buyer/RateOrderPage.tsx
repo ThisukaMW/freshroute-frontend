@@ -58,7 +58,7 @@ const RateOrderPage = (): JSX.Element => {
       const delivery  = categories.find(c => c.id === 'delivery')?.rating  ?? 0
       const packaging = categories.find(c => c.id === 'packaging')?.rating ?? 0
 
-      const res = await fetch('/api/v1/ratings', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/rating`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

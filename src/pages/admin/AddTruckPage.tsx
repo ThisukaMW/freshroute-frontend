@@ -212,7 +212,7 @@ const AddTruckPage = () => {
     setApiError(null);
 
     try {
-      const res = await fetch("/api/v1/trucks", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/trucks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
