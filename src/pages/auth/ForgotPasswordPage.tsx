@@ -32,7 +32,7 @@ const ForgotPasswordPage = (): JSX.Element => {
 
     try {
       // Send the email to the backend — backend will email a reset link to that address
-      const res = await fetch('http://localhost:5000/api/v1/auth/forgot-password', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

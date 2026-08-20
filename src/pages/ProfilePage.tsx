@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuthContext } from '../context/AuthContext'
 import MapAddressPicker from '../components/MapAddressPicker'
 
-const API = 'http://localhost:5000/api/v1/profile'  
+const API = `${import.meta.env.VITE_API_URL}/api/v1/profile`
 
 // ─── Types ────────────────────────────────────────────────────────
 
