@@ -12,6 +12,8 @@ interface FormErrors {
   description?: string;
   price?: string;
   stock?: string;
+  unitWeight?: string;
+  unitVolume?: string;
   image?: string;
 }
 
@@ -28,6 +30,8 @@ function validate(fields: {
   description: string;
   price: number;
   stock: number;
+  unitWeight: number;
+  unitVolume: number;
   image: File | null;
 }): FormErrors {
   const errors: FormErrors = {};
@@ -76,6 +80,22 @@ function validate(fields: {
     errors.stock = "Stock must be a whole number greater than 0.";
   } else if (fields.stock > 100_000) {
     errors.stock = "Stock quantity seems too high. Please double-check.";
+  }
+
+  if (String(fields.unitWeight) === "" || fields.unitWeight === 0) {
+    errors.unitWeight = "Weight per unit is required.";
+  } else if (isNaN(fields.unitWeight) || fields.unitWeight < 0) {
+    errors.unitWeight = "Weight must be 0 or greater.";
+  } else if (fields.unitWeight > 10_000) {
+    errors.unitWeight = "Weight seems too high. Please double-check.";
+  }
+
+  if (String(fields.unitVolume) === "" || fields.unitVolume === 0) {
+    errors.unitVolume = "Volume per unit is required.";
+  } else if (isNaN(fields.unitVolume) || fields.unitVolume < 0) {
+    errors.unitVolume = "Volume must be 0 or greater.";
+  } else if (fields.unitVolume > 10_000) {
+    errors.unitVolume = "Volume seems too high. Please double-check.";
   }
 
   if (fields.image) {
@@ -279,6 +299,8 @@ const AddProductPage: React.FC = () => {
   const [price, setPrice] = useState<number | "">("");
   const [unit, setUnit] = useState("");
   const [stock, setStock] = useState<number | "">("");
+  const [unitWeight, setUnitWeight] = useState<number | "">("");
+  const [unitVolume, setUnitVolume] = useState<number | "">("");
   const [description, setDescription] = useState("");
 
   // Product type options — distinct product names already in the catalog
@@ -337,6 +359,8 @@ const AddProductPage: React.FC = () => {
     description,
     price: price === "" ? 0 : (price as number),
     stock: stock === "" ? -1 : (stock as number),
+    unitWeight: unitWeight === "" ? 0 : (unitWeight as number),
+    unitVolume: unitVolume === "" ? 0 : (unitVolume as number),
     image,
   });
 
@@ -367,7 +391,8 @@ const AddProductPage: React.FC = () => {
 
     setTouched({
       name: true, productType: true, category: true, unit: true,
-      description: true, price: true, stock: true, image: true,
+      description: true, price: true, stock: true,
+      unitWeight: true, unitVolume: true, image: true,
     });
 
     const validationErrors = validate(currentFields());
@@ -387,6 +412,8 @@ const AddProductPage: React.FC = () => {
       formData.append("price", String(price));
       formData.append("unit", unit);
       formData.append("stock", String(stock));
+      formData.append("unitWeight", String(unitWeight));
+      formData.append("unitVolume", String(unitVolume));
       if (image) formData.append("images", image);
 
       const response = await createSellerProduct(formData);
@@ -646,6 +673,53 @@ const AddProductPage: React.FC = () => {
                 className={inputClass("stock")}
               />
               {touched.stock && <FieldError message={errors.stock} />}
+            </div>
+          </div>
+
+          {/* WEIGHT + VOLUME */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-200">
+                Weight per unit (kg) <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={unitWeight}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? "" : Number(e.target.value);
+                  setUnitWeight(val);
+                  if (touched.unitWeight)
+                    setErrors(validate({ ...currentFields(), unitWeight: val === "" ? 0 : (val as number) }));
+                }}
+                onBlur={() => touch("unitWeight")}
+                placeholder="0.00"
+                className={inputClass("unitWeight")}
+              />
+              {touched.unitWeight && <FieldError message={errors.unitWeight} />}
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-200">
+                Volume per unit <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={unitVolume}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? "" : Number(e.target.value);
+                  setUnitVolume(val);
+                  if (touched.unitVolume)
+                    setErrors(validate({ ...currentFields(), unitVolume: val === "" ? 0 : (val as number) }));
+                }}
+                onBlur={() => touch("unitVolume")}
+                placeholder="0.00"
+                className={inputClass("unitVolume")}
+              />
+              {touched.unitVolume && <FieldError message={errors.unitVolume} />}
             </div>
           </div>
 
