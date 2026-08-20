@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { clearCart } from "../../store/slices/cartSlice";
 import { getCart } from "../../api/endpoints/cart";
 import {
   getBuyerAddresses,
@@ -13,7 +12,7 @@ import AddressSelector from "../../components/checkout/AddressSelector";
 import TimeSlotSelector from "../../components/checkout/TimeSlotSelector";
 import SpecialInstructions from "../../components/checkout/SpecialInstructions";
 import { getReservationStatus } from "../../utils/reservationUtils";
-import type { RootState, AppDispatch } from "../../store";
+import type { RootState } from "../../store";
 import { useNotificationContext } from "../../context/NotificationContext";
 
 interface Address {
@@ -45,7 +44,6 @@ const formatCurrency = (value: number): string =>
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
   const items = useSelector((state: RootState) => state.cart.items);
   const { addNotification } = useNotificationContext();
   const [state, setState] = useState<CheckoutState>({
@@ -237,11 +235,11 @@ const CheckoutPage: React.FC = () => {
         data: { type: "ORDER_PLACED" },
       });
 
-      // Clear cart and redirect to order confirmation
-      dispatch(clearCart());
-      navigate("/buyer/order-confirmation", {
-        state: { orderId: orderResponse.id },
-      });
+      // Cart is intentionally left alone here — the order isn't paid yet.
+      // It only gets cleared once the buyer actually completes payment on
+      // Stripe's page (see PaymentSuccessPage, which clears it after
+      // confirming the order is PAID).
+
       // STEP 2: Create Stripe checkout session
       const paymentRes = await api.post("/payments", {
         orderId: orderResponse?.id,
@@ -250,9 +248,8 @@ const CheckoutPage: React.FC = () => {
       const { checkoutUrl } = paymentRes.data;
       if (!checkoutUrl) throw new Error("Failed to get payment URL. Please try again.");
 
-      // STEP 3: Clear cart and redirect
+      // STEP 3: Redirect to Stripe
       setOrderCompleted(true);
-      // dispatch(clearCart());
       window.location.href = checkoutUrl;
 
     } catch (err: unknown) {

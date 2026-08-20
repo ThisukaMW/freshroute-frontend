@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import jsPDF from "jspdf";
+import { clearCart } from "../../store/slices/cartSlice";
+import type { AppDispatch } from "../../store";
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +52,11 @@ export default function PaymentSuccessPage() {
         }
 
         setOrder(paid);
+        // The backend also clears the cart via the Stripe webhook, but
+        // that's async relative to this redirect — clear it here too so
+        // the buyer doesn't see stale items if they land on /buyer/cart
+        // before the webhook lands.
+        dispatch(clearCart());
       } catch (fetchError) {
         setError(
           fetchError instanceof Error
