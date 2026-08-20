@@ -59,47 +59,6 @@ const getOrderTimeline = (
   return { timeline, stage };
 };
 
-const formatStatus = (status: string): string => {
-  const statusMap: Record<string, string> = {
-    PENDING: "Pending",
-    PAYMENT_PENDING: "Payment pending",
-    PAYMENT_FAILED: "Payment failed",
-    PAID: "Paid",
-    BATCHED: "Batched",
-    ASSIGNED: "Assigned",
-    CONFIRMED: "Confirmed",
-    PACKING: "Packing",
-    READY_PICKUP: "Ready for pickup",
-    ON_THE_WAY: "On the way",
-    IN_TRANSIT: "In transit",
-    DELIVERED: "Delivered",
-    FAILED: "Failed",
-    CANCELLED: "Cancelled",
-  };
-  return statusMap[status] || status;
-};
-
-const getOrderStatusStyle = (status: string): string => {
-  switch (status) {
-    case "DELIVERED":
-      return "bg-emerald-500/10 text-emerald-300";
-    case "CANCELLED":
-    case "FAILED":
-      return "bg-red-500/10 text-red-300";
-    case "ON_THE_WAY":
-    case "IN_TRANSIT":
-      return "bg-blue-500/10 text-blue-300";
-    case "ASSIGNED":
-    case "BATCHED":
-    case "PACKING":
-    case "READY_PICKUP":
-    case "CONFIRMED":
-      return "bg-amber-500/10 text-amber-300";
-    default:
-      return "bg-slate-500/10 text-slate-300";
-  }
-};
-
 const formatPaymentStatus = (status?: string | null): string => {
   if (!status) return "No payment info";
   const statusMap: Record<string, string> = {

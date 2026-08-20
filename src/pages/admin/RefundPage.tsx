@@ -5,7 +5,6 @@ import {
   getRefundById,
   listRefunds,
   updateRefundStatus,
-  initiateStripeRefund,
   type RefundListItem,
   type RefundStatus,
 } from "../../api/endpoints/adminRefunds";
@@ -58,31 +57,6 @@ const RefundDetailModal: React.FC<{
       const message = axios.isAxiosError(err)
         ? (err.response?.data as { message?: string })?.message ?? err.message
         : "Failed to update refund";
-      setActionError(message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleStripeRefund = async () => {
-    setBusy(true);
-    setActionError(null);
-
-    try {
-      const result = await initiateStripeRefund(refund.id);
-
-      if (result.checkoutUrl) {
-        window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
-        return;
-      }
-
-      const updated = await getRefundById(refund.id);
-      onUpdated(updated);
-    } catch (err) {
-      const message = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message ?? err.message
-        : "Failed to initiate Stripe refund";
-
       setActionError(message);
     } finally {
       setBusy(false);

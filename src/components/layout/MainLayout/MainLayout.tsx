@@ -10,7 +10,6 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { Button } from "../../common/Button/Button";
 import NotificationBell from "../../NotificationBell";
-import { useNotificationContext } from "../../../context/NotificationContext";
 import { usePendingApprovalsContext } from "../../../context/PendingApprovalsContext";
 import DeliveryRatingListener from "../../DeliveryRatingListener";
 
@@ -91,7 +90,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ role, children, hideSide
 
   /* nav and profile links for the current role */
   const navItems = navByRole[role] ?? [];
-  const { notifications } = useNotificationContext();
   const { pendingCount: pendingApprovalsCount } = usePendingApprovalsContext();
   const profileNavItems = profileNavByRole[role] ?? [];
 
