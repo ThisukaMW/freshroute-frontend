@@ -472,7 +472,6 @@ const OrderManagementPage: React.FC = () => {
                           {formatTime(batch.timeWindowStart)} – {formatTime(batch.timeWindowEnd)}
                         </p>
                       </div>
-                      <StatusBadge label={cfg.label} colors={{ text: cfg.text, bg: cfg.bg }} />
                       <Chevron open={isOpen} />
                     </button>
 

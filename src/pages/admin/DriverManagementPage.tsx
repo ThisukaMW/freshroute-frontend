@@ -72,6 +72,14 @@ const DriverManagementPage = () => {
     setSuccessMessage(null);
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: digitsOnly }));
+    if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+    setApiError(null);
+    setSuccessMessage(null);
+  };
+
   const setRole = (role: StaffRole) => {
     setForm((prev) => ({ ...prev, role }));
     setErrors({});
@@ -82,8 +90,15 @@ const DriverManagementPage = () => {
   const validate = (): FormErrors => {
     const e: FormErrors = {};
     if (!form.name.trim()) e.name = "Name is required";
+    else if (!/^[A-Za-z\s]+$/.test(form.name.trim())) e.name = "Name can only contain letters and spaces";
+
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Enter a valid email address";
+
+    if (form.phone.trim() && !/^\d{10}$/.test(form.phone.trim())) {
+      e.phone = "Phone number must be exactly 10 digits";
+    }
+
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 8) e.password = "Password must be at least 8 characters";
 
@@ -221,9 +236,12 @@ const DriverManagementPage = () => {
               <Field label="Phone (optional)" error={errors.phone}>
                 <input
                   name="phone"
-                  placeholder="e.g. +94771234567"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="e.g. 0771234567"
+                  maxLength={10}
                   value={form.phone}
-                  onChange={handleChange}
+                  onChange={handlePhoneChange}
                   className={inputBase(!!errors.phone)}
                 />
               </Field>

@@ -51,9 +51,6 @@ const VendorProductsPage = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="rounded-xl border border-white/20 px-4 py-2 text-xs font-medium text-slate-100 hover:border-emerald-400">
-            Export
-          </button>
           <button
             className="rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white hover:bg-primary-dark"
             onClick={() => navigate("/seller/products/add")}
