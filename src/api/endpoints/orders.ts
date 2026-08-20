@@ -83,6 +83,27 @@ export interface Order {
   updatedAt: string
 }
 
+export interface OrderTracking {
+  available: boolean
+  status: OrderStatus
+  driver?: {
+    name: string
+    phone: string
+    vehicleNumber: string | null
+    vehicleType: string | null
+  }
+  driverLocation?: {
+    latitude: number
+    longitude: number
+    updatedAt: string | null
+  }
+  destination?: {
+    latitude: number
+    longitude: number
+    address: string
+  }
+}
+
 export interface SellerStats {
   totalOrders: number
   ordersToday: number
@@ -179,6 +200,17 @@ export const getBuyerOrderById = async (orderId: string): Promise<Order> => {
     console.error(`❌ Failed to fetch buyer order:`, error)
     throw error
   }
+}
+
+/**
+ * GET /orders/:id/tracking
+ * Get live driver location for an order — works for the buyer who placed it
+ * or a seller with items in it. Only returns a driver position once the
+ * order is actually IN_TRANSIT.
+ */
+export const getOrderTracking = async (orderId: string): Promise<OrderTracking> => {
+  const response = await apiClient.get(`/orders/${orderId}/tracking`)
+  return response.data
 }
 
 /**

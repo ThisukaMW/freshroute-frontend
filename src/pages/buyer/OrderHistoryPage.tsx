@@ -5,6 +5,7 @@ import {
   type OrderItem,
 } from "../../api/endpoints/orders";
 import { useAuth } from "../../hooks/useAuth";
+import OrderTrackingMap from "../../components/OrderTrackingMap";
 
 interface HighlightedItem extends OrderItem {
   orderId: string;
@@ -311,6 +312,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Live tracking map — only relevant once the order is actually out for delivery */}
+        {order.status === "IN_TRANSIT" && (
+          <div className="mt-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+              Live tracking
+            </p>
+            <OrderTrackingMap orderId={order.id} />
+          </div>
+        )}
 
         {/* Delivery info */}
         <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm">

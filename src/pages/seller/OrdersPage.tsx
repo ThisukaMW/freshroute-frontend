@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getSellerOrders, getSellerStats, type Order as SellerOrder, type SellerStats, type OrderStatus } from "../../api/endpoints/orders";
 import { useAuth } from "../../hooks/useAuth";
+import OrderTrackingMap from "../../components/OrderTrackingMap";
 
 // ============= HELPERS =============
 
@@ -136,6 +137,16 @@ const OrderDetailsModal: React.FC<{
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Live tracking map — only relevant once the order is actually out for delivery */}
+        {order.status === "IN_TRANSIT" && (
+          <div className="mt-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+              Live tracking
+            </p>
+            <OrderTrackingMap orderId={order.id} />
           </div>
         )}
 
