@@ -1,7 +1,19 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { cancelOrder } from "../../api/endpoints/orders";
 
 export default function PaymentCancelPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (!orderId) return;
+    cancelOrder(orderId).catch((err) => {
+      // Non-fatal — the buyer still sees a normal cancel screen either way.
+      console.error("Failed to clean up unpaid order:", err);
+    });
+  }, [searchParams]);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }}>

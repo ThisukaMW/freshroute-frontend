@@ -258,3 +258,20 @@ export const createOrder = async (
     throw error
   }
 }
+
+/**
+ * POST /orders/:id/cancel
+ * Called when the buyer lands back on /payment-cancel without paying —
+ * deletes the unpaid order and restores the stock that was deducted.
+ */
+export const cancelOrder = async (orderId: string): Promise<{ cancelled: boolean }> => {
+  try {
+    console.log(`🔄 Cancelling unpaid order ${orderId}...`)
+    const response = await apiClient.post(`/orders/${orderId}/cancel`)
+    console.log('✅ Order cancelled:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('❌ Failed to cancel order:', error)
+    throw error
+  }
+}
