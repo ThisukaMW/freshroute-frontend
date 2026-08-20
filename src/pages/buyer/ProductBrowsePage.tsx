@@ -7,7 +7,7 @@ import CartPopup from '../../components/cart/CartPopup'
 const ProductBrowsePage = () => {
 
   const [activeCategory, setActiveCategory] = useState('All')
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 500 })
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 })
   const [sortBy, setSortBy] = useState('recommended')
   const [searchQuery, setSearchQuery] = useState('')  // ← NEW: Search state
   const [minRating, setMinRating] = useState<number | null>(null)  // ← NEW: Minimum rating state

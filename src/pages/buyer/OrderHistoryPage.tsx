@@ -135,6 +135,26 @@ const getSellerName = (item: OrderItem): string => {
   return seller?.businessName || seller?.user?.name || "—";
 };
 
+// Works out subtotal/tax to show above the total. Prefers an explicit
+// order.tax field if the API provides one; otherwise derives tax as the
+// difference between totalAmount and the sum of the line items, which
+// covers backends that only return a final total.
+const getOrderTaxBreakdown = (
+  order: Order,
+): { subtotal: number; tax: number } => {
+  const subtotal = order.items.reduce(
+    (sum, item) => sum + (item.totalPrice || 0),
+    0,
+  );
+  const explicitTax = (order as any)?.tax;
+  const tax =
+    typeof explicitTax === "number"
+      ? explicitTax
+      : Math.max((order.totalAmount || 0) - subtotal, 0);
+
+  return { subtotal, tax };
+};
+
 const isActiveOrder = (status: string): boolean =>
   status !== "DELIVERED" && status !== "CANCELLED" && status !== "FAILED";
 
@@ -164,15 +184,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick }) => {
           </p>
         </div>
 
-        {/* Order status + payment status badges */}
+        {/* Payment status badge */}
         <div className="flex flex-col items-end gap-1.5">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${getOrderStatusStyle(
-              order.status,
-            )}`}
-          >
-            {formatStatus(order.status)}
-          </span>
           <span
             className={`rounded-full px-3 py-1 text-xs font-medium ${getPaymentStatusStyle(
               order.payment?.status,
@@ -243,6 +256,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onClose,
 }) => {
   const { timeline, stage } = getOrderTimeline(order.status);
+  const { subtotal, tax } = getOrderTaxBreakdown(order);
 
   return (
     <div
@@ -272,15 +286,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </button>
         </div>
 
-        {/* Status badges */}
+        {/* Payment badge */}
         <div className="mt-4 flex flex-wrap gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${getOrderStatusStyle(
-              order.status,
-            )}`}
-          >
-            Order: {formatStatus(order.status)}
-          </span>
           <span
             className={`rounded-full px-3 py-1 text-xs font-medium ${getPaymentStatusStyle(
               order.payment?.status,
@@ -386,11 +393,22 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Total */}
-        <div className="mt-4 flex justify-end border-t border-white/10 pt-4">
-          <p className="text-base font-semibold text-white">
-            Total: Rs. {order.totalAmount?.toFixed(2) || "0.00"}
-          </p>
+        {/* Subtotal / Tax / Total */}
+        <div className="mt-4 space-y-1.5 border-t border-white/10 pt-4">
+          <div className="flex justify-end gap-6 text-sm text-slate-400">
+            <span>Subtotal</span>
+            <span className="w-24 text-right">Rs. {subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-end gap-6 text-sm text-slate-400">
+            <span>Tax</span>
+            <span className="w-24 text-right">Rs. {tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-end gap-6 text-base font-semibold text-white">
+            <span>Total</span>
+            <span className="w-24 text-right">
+              Rs. {order.totalAmount?.toFixed(2) || "0.00"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

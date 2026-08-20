@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
+import { clearCart as clearCartApi } from "../../api/endpoints/cart";
+import { clearCart as clearCartLocal } from "../../store/slices/cartSlice";
+import { useDispatch } from "react-redux";
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +52,12 @@ export default function PaymentSuccessPage() {
         }
 
         setOrder(paid);
+        try {
+          await clearCartApi();
+          dispatch(clearCartLocal());
+        } catch (clearError) {
+          console.error("Failed to clear cart after payment success:", clearError);
+        }
       } catch (fetchError) {
         setError(
           fetchError instanceof Error
