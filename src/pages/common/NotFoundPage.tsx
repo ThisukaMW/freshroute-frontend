@@ -21,7 +21,7 @@ const NotFoundPage: React.FC = () => {
           to="/buyer"
           className="rounded-xl border border-slate-600 px-4 py-2 font-medium text-slate-200 hover:bg-slate-900"
         >
-          Buyer dashboard (demo)
+          Buyer dashboard
         </Link>
       </div>
     </div>

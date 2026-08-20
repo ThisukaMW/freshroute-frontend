@@ -87,9 +87,9 @@ const VendorDashboardPage = () => {
               : "Loading..."}
           </h1>
 
-          <p className="mt-1 text-sm text-slate-300">
+          {/* <p className="mt-1 text-sm text-slate-300">
             Monitor product health, live deliveries and margin in a single view.
-          </p>
+          </p> */}
         </div>
         <div className="flex gap-3">
           <Link
@@ -128,67 +128,57 @@ const VendorDashboardPage = () => {
         </div>
       )}
 
-      {/* ── Metric cards ────────────────────────────────────────────────── */}
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
-            >
-              <div className="h-4 w-20 animate-pulse rounded bg-white/20" />
-              <div className="mt-2 h-8 w-32 animate-pulse rounded bg-white/20" />
-              <div className="mt-2 h-3 w-24 animate-pulse rounded bg-white/20" />
-            </div>
-          ))}
-        </div>
-      ) : metrics ? (
-        <section className="grid gap-4 grid-cols-1 md:grid-cols-3">
-          {[
-            metrics.ordersToday,
-            metrics.revenueToday,
-            metrics.fulfillmentSLA,
-          ].map((metric) => (
-            <div
-              key={metric.label}
-              className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
-            >
-              <p className="text-xs text-slate-300">{metric.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-supply-paper">
-                {metric.value}
-              </p>
-              <p className="text-xs text-slate-400">{metric.helper}</p>
-            </div>
-          ))}
-        </section>
-      ) : null}
+ {/* ── Metric cards ────────────────────────────────────────────────── */}
+{loading ? (
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {[1, 2, 3].map((i) => (
+      <div
+        key={i}
+        className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
+      >
+        <div className="h-4 w-20 animate-pulse rounded bg-white/20" />
+        <div className="mt-2 h-8 w-32 animate-pulse rounded bg-white/20" />
+        <div className="mt-2 h-3 w-24 animate-pulse rounded bg-white/20" />
+      </div>
+    ))}
+  </div>
+) : metrics ? (
+  <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
+    {/* Orders Today */}
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+      <p className="text-xs text-slate-300">
+        {metrics.ordersToday.label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold text-supply-paper">
+        {metrics.ordersToday.value}
+      </p>
+
+      <p className="text-xs text-slate-400">
+        {metrics.ordersToday.helper}
+      </p>
+    </div>
+
+    {/* Sales Today */}
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+      <p className="text-xs text-slate-300">
+        Sales Today
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold text-supply-paper">
+        {metrics.revenueToday.value}
+      </p>
+
+      <p className="text-xs text-slate-400">
+        {metrics.revenueToday.helper}
+      </p>
+    </div>
+  </section>
+) : null}
 
       {/* ── Telemetry + Low stock ────────────────────────────────────────── */}
       <section className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-        {/* Live delivery telemetry */}
-        <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                Live delivery telemetry
-              </h2>
-              <p className="text-xs text-slate-400">
-                Track every rider and cold-chain checkpoint
-              </p>
-            </div>
-            <Link
-              to="/seller/tracking"
-              className="text-xs font-medium text-primary hover:text-primary-light"
-            >
-              Open map view
-            </Link>
-          </div>
-          <div className="mt-5 rounded-2xl border border-white/5 bg-white/5 px-4 py-8">
-            <p className="text-center text-sm text-slate-400">
-              Live tracking data coming soon...
-            </p>
-          </div>
-        </div>
+        
 
         {/* Low stock alerts */}
         <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/40 p-5">

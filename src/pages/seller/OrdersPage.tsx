@@ -408,8 +408,8 @@ const OrdersPage: React.FC = () => {
         <section className="grid gap-4 md:grid-cols-4">
           <StatCard label="Total orders" value={stats.totalOrders} sub="All time" />
           <StatCard label="Orders today" value={stats.ordersToday} sub="Since midnight" highlight={stats.ordersToday > 0 ? "amber" : undefined} />
-          <StatCard label="Revenue today" value={`Rs. ${stats.revenueToday.toFixed(2)}`} sub="From your items" />
-          <StatCard label="Total revenue" value={`Rs. ${stats.totalRevenue.toFixed(2)}`} sub="All time earnings" />
+          <StatCard label="Sales today" value={`Rs. ${stats.revenueToday.toFixed(2)}`} sub="From your items" />
+          <StatCard label="Total Sales" value={`Rs. ${stats.totalRevenue.toFixed(2)}`} sub="All time earnings" />
         </section>
       )}
 
